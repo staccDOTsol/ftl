@@ -167,7 +167,10 @@ async function processLogs(logs: Log[], at: ((bn: number) => number) | null) {
   await ensureDecimals(tokensNeeded)
   if (pricesNeeded.length) await ensurePrices(pricesNeeded).catch(() => {})
 
+  let processed = 0
   for (const [hash, group] of byTx) {
+    // backfill chunks hold thousands of txs: let the API breathe between batches
+    if (++processed % 100 === 0) await new Promise(r => setImmediate(r))
     const wallet = from.get(hash) ?? ZERO
     const registered = new Set(group.filter(l => l.topics[0] === T.PoolRegistered).map(l => l.topics[1].toLowerCase()))
     for (const l of group) {
