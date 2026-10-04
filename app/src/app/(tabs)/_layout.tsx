@@ -1,24 +1,21 @@
-import { Text, type ColorValue } from 'react-native'
 import { Tabs } from 'expo-router'
-import { C, F } from '@/theme'
-
-const icon = (glyph: string) => ({ color }: { color: ColorValue }) => <Text style={{ color, fontSize: 18, fontFamily: F.monoBold, lineHeight: 22 }}>{glyph}</Text>
+import { C } from '@/theme'
+import { NavBar, useWide } from '@/components/NavBar'
 
 export default function TabsLayout() {
+  const wide = useWide()
   return (
-    <Tabs screenOptions={{
+    <Tabs tabBar={(p) => <NavBar {...p} />} screenOptions={{
       headerShown: false,
-      tabBarActiveTintColor: C.accent,
-      tabBarInactiveTintColor: C.faint,
-      tabBarStyle: { backgroundColor: C.bg, borderTopColor: C.line },
-      tabBarLabelStyle: { fontFamily: F.bodyMedium, fontSize: 11 },
+      tabBarPosition: wide ? 'left' : 'bottom',
       sceneStyle: { backgroundColor: C.bg },
+      animation: 'fade',
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Live', tabBarIcon: icon('◉') }} />
-      <Tabs.Screen name="signals" options={{ title: 'Signals', tabBarIcon: icon('▲') }} />
-      <Tabs.Screen name="following" options={{ title: 'Following', tabBarIcon: icon('♥') }} />
-      <Tabs.Screen name="leaders" options={{ title: 'Leaders', tabBarIcon: icon('★') }} />
-      <Tabs.Screen name="me" options={{ title: 'You', tabBarIcon: icon('●') }} />
+      <Tabs.Screen name="index" options={{ title: 'Live' }} />
+      <Tabs.Screen name="signals" options={{ title: 'Signals' }} />
+      <Tabs.Screen name="following" options={{ title: 'Following' }} />
+      <Tabs.Screen name="leaders" options={{ title: 'Leaders' }} />
+      <Tabs.Screen name="me" options={{ title: 'You' }} />
     </Tabs>
   )
 }

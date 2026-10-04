@@ -20,6 +20,27 @@ export interface NTx {
 }
 
 export const WSOL = 'So11111111111111111111111111111111111111112'
+
+// launch instructions carry the token's name, symbol and metadata uri in their args:
+// FTL names a token the moment it is created, before any indexer has seen it
+function borshStr(d: Uint8Array, o: { i: number }): string {
+  const n = d[o.i] | (d[o.i + 1] << 8) | (d[o.i + 2] << 16) | (d[o.i + 3] << 24)
+  o.i += 4
+  if (n < 0 || n > 400 || o.i + n > d.length) throw new Error('bad string')
+  const s = Buffer.from(d.subarray(o.i, o.i + n)).toString('utf8').replace(/\0/g, '').trim()
+  o.i += n
+  return s
+}
+function launchMeta(venue: string, name: string, data: Uint8Array): RawEvent['meta'] {
+  try {
+    const o = { i: 8 }
+    let decimals: number | undefined
+    if (venue === 'raydium-launchlab') decimals = data[o.i++]
+    else if (venue !== 'pumpfun' && venue !== 'meteora-dbc') return undefined
+    if (venue === 'pumpfun' && !name.startsWith('create')) return undefined
+    return { name: borshStr(data, o), symbol: borshStr(data, o), uri: borshStr(data, o), decimals: decimals ?? (venue === 'pumpfun' ? 6 : undefined) }
+  } catch { return undefined }
+}
 const programSet = new Set(programIds)
 
 export function touchesUs(keys: (string | null)[]): boolean {
@@ -101,6 +122,7 @@ export function decode(tx: NTx, lane: Lane, stage: Stage): RawEvent[] {
       stage: tx.failed ? 'failed' : stage,
       noLiquidity: spec.kind === 'pool_init' && !spec.fundsOnInit && !(pool && addedPools.has(pool)),
       gradPool: spec.kind === 'pool_init' && graduating,
+      meta: spec.kind === 'launch' ? launchMeta(spec.venue, spec.name, ix.data) : undefined,
     })
   }
   return out

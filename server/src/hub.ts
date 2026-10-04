@@ -4,7 +4,7 @@
 import { EventEmitter } from 'node:events'
 import { db, tx } from './db.ts'
 import { config } from './config.ts'
-import type { Amount, Chain, Flag, FlowEvent, Kind, Lane, LaneStatus, PoolSummary, Stage, TokenSummary, WalletSummary } from '../../shared/types.ts'
+import type { Amount, Chain, Flag, FlowEvent, Kind, Lane, LaneStatus, PoolSummary, Stage, TokenMeta, TokenSummary, WalletSummary } from '../../shared/types.ts'
 
 export interface RawEvent {
   chain: Chain
@@ -24,6 +24,7 @@ export interface RawEvent {
   noLiquidity?: boolean      // pool_init whose tx adds no liquidity to that pool
   gradPool?: boolean         // pool_init that is the launchpad's own graduation pool
   at?: number                // backfilled events carry their chain time; live ones use arrival
+  meta?: { name?: string; symbol?: string; uri?: string; decimals?: number }  // from launch args
 }
 
 export const QUOTES: Record<Chain, Record<string, { symbol: string; decimals: number }>> = {
@@ -107,7 +108,7 @@ function loadToken(chain: Chain, address: string): TokenState {
     graduated: row?.graduated_ts ?? null, firstPool: row?.first_pool_ts ?? null,
     pools: new Map(), wallets: new Set(), flags: new Set(JSON.parse(row?.flags ?? '[]')),
     events: row?.events ?? 0, last: row?.last_ts ?? 0,
-    meta: row ? { symbol: row.symbol ?? undefined, name: row.name ?? undefined, image: row.image ?? undefined, decimals: row.decimals ?? undefined } : {},
+    meta: row ? { symbol: row.symbol ?? undefined, name: row.name ?? undefined, image: row.image ?? undefined, decimals: row.decimals ?? undefined, description: row.description ?? undefined, twitter: row.twitter ?? undefined, website: row.website ?? undefined } : {},
   }
   if (row) {
     for (const p of db.prepare('SELECT address, venue, fee_bps, created_ts, funded FROM pools WHERE chain = ? AND token = ?').all(chain, address) as any[])
@@ -199,6 +200,13 @@ export function ingest(r: RawEvent): void {
     flags: [],
   }
   ls.firstSeenWins++
+  if (r.meta && token && (r.meta.name || r.meta.symbol)) {
+    const t = loadToken(r.chain, token)
+    if (!t.meta.symbol) {
+      setTokenMeta(r.chain, token, { name: r.meta.name, symbol: r.meta.symbol, decimals: r.meta.decimals }, false)
+      if (r.meta.uri) bus.emit('launchUri', r.chain, token, r.meta.uri)
+    }
+  }
   applyState(e, r, mints)
   if (token) {
     const t = loadToken(r.chain, token)
@@ -381,13 +389,19 @@ function graduate(t: TokenState, now: number) {
   bus.emit('graduated', t.chain, t.address)
 }
 
-export function setTokenMeta(chain: Chain, address: string, meta: { symbol?: string; name?: string; image?: string; decimals?: number }) {
+const clip = (s: string | undefined, n: number) => (s ? s.slice(0, n) : undefined)
+export function setTokenMeta(chain: Chain, address: string, meta: TokenMeta, complete = true) {
   const t = loadToken(chain, address)
-  t.meta = { ...t.meta, ...meta }
-  db.prepare(`INSERT INTO tokens (chain, address, symbol, name, image, decimals, meta_ts) VALUES (?,?,?,?,?,?,?)
-    ON CONFLICT(chain, address) DO UPDATE SET symbol = excluded.symbol, name = excluded.name, image = excluded.image, decimals = excluded.decimals, meta_ts = excluded.meta_ts`)
-    .run(chain, address, meta.symbol ?? null, meta.name ?? null, meta.image ?? null, meta.decimals ?? null, Date.now())
+  const m: TokenMeta = { ...t.meta }
+  for (const [k, v] of Object.entries(meta)) if (v !== undefined && v !== null && v !== '') (m as any)[k] = v
+  m.symbol = clip(m.symbol, 24); m.name = clip(m.name, 64); m.description = clip(m.description, 400)
+  t.meta = m
+  db.prepare(`INSERT INTO tokens (chain, address, symbol, name, image, decimals, description, twitter, website, meta_ts) VALUES (?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(chain, address) DO UPDATE SET symbol = excluded.symbol, name = excluded.name, image = excluded.image, decimals = excluded.decimals,
+      description = excluded.description, twitter = excluded.twitter, website = excluded.website, meta_ts = COALESCE(excluded.meta_ts, tokens.meta_ts)`)
+    .run(chain, address, m.symbol ?? null, m.name ?? null, m.image ?? null, m.decimals ?? null, m.description ?? null, m.twitter ?? null, m.website ?? null, complete ? Date.now() : null)
   bus.emit('token', chain, address)
+  bus.emit('meta', chain, address, m)
 }
 
 export function tokenGraduated(chain: Chain, address: string): boolean { return !!loadToken(chain, address).graduated }
@@ -407,6 +421,7 @@ export function rowToEvent(r: any): FlowEvent {
 export function rowToToken(r: any): TokenSummary {
   return {
     chain: r.chain, address: r.address, symbol: r.symbol ?? undefined, name: r.name ?? undefined, image: r.image ?? undefined, decimals: r.decimals ?? undefined,
+    description: r.description ?? undefined, twitter: r.twitter ?? undefined, website: r.website ?? undefined,
     launchedTs: r.launched_ts, launchVenue: r.launch_venue, graduatedTs: r.graduated_ts, firstPoolTs: r.first_pool_ts,
     pools: r.pools, fundedPools: r.funded_pools, lpWallets: r.lp_wallets, events: r.events, lastTs: r.last_ts,
     score: r.score, flags: JSON.parse(r.flags), followers: r.followers ?? undefined,

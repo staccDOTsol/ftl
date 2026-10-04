@@ -5,6 +5,9 @@ import * as Clipboard from 'expo-clipboard'
 import { C } from '@/theme'
 import { get } from '@/lib/api'
 import { useSocial } from '@/lib/social'
+import { useLive } from '@/lib/live'
+import { useWindowDimensions } from 'react-native'
+import { MID } from '@/theme'
 import { useNow } from '@/lib/useNow'
 import { ago, explorerAddr, pct, short } from '@/lib/format'
 import type { Chain, FlowEvent, TokenSummary, WalletSummary } from '@/lib/types'
@@ -17,6 +20,8 @@ export default function WalletScreen() {
   const { chain, address } = useLocalSearchParams<{ chain: Chain; address: string }>()
   const social = useSocial()
   const now = useNow(5000)
+  const live = useLive()
+  const { width } = useWindowDimensions()
   const [page, setPage] = useState<Page | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -73,7 +78,7 @@ export default function WalletScreen() {
         </Section>
 
         <Section title="Moves">
-          {page.events.map(e => <EventRow key={e.id} e={e} now={now} />)}
+          {page.events.map(e => <EventRow key={e.id} e={e} prices={live.status?.prices} wide={width >= MID} />)}
         </Section>
       </ScrollView>
     </Screen>

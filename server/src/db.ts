@@ -87,6 +87,10 @@ CREATE INDEX IF NOT EXISTS push_user ON push_tokens(user);
 CREATE TABLE IF NOT EXISTS cursors (name TEXT PRIMARY KEY, value TEXT NOT NULL);
 `)
 
+for (const col of ['description TEXT', 'twitter TEXT', 'website TEXT']) {
+  try { db.exec(`ALTER TABLE tokens ADD COLUMN ${col}`) } catch {}
+}
+
 export function tx<T>(fn: () => T): T {
   db.exec('BEGIN')
   try { const r = fn(); db.exec('COMMIT'); return r } catch (e) { db.exec('ROLLBACK'); throw e }

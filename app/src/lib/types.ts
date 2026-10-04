@@ -59,7 +59,7 @@ export interface FlowEvent {
   tokenMeta?: TokenMeta
 }
 
-export interface TokenMeta { symbol?: string; name?: string; image?: string; decimals?: number }
+export interface TokenMeta { symbol?: string; name?: string; image?: string; decimals?: number; description?: string; twitter?: string; website?: string }
 
 export interface TokenSummary extends TokenMeta {
   chain: Chain
@@ -138,7 +138,7 @@ export interface LaneStatus {
   p50LeadMs?: number         // median lead over the confirmed copy
 }
 
-export interface Status { startedTs: number; lanes: LaneStatus[]; clients: number; eventsStored: number }
+export interface Status { startedTs: number; lanes: LaneStatus[]; clients: number; eventsStored: number; prices?: Record<string, number> }
 
 export type ServerMsg =
   | { t: 'event'; e: FlowEvent }
@@ -146,6 +146,7 @@ export type ServerMsg =
   | { t: 'token'; s: TokenSummary }
   | { t: 'post'; p: Post }
   | { t: 'status'; s: Status }
+  | { t: 'meta'; chain: Chain; address: string; m: TokenMeta }
   | { t: 'hello'; serverTs: number }
 
 export type ClientMsg =

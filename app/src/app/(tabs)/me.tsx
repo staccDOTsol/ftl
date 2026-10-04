@@ -7,7 +7,7 @@ import { useSocial } from '@/lib/social'
 import { enableAlerts } from '@/lib/notify'
 import { ago } from '@/lib/format'
 import { Button, Screen, Section, Txt } from '@/components/ui'
-import { laneLabel } from '@/components/LaneBar'
+import { laneLabel } from '@/components/NavBar'
 
 export default function Me() {
   const social = useSocial()

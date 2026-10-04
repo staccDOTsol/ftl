@@ -5,6 +5,7 @@ import { WebSocketServer, type WebSocket } from 'ws'
 import { db } from './db.ts'
 import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken, rowToWallet } from './hub.ts'
 import { enrich } from './meta.ts'
+import { prices } from './prices.ts'
 import { HttpError, callers, createPost, follow, follows, getPost, like, listPosts, profile, registerPush, setProfile, verify } from './social.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
@@ -21,7 +22,7 @@ const normAddr = (chain: Chain, a: string) => (chain === 'robinhood' ? a.toLower
 
 function status(): Status {
   const n = (db.prepare('SELECT COUNT(*) AS n FROM events').get() as any).n
-  return { startedTs: started, lanes: laneStatus(), clients: clients.size, eventsStored: n }
+  return { startedTs: started, lanes: laneStatus(), clients: clients.size, eventsStored: n, prices }
 }
 
 function feed(q: URLSearchParams) {
@@ -216,7 +217,12 @@ export function startApi(port: number) {
 
   bus.on('event', (e: FlowEvent) => {
     for (const [ws, f] of clients) if (matches(f, e)) send(ws, { t: 'event', e })
-    if (e.token && e.kind !== 'launch' && !e.tokenMeta) enrich(e.chain, e.token)
+    if (e.token && !e.tokenMeta?.image) enrich(e.chain, e.token)
+  })
+  // names and images resolve after the event went out: patch them into every open feed
+  bus.on('meta', (chain: Chain, address: string, m: any) => {
+    const msg: ServerMsg = { t: 'meta', chain, address, m: { symbol: m.symbol, name: m.name, image: m.image, decimals: m.decimals } }
+    for (const ws of clients.keys()) send(ws, msg)
   })
   bus.on('upgrade', (u: ServerMsg) => { for (const ws of clients.keys()) send(ws, u) })
 

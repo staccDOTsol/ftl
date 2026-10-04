@@ -49,7 +49,7 @@ export default function Leaders() {
   return (
     <Screen>
       <FlatList data={wallets ?? []} keyExtractor={w => `${w.chain}:${w.address}`} ListHeaderComponent={header}
-        renderItem={({ item, index }) => <WalletRow w={item} now={now} rank={index + 1} />}
+        renderItem={({ item, index }) => <WalletRow w={item} rank={index + 1} />}
         ListEmptyComponent={wallets === null ? <Loading /> : <Empty title="Building the board" body="A wallet shows up after it touches two launchpad tokens before graduation." />} />
     </Screen>
   )

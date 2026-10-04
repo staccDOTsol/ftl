@@ -36,7 +36,7 @@ export default function Signals() {
       <FlatList
         data={rows ?? []}
         keyExtractor={t => `${t.chain}:${t.address}`}
-        renderItem={({ item, index }) => <TokenRow t={item} now={now} rank={index + 1} />}
+        renderItem={({ item, index }) => <TokenRow t={item} rank={index + 1} spark={l.tokenRate.get(`${item.chain}:${item.address}`)} />}
         refreshControl={<RefreshControl refreshing={refreshing} tintColor={C.accent} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false) }} />}
         ListHeaderComponent={
           <View style={{ padding: 16, gap: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>

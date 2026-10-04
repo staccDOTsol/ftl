@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Linking, Pressable, ScrollView, View } from 'react-native'
 import { Stack, router, useLocalSearchParams } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
 import { C, CHAIN, FLAG } from '@/theme'
 import { get } from '@/lib/api'
 import { useSocial } from '@/lib/social'
+import { useLive } from '@/lib/live'
+import { useWindowDimensions } from 'react-native'
+import { MID } from '@/theme'
 import { useNow } from '@/lib/useNow'
 import { ago, short, venue } from '@/lib/format'
 import type { Chain, FlowEvent, PoolSummary, Post, TokenSummary, WalletSummary } from '@/lib/types'
 import { EventRow, WalletRow } from '@/components/rows'
-import { Button, ChainBadge, Empty, FlagChips, Loading, Screen, Section, Stat, TokenAvatar, Txt } from '@/components/ui'
+import { Button, ChainBadge, Chip, Empty, FlagChips, Loading, Screen, Section, Stat, TokenAvatar, Txt } from '@/components/ui'
 import { Composer, PostItem } from '@/components/Posts'
 import { Trade } from '@/components/Trade'
 
@@ -19,6 +22,8 @@ export default function TokenScreen() {
   const { chain, address } = useLocalSearchParams<{ chain: Chain; address: string }>()
   const social = useSocial()
   const now = useNow(5000)
+  const live = useLive()
+  const { width } = useWindowDimensions()
   const [page, setPage] = useState<Page | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -38,7 +43,7 @@ export default function TokenScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
         <View style={{ padding: 16, gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <TokenAvatar image={t.image} label={label} size={56} chain={t.chain} />
+            <TokenAvatar image={t.image} label={label} size={64} chain={t.chain} />
             <View style={{ flex: 1, gap: 2 }}>
               <Txt v="title" numberOfLines={1}>{label}</Txt>
               {t.name ? <Txt v="small" numberOfLines={1}>{t.name}</Txt> : null}
@@ -48,6 +53,13 @@ export default function TokenScreen() {
               </Pressable>
             </View>
           </View>
+          {t.description ? <Txt v="small" numberOfLines={4}>{t.description}</Txt> : null}
+          {t.twitter || t.website ? (
+            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+              {t.twitter ? <Chip label="𝕏" onPress={() => Linking.openURL(/^https?:/.test(t.twitter!) ? t.twitter! : `https://x.com/${t.twitter!.replace(/^@/, '')}`)} /> : null}
+              {t.website ? <Chip label="Website" onPress={() => Linking.openURL(/^https?:/.test(t.website!) ? t.website! : `https://${t.website}`)} /> : null}
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button label={following ? 'Following' : 'Follow token'} kind={following ? 'ghost' : 'primary'} style={{ flex: 1 }} onPress={() => social.toggle('token', t.chain, t.address).catch(() => {})} />
           </View>
@@ -78,7 +90,7 @@ export default function TokenScreen() {
         </Section>
 
         <Section title={`LP wallets · ${page.wallets.length}`}>
-          {page.wallets.length ? page.wallets.map(w => <WalletRow key={w.address} w={w} now={now} />) : <Txt v="small" style={{ paddingHorizontal: 16 }}>None yet.</Txt>}
+          {page.wallets.length ? page.wallets.map(w => <WalletRow key={w.address} w={w} />) : <Txt v="small" style={{ paddingHorizontal: 16 }}>None yet.</Txt>}
         </Section>
 
         <Section title={`Pools · ${page.pools.length}`}>
@@ -94,7 +106,7 @@ export default function TokenScreen() {
         </Section>
 
         <Section title="Liquidity timeline">
-          {page.events.map(e => <EventRow key={e.id} e={e} now={now} showToken={false} />)}
+          {page.events.map(e => <EventRow key={e.id} e={e} prices={live.status?.prices} wide={width >= MID} showToken={false} />)}
         </Section>
         <Txt v="monoSmall" style={{ padding: 16, color: CHAIN[t.chain].color }}>{CHAIN[t.chain].label}</Txt>
       </ScrollView>

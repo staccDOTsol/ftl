@@ -4,6 +4,9 @@ import { router } from 'expo-router'
 import { C } from '@/theme'
 import { get } from '@/lib/api'
 import { useSocial } from '@/lib/social'
+import { useLive } from '@/lib/live'
+import { useWindowDimensions } from 'react-native'
+import { MID } from '@/theme'
 import { useNow } from '@/lib/useNow'
 import { short } from '@/lib/format'
 import type { FlowEvent, Post } from '@/lib/types'
@@ -14,6 +17,8 @@ import { PostItem } from '@/components/Posts'
 export default function Following() {
   const social = useSocial()
   const now = useNow(3000)
+  const live = useLive()
+  const { width } = useWindowDimensions()
   const [tab, setTab] = useState<'moves' | 'calls' | 'list'>('moves')
   const [events, setEvents] = useState<FlowEvent[]>([])
   const [posts, setPosts] = useState<Post[]>([])
@@ -63,7 +68,7 @@ export default function Following() {
   }
   return (
     <Screen>
-      <FlatList data={events} keyExtractor={e => e.id} ListHeaderComponent={header} renderItem={({ item }) => <EventRow e={item} now={now} />}
+      <FlatList data={events} keyExtractor={e => e.id} ListHeaderComponent={header} renderItem={({ item }) => <EventRow e={item} prices={live.status?.prices} wide={width >= MID} />}
         ListEmptyComponent={<Empty title={social.follows.length ? 'Quiet so far' : 'Nobody followed yet'} body={social.follows.length ? 'Moves by the wallets and tokens you follow land here.' : 'Follow a wallet from the Leaders tab or any event in the feed.'} />} />
     </Screen>
   )
