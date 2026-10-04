@@ -34,6 +34,7 @@ function interesting(keys: Uint8Array[], ixs: { programIdIndex: number; data: Ui
   return false
 }
 
+export function __toNTx(...a: Parameters<typeof toNTx>) { return toNTx(...a) }
 function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[], loadedR: Uint8Array[], meta: any | null): NTx | null {
   const raw: Uint8Array[] = [...(message?.accountKeys ?? []), ...loadedW, ...loadedR]
   const top = message?.instructions ?? []
@@ -81,7 +82,7 @@ function geyserLane(l: Lane, url: string, token: string) {
       await client.connect()
       const req = emptyRequest()
       req.commitment = CommitmentLevel.PROCESSED
-      req.transactions.ftl = { vote: false, failed: true, accountInclude: programIds, accountExclude: [], accountRequired: [] }
+      req.transactions.ftl = { vote: false, accountInclude: programIds, accountExclude: [], accountRequired: [] }
       const stream = await client.subscribe(req)
       ls.connected = true
       attempt = 0
