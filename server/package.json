@@ -1,0 +1,23 @@
+{
+  "name": "ftl-server",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/index.ts",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.8.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@triton-one/yellowstone-grpc": "8.0.0",
+    "bs58": "^6.0.0",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.18.3"
+  }
+}

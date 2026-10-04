@@ -1,0 +1,18 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "base": {
+      "env": { "EXPO_PUBLIC_API_URL": "https://ftl-firehose.fly.dev", "EXPO_PUBLIC_WEB_HOST": "ftl-liquidity.vercel.app" }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": true }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true
+    }
+  }
+}

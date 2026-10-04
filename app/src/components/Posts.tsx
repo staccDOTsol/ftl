@@ -1,0 +1,71 @@
+import { memo, useState } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { router } from 'expo-router'
+import { C, F } from '@/theme'
+import { post as apiPost } from '@/lib/api'
+import { ago, short } from '@/lib/format'
+import type { Chain, Post } from '@/lib/types'
+import { Button, Seg, Txt } from './ui'
+
+export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post; now: number; showToken?: boolean }) {
+  const [liked, setLiked] = useState(!!p.liked)
+  const [likes, setLikes] = useState(p.likes)
+  const name = p.author.handle ? '@' + p.author.handle : short(p.author.pubkey)
+  return (
+    <View style={ps.item}>
+      <View style={ps.head}>
+        <Pressable onPress={() => router.push(`/profile/${p.author.pubkey}`)}><Text style={ps.author}>{name}</Text></Pressable>
+        {p.kind === 'call' ? <Text style={[ps.tag, { color: C.accent, borderColor: C.accent + '66' }]}>CALL</Text> : null}
+        {p.hit === true ? <Text style={[ps.tag, { color: C.good, borderColor: C.good + '66' }]}>HIT · GRADUATED</Text> : null}
+        {showToken ? <Pressable onPress={() => router.push(`/token/${p.chain}/${p.token}`)}><Text style={ps.token}>{p.tokenMeta?.symbol ? '$' + p.tokenMeta.symbol : short(p.token)}</Text></Pressable> : null}
+        <View style={{ flex: 1 }} />
+        <Txt v="monoSmall">{ago(p.ts, now)}</Txt>
+      </View>
+      <Txt v="body" selectable>{p.body}</Txt>
+      <Pressable hitSlop={8} onPress={async () => {
+        const on = !liked
+        setLiked(on); setLikes(n => n + (on ? 1 : -1))
+        try { const r = await apiPost<Post>(`/api/posts/${p.id}/${on ? 'like' : 'unlike'}`, {}); setLikes(r.likes) } catch { setLiked(!on); setLikes(n => n + (on ? -1 : 1)) }
+      }}>
+        <Txt v="monoSmall" color={liked ? '#FF5D8F' : C.muted}>{liked ? '♥' : '♡'} {likes}</Txt>
+      </Pressable>
+    </View>
+  )
+})
+
+export function Composer({ chain, token, graduated, onPosted }: { chain: Chain; token: string; graduated: boolean; onPosted: (p: Post) => void }) {
+  const [body, setBody] = useState('')
+  const [kind, setKind] = useState<'call' | 'comment'>(graduated ? 'comment' : 'call')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  return (
+    <View style={ps.composer}>
+      {!graduated ? <Seg value={kind} onChange={setKind} options={[{ value: 'call', label: 'Call it (scored at graduation)' }, { value: 'comment', label: 'Comment' }]} /> : null}
+      <TextInput
+        value={body}
+        onChangeText={setBody}
+        placeholder={kind === 'call' ? 'Why this one graduates…' : 'Say something about this liquidity…'}
+        placeholderTextColor={C.faint}
+        multiline
+        maxLength={500}
+        style={ps.input}
+      />
+      {err ? <Txt v="small" color={C.bad}>{err}</Txt> : null}
+      <Button label={kind === 'call' ? 'Post call' : 'Post'} busy={busy} disabled={!body.trim()} onPress={async () => {
+        setBusy(true); setErr(null)
+        try { const p = await apiPost<Post>('/api/posts', { chain, token, kind, body }); setBody(''); onPosted(p) } catch (e: any) { setErr(e.message) }
+        setBusy(false)
+      }} />
+    </View>
+  )
+}
+
+const ps = StyleSheet.create({
+  item: { paddingHorizontal: 16, paddingVertical: 12, gap: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  author: { fontFamily: F.display, fontSize: 14, color: C.text },
+  token: { fontFamily: F.monoBold, fontSize: 12, color: C.accent },
+  tag: { fontFamily: F.monoBold, fontSize: 9, letterSpacing: 0.6, borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  composer: { marginHorizontal: 16, padding: 12, gap: 10, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.line },
+  input: { minHeight: 64, color: C.text, fontFamily: F.body, fontSize: 15, textAlignVertical: 'top', padding: 0 },
+})
