@@ -136,6 +136,7 @@ export interface LaneStatus {
   events: number
   firstSeenWins: number      // events this lane saw before any other lane
   p50LeadMs?: number         // median lead over the confirmed copy
+  lagMs?: number             // how far behind the source's own timestamp the lane is running
 }
 
 export interface Status { startedTs: number; lanes: LaneStatus[]; clients: number; eventsStored: number; prices?: Record<string, number> }

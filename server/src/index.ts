@@ -4,7 +4,7 @@ import { startRobinhood } from './robinhood/ingest.ts'
 import { startSolana } from './solana/lanes.ts'
 import { loadFollowedWallets } from './social.ts'
 import { startPush } from './push.ts'
-import { sweepPending } from './hub.ts'
+import { ingest, lane, sweepPending } from './hub.ts'
 import { enrich } from './meta.ts'
 import { db, getCursor, setCursor } from './db.ts'
 
@@ -12,7 +12,7 @@ loadFollowedWallets()
 startApi(config.port)
 startPush()
 startRobinhood()
-startSolana()
+startSolana(ingest, (l, enabled, reason, stats) => { const s = lane('solana', l, enabled, reason); if (stats) Object.assign(s, stats) })
 setInterval(sweepPending, 5000).unref()
 
 // metadata v3: anything active in the last day still missing a symbol or image is asked again,

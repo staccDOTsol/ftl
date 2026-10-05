@@ -7,17 +7,28 @@
 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Worker } from 'node:worker_threads'
 import bs58 from 'bs58'
 import Client, { CommitmentLevel, type SubscribeRequest, type SubscribeUpdate } from '@triton-one/yellowstone-grpc'
 import * as grpc from '@grpc/grpc-js'
 import * as protoLoader from '@grpc/proto-loader'
 import { config, redact } from '../config.ts'
-import { ingest, lane } from '../hub.ts'
+import type { RawEvent } from '../hub.ts'
 import { decode, parseWire, type NIx, type NTx, type TokenBal } from './decode.ts'
 import { programIds, lookup } from './programs.ts'
 import type { Lane } from '../../../shared/types.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+// Each lane runs in its own worker thread (see worker.ts). A lane reports through a sink:
+// matched events go to the hub on the main thread, counters go to /api/status.
+export interface LaneStats { connected: boolean; msgs: number; lastMsgTs: number | null; lagMs?: number }
+export interface Sink { emit(evs: RawEvent[]): void; stats(l: Lane): LaneStats }
+let sink: Sink
+export function setSink(s: Sink) { sink = s }
+const lane = (_chain: 'solana', l: Lane, _enabled: boolean) => sink.stats(l)
+const lagOf = (u: any) => (u?.createdAt instanceof Date ? Date.now() - u.createdAt.getTime() : undefined)
+const ewma = (prev: number | undefined, x: number | undefined) => (x === undefined ? prev : prev === undefined ? x : Math.round(prev * 0.9 + x * 0.1))
 const programHex = new Map(programIds.map(p => [Buffer.from(bs58.decode(p)).toString('hex'), p]))
 const hex = (b: Uint8Array) => Buffer.from(b).toString('hex')
 
@@ -57,7 +68,8 @@ function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[
 
 function emit(tx: NTx | null, l: Lane, stage: 'pending' | 'confirmed') {
   if (!tx) return
-  for (const r of decode(tx, l, stage)) ingest(r)
+  const evs = decode(tx, l, stage)
+  if (evs.length) sink.emit(evs)
 }
 
 const emptyRequest = (): SubscribeRequest => ({
@@ -73,7 +85,7 @@ const channelOptions = {
 
 // ---- executed lane: Subscribe at processed ----------------------------------
 
-function geyserLane(l: Lane, url: string, token: string) {
+export function geyserLane(l: Lane, url: string, token: string) {
   const ls = lane('solana', l, true)
   let attempt = 0
   const run = async () => {
@@ -91,6 +103,7 @@ function geyserLane(l: Lane, url: string, token: string) {
       stream.on('data', (u: SubscribeUpdate) => {
         ls.msgs++
         ls.lastMsgTs = Date.now()
+        ls.lagMs = ewma(ls.lagMs, lagOf(u))
         const t = u.transaction
         if (!t?.transaction) return
         const info = t.transaction
@@ -116,7 +129,7 @@ function geyserLane(l: Lane, url: string, token: string) {
 
 // ---- pre-execution lane: SubscribeDeshred -----------------------------------
 
-function deshredLane(url: string, token: string) {
+export function deshredLane(url: string, token: string) {
   const ls = lane('solana', 'deshred', true)
   let attempt = 0
   const run = async () => {
@@ -132,6 +145,7 @@ function deshredLane(url: string, token: string) {
       stream.on('data', (u: any) => {
         ls.msgs++
         ls.lastMsgTs = Date.now()
+        ls.lagMs = ewma(ls.lagMs, lagOf(u))
         const d = u.deshredTransaction
         if (!d?.transaction) return
         const info = d.transaction
@@ -190,7 +204,7 @@ function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
   return { sig: bs58.encode(w.sig), slot, keys, ixs: w.ixs.map((ix, i) => ({ prog: keys[ix.prog] as string, accts: ix.accts, data: ix.data, n: String(i) })) }
 }
 
-function preconfsLanes() {
+export function preconfsLanes() {
   const def = protoLoader.loadSync(path.join(here, '..', '..', 'proto', 'preconfs.proto'), { keepCase: true, longs: String, enums: String, defaults: true, oneofs: true })
   const pkg = grpc.loadPackageDefinition(def).preconfs as any
   const host = config.preconfsUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -214,6 +228,7 @@ function preconfsLanes() {
         if (!opened) { opened = true; attempt = 0; open.add(spec); ls.connected = true }
         ls.msgs++
         ls.lastMsgTs = Date.now()
+        ls.lagMs = ewma(ls.lagMs, lagOf(u))
         const t = u.transaction
         if (!t?.transaction) return
         if (t.result && /FAILURE/.test(String(t.result))) return
@@ -235,18 +250,28 @@ function preconfsLanes() {
 
 // ---- start ------------------------------------------------------------------
 
-export function startSolana() {
+export function startSolana(ingest: (r: RawEvent) => void, setLane: (l: Lane, enabled: boolean, reason?: string, stats?: LaneStats) => void) {
   const triton = config.tritonGrpcUrl && config.tritonXToken
-  if (triton) {
-    geyserLane('geyser', config.tritonGrpcUrl!, config.tritonXToken!)
-    if (config.tritonDeshred) deshredLane(config.tritonGrpcUrl!, config.tritonXToken!)
-    else lane('solana', 'deshred', false, 'TRITON_DESHRED=0')
-  } else {
-    lane('solana', 'geyser', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
-    lane('solana', 'deshred', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
+  const spawn = (kind: Lane) => {
+    setLane(kind, true)
+    const w = new Worker(new URL('./worker.ts', import.meta.url), { workerData: { kind } })
+    w.on('message', (m: any) => {
+      if (m.t === 'ev') for (const r of m.evs) ingest(r)
+      else if (m.t === 'stats') setLane(kind, true, undefined, m.stats)
+    })
+    w.on('error', (e) => console.error(`[sol:${kind}] worker`, redact(String(e))))
+    w.on('exit', (code) => { console.warn(`[sol:${kind}] worker exited ${code}, restarting`); setTimeout(() => spawn(kind), 2000) })
   }
-  if (config.drpcGeyserUrl && config.drpcKey) geyserLane('geyser-drpc', config.drpcGeyserUrl, config.drpcKey)
-  else lane('solana', 'geyser-drpc', false, 'DRPC_GEYSER_URL not set (dRPC dashboard: Solana Geyser gRPC card)')
-  if (config.preconfsToken) preconfsLanes()
-  else lane('solana', 'preconf', false, 'TRITON_PRECONFS_TOKEN not set')
+  if (triton) {
+    spawn('geyser')
+    if (config.tritonDeshred) spawn('deshred')
+    else setLane('deshred', false, 'TRITON_DESHRED=0')
+  } else {
+    setLane('geyser', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
+    setLane('deshred', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
+  }
+  if (config.drpcGeyserUrl && config.drpcKey) spawn('geyser-drpc')
+  else setLane('geyser-drpc', false, 'DRPC_GEYSER_URL not set (dRPC dashboard: Solana Geyser gRPC card)')
+  if (config.preconfsToken) spawn('preconf')
+  else setLane('preconf', false, 'TRITON_PRECONFS_TOKEN not set')
 }

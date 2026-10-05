@@ -458,7 +458,7 @@ setInterval(() => {
 export function sweepPending() {
   const executed = [...lanes.values()].some(l => l.chain === 'solana' && (l.lane === 'geyser' || l.lane === 'geyser-drpc') && l.connected)
   if (!executed) return
-  const cutoff = Date.now() - 45_000
+  const cutoff = Date.now() - 90_000
   for (const e of recent.values()) {
     if (e.stage !== 'pending' || e.ts > cutoff) continue
     e.stage = 'failed'
