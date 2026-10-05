@@ -2,7 +2,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { identity } from './identity'
 
-export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://ftl-firehose.fly.dev').replace(/\/$/, '')
+export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.liquidityxyz.fun').replace(/\/$/, '')
 export const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws'
 
 export class ApiError extends Error {
