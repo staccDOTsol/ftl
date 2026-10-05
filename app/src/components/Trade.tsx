@@ -25,7 +25,7 @@ export function Trade({ t, pools }: { t: TokenSummary; pools: PoolSummary[] }) {
 function SolanaLinks({ t }: { t: TokenSummary }) {
   return (
     <View style={{ gap: 10 }}>
-      <Button label="Swap on Jupiter" onPress={() => open(`https://jup.ag/swap/SOL-${t.address}`)} />
+      <Button label="Swap on Jupiter" onPress={() => open(`https://jup.ag/swap?buy=${t.address}&sell=So11111111111111111111111111111111111111112`)} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         {t.launchVenue === 'pumpfun' && !t.graduatedTs ? <Chip label="pump.fun" onPress={() => open(`https://pump.fun/coin/${t.address}`)} /> : null}
         <Chip label="Dexscreener" onPress={() => open(`https://dexscreener.com/solana/${t.address}`)} />
@@ -76,7 +76,7 @@ function RobinhoodBuy({ t, trapAddrs }: { t: TokenSummary; trapAddrs: Set<string
           </View>
         </>
       ) : (
-        <Button label="Open in MetaMask to swap" onPress={() => open(`https://metamask.app.link/dapp/${(process.env.EXPO_PUBLIC_WEB_HOST ?? 'ftl.vercel.app')}/token/robinhood/${t.address}`)} />
+        <Button label="Open in MetaMask to swap" onPress={() => open(`https://metamask.app.link/dapp/${(process.env.EXPO_PUBLIC_WEB_HOST ?? 'liquidityxyz.fun')}/token/robinhood/${t.address}`)} />
       )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         <Chip label="Blockscout" onPress={() => open(explorerAddr('robinhood', t.address))} />

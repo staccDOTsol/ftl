@@ -74,7 +74,7 @@ export default function WalletScreen() {
               </View>
               <FlagChips flags={t.flags} max={5} />
             </Pressable>
-          )) : <Txt v="small" style={{ paddingHorizontal: 16 }}>None yet. Tokens count once FTL has seen their launch.</Txt>}
+          )) : <Txt v="small" style={{ paddingHorizontal: 16 }}>None yet. Tokens count once their launch is seen.</Txt>}
         </Section>
 
         <Section title="Moves">

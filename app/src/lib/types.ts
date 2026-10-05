@@ -1,4 +1,4 @@
-// FTL — Follow The Liquidity. Wire types shared by the server and the app.
+// liquidityxyz (FTL: follow the liquidity). Wire types shared by the server and the app.
 // The server is the only writer; the app treats every field as read-only.
 
 export type Chain = 'solana' | 'robinhood'

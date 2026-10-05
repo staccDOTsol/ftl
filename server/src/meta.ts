@@ -159,7 +159,8 @@ async function robinhoodMeta(tokens: string[]): Promise<Map<string, TokenMeta>> 
 // ---- queue ----------------------------------------------------------------
 
 const pending = { solana: new Set<string>(), robinhood: new Set<string>() }
-const retried = new Set<string>()
+const attempts = new Map<string, number>()
+const RETRY_MS = [4_000, 20_000, 90_000, 5 * 60_000, 20 * 60_000]
 let flushing = false
 
 export function enrich(chain: Chain, address: string, force = false) {
@@ -169,6 +170,20 @@ export function enrich(chain: Chain, address: string, force = false) {
     if (row?.meta_ts) return
   }
   pending[chain].add(address)
+}
+
+// a token is done once it has a symbol and an image; otherwise ask again on a backoff
+function settle(chain: Chain, address: string, m: TokenMeta | null | undefined) {
+  const key = `${chain}:${address}`
+  const n = attempts.get(key) ?? 0
+  const complete = !!(m?.symbol && m?.image)
+  const last = n >= RETRY_MS.length
+  if (m && (m.name || m.symbol || m.image || m.description)) setTokenMeta(chain, address, m, complete || last)
+  else if (last) setTokenMeta(chain, address, {}, true)
+  if (complete || last) { attempts.delete(key); return }
+  attempts.set(key, n + 1)
+  setTimeout(() => pending[chain].add(address), RETRY_MS[n])
+  if (attempts.size > 100_000) attempts.clear()
 }
 
 async function flush() {
@@ -182,17 +197,17 @@ async function flush() {
       try { got = await dasBatch(batch) } catch (e) { console.error('[meta] das', String(e).slice(0, 120)) }
       for (const mint of batch) {
         const m = got.get(mint)
-        if (m && (m.name || m.symbol)) { setTokenMeta('solana', mint, m); continue }
-        // brand-new mints take DAS a few seconds; one retry, then read the chain directly
-        if (!retried.has(mint)) { retried.add(mint); setTimeout(() => pending.solana.add(mint), 4000); continue }
-        onchainSolana(mint).then(x => { if (x) setTokenMeta('solana', mint, x) }).catch(() => {})
+        if (m?.symbol && m?.image) { settle('solana', mint, m); continue }
+        // DAS had nothing (or no image yet): read the chain directly, merge, and keep retrying
+        onchainSolana(mint).then(x => settle('solana', mint, { ...x, ...Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== undefined)) }))
+          .catch(() => settle('solana', mint, m))
       }
-      if (retried.size > 50_000) retried.clear()
     }
     if (pending.robinhood.size && config.rhHttp) {
       const batch = [...pending.robinhood].slice(0, 25)
       for (const a of batch) pending.robinhood.delete(a)
-      try { for (const [a, m] of await robinhoodMeta(batch)) setTokenMeta('robinhood', a, m) } catch (e) { console.error('[meta] rh', String(e).slice(0, 120)) }
+      try { for (const [a, m] of await robinhoodMeta(batch)) settle('robinhood', a, m) }
+      catch (e) { console.error('[meta] rh', String(e).slice(0, 120)); for (const a of batch) settle('robinhood', a, null) }
     }
   } finally { flushing = false }
 }

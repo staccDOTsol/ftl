@@ -22,8 +22,13 @@ export const config = {
   tritonXToken: env('TRITON_X_TOKEN'),
   tritonDeshred: env('TRITON_DESHRED') !== '0',
   preconfsUrl: env('TRITON_PRECONFS_URL') ?? 'https://preconfs.rpcpool.com',
-  preconfsToken: env('TRITON_PRECONFS_TOKEN'),
-  preconfsRegions: (env('TRITON_PRECONFS_REGIONS') ?? 'harmonic:ewr,bam:ewr').split(',').map(s => s.trim()).filter(Boolean),
+  // the Dragon's Mouth x-token is accepted by Preconfs too; a dedicated token overrides it
+  preconfsToken: env('TRITON_PRECONFS_TOKEN') ?? env('TRITON_X_TOKEN'),
+  // a builder or leader is only active in some regions at a time: listen to all of them and race
+  preconfsRegions: (env('TRITON_PRECONFS_REGIONS') ?? [
+    ...['ams', 'ewr', 'fra', 'lon', 'tyo', 'sgp', 'slc'].map(r => `harmonic:${r}`),
+    ...['ams', 'dfw', 'dub', 'ewr', 'fra', 'hkg', 'iad', 'lax', 'lon', 'pit', 'sea', 'sin', 'slc', 'sqq', 'tyo'].map(r => `bam:${r}`),
+  ].join(',')).split(',').map(s => s.trim()).filter(Boolean),
   drpcGeyserUrl: env('DRPC_GEYSER_URL'),
   drpcKey,
   solanaRpc: env('SOLANA_RPC_URL') ?? (drpcKey ? `https://lb.drpc.live/solana/${drpcKey}` : undefined),

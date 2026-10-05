@@ -14,7 +14,7 @@ import * as protoLoader from '@grpc/proto-loader'
 import { config, redact } from '../config.ts'
 import { ingest, lane } from '../hub.ts'
 import { decode, parseWire, type NIx, type NTx, type TokenBal } from './decode.ts'
-import { programIds, lookup, venueOf } from './programs.ts'
+import { programIds, lookup } from './programs.ts'
 import type { Lane } from '../../../shared/types.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -177,8 +177,8 @@ async function fetchAlt(table: string) {
 
 function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
   const w = parseWire(bytes)
-  if (!w.ixs.some(ix => { const p = w.keys[ix.prog]; return p && venueOf.has(p) && lookup(p, ix.data) })) return null
-  const keys: (string | null)[] = [...w.keys]
+  if (!interesting(w.keys, w.ixs.map(ix => ({ programIdIndex: ix.prog, data: ix.data })))) return null
+  const keys: (string | null)[] = w.keys.map(k => bs58.encode(k))
   const ro: (string | null)[] = []
   for (const lk of w.lookups) {
     const t = alts.get(lk.table)
@@ -187,7 +187,7 @@ function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
     for (const i of lk.r) ro.push(t?.[i] ?? null)
   }
   keys.push(...ro)
-  return { sig: w.sig, slot, keys, ixs: w.ixs.map((ix, i) => ({ prog: w.keys[ix.prog], accts: ix.accts, data: ix.data, n: String(i) })) }
+  return { sig: bs58.encode(w.sig), slot, keys, ixs: w.ixs.map((ix, i) => ({ prog: keys[ix.prog] as string, accts: ix.accts, data: ix.data, n: String(i) })) }
 }
 
 function preconfsLanes() {
@@ -197,6 +197,7 @@ function preconfsLanes() {
   const target = host.includes(':') ? host : `${host}:443`
   const filters = { ftl: { instructions: programIds.map(p => ({ program_id: p })) } }
   const ls = lane('solana', 'preconf', true)
+  const open = new Set<string>()
   for (const spec of config.preconfsRegions) {
     const [feed, region] = spec.split(':')
     const isBam = feed.toLowerCase() === 'bam'
@@ -210,7 +211,7 @@ function preconfsLanes() {
       const call = client.Subscribe({ transactions: filters, ...regionField }, md)
       let opened = false
       call.on('data', (u: any) => {
-        if (!opened) { opened = true; attempt = 0; ls.connected = true; console.log(`[sol:preconf] ${spec} streaming`) }
+        if (!opened) { opened = true; attempt = 0; open.add(spec); ls.connected = true }
         ls.msgs++
         ls.lastMsgTs = Date.now()
         const t = u.transaction
@@ -219,8 +220,9 @@ function preconfsLanes() {
         try { emit(wireToNTx(t.transaction, Number(t.slot)), 'preconf', 'pending') } catch (e) { console.error('[sol:preconf] decode', String(e)) }
       })
       const restart = (why: string) => {
-        console.warn(`[sol:preconf] ${spec} ${why}`)
-        ls.connected = false
+        if (opened) console.warn(`[sol:preconf] ${spec} ${why}`)
+        open.delete(spec)
+        ls.connected = open.size > 0
         try { client.close() } catch {}
         setTimeout(run, Math.min(30_000, 1000 * 2 ** attempt++))
       }

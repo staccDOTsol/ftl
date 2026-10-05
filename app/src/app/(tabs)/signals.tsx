@@ -49,7 +49,7 @@ export default function Signals() {
             </View>
           </View>
         }
-        ListEmptyComponent={rows === null ? <Loading /> : <Empty title="No signals yet" body="Tokens show up here once FTL has seen pools open on them." />}
+        ListEmptyComponent={rows === null ? <Loading /> : <Empty title="No signals yet" body="Tokens show up here once pools open on them." />}
       />
     </Screen>
   )

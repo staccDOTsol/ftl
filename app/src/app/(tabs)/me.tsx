@@ -63,7 +63,7 @@ export default function Me() {
 
         <Section title="About">
           <View style={{ paddingHorizontal: 16, gap: 8 }}>
-            <Txt v="small">FTL follows liquidity, not price. Bot crews arm a launch with pools before it moves: pools on a token still on its curve, bursts of funded pools within minutes, honeypot fee tiers, price ladders with no depth, liquidity pulled within blocks. The signals come from the forensic record in staccDOTsol/the-book.</Txt>
+            <Txt v="small">liquidityxyz follows liquidity, not price. Bot crews arm a launch with pools before it moves: pools on a token still on its curve, bursts of funded pools within minutes, honeypot fee tiers, price ladders with no depth, liquidity pulled within blocks. The signals come from the forensic record in staccDOTsol/the-book.</Txt>
             <Txt v="small">Robinhood Chain streams over dRPC. Solana races Triton Preconfs, Deshred and Dragon’s Mouth, and dRPC Geyser when configured. The first lane to see a transaction posts it; the executed copy confirms it and sizes it.</Txt>
             <Txt v="small" color={C.faint}>Not financial advice. Pools with 70%+ fees exist to take a buyer’s input.</Txt>
           </View>

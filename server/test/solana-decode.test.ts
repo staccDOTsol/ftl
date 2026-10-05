@@ -18,7 +18,7 @@ async function rpc(method: string, params: unknown[]) {
 
 export function fromRpc(sig: string, t: any): NTx {
   const w = parseWire(Buffer.from(t.transaction[0], 'base64'))
-  const keys = [...w.keys, ...(t.meta?.loadedAddresses?.writable ?? []), ...(t.meta?.loadedAddresses?.readonly ?? [])]
+  const keys = [...w.keys.map(k => bs58.encode(k)), ...(t.meta?.loadedAddresses?.writable ?? []), ...(t.meta?.loadedAddresses?.readonly ?? [])]
   const ixs = w.ixs.map((ix, i) => ({ prog: keys[ix.prog], accts: ix.accts, data: ix.data, n: String(i) }))
   for (const g of t.meta?.innerInstructions ?? [])
     g.instructions.forEach((ix: any, j: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: ix.accounts, data: bs58.decode(ix.data), n: `${g.index}.${j}` }))

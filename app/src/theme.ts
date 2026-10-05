@@ -72,7 +72,7 @@ export const FLAG: Record<Flag, { label: string; color: string; about: string; h
   ladder: { label: 'LADDER', color: oklch(0.8, 0.12, 230), hot: false, about: 'A pool initialized with no liquidity in the same transaction: it prints a price without depth.' },
   jit: { label: 'JIT', color: C.violet, hot: false, about: 'Liquidity added and pulled by the same wallet within a few blocks.' },
   multi_venue: { label: '5+ POOLS/1H', color: oklch(0.82, 0.13, 190), hot: true, about: 'Five or more pools on one token within its first hour.' },
-  first_pool: { label: 'FIRST POOL', color: C.accent, hot: false, about: 'The first pool FTL saw for this token.' },
+  first_pool: { label: 'FIRST POOL', color: C.accent, hot: false, about: 'The first pool seen for this token.' },
 }
 
 export const F = {

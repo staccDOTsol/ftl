@@ -37,6 +37,8 @@ function feed(q: URLSearchParams) {
   if (minQuote > 0) { where.push('e.quote_ui >= ?'); args.push(minQuote) }
   const before = Number(q.get('before') ?? 0)
   if (before) { where.push('e.ts < ?'); args.push(before) }
+  const after = Number(q.get('after') ?? 0)
+  if (after) { where.push('e.ts > ?'); args.push(after) }
   if (q.get('token')) { where.push('e.token = ?'); args.push(q.get('token')) }
   if (q.get('wallet')) { where.push('e.wallet = ?'); args.push(q.get('wallet')) }
   const as = q.get('as')
@@ -65,7 +67,7 @@ const QUOTE_LIST = `'So11111111111111111111111111111111111111112','EPjFWdd5AufqS
 function tokenPage(chain: Chain, address: string, viewer: string | null) {
   const token = getToken(chain, address)
   if (!token) throw new HttpError(404, 'token not seen yet')
-  if (!token.symbol && !token.name) enrich(chain, address)
+  if (!token.symbol || !token.image) enrich(chain, address, true)
   const pools = (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY created_ts DESC LIMIT 100').all(chain, address) as any[]).map(rowToPool)
   const events = (db.prepare(`${eventSelect} WHERE e.chain = ? AND e.token = ? ORDER BY e.ts DESC LIMIT 200`).all(chain, address) as any[]).map(rowToEvent)
   const wallets = (db.prepare(`SELECT w.*, (SELECT COUNT(*) FROM follows f WHERE f.kind = 'wallet' AND f.chain = w.chain AND f.address = w.address) AS followers

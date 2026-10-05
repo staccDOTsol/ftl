@@ -48,7 +48,7 @@ export default function LiveScreen() {
     <View style={st.header}>
       <View style={st.titleRow}>
         <View style={{ gap: 2, flexShrink: 1, minWidth: 220 }}>
-          <Text style={st.title}>{wide ? 'Live liquidity' : 'FTL'}</Text>
+          <Text style={st.title}>{wide ? 'Live liquidity' : <>liquidity<Text style={{ color: C.accent }}>xyz</Text></>}</Text>
           <Txt v="small">Pool births, adds and pulls the moment the chain sees them</Txt>
         </View>
         {!wide ? <Pulse inline /> : null}

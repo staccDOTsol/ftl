@@ -140,19 +140,20 @@ function shortvec(b: Uint8Array, o: { i: number }): number {
   }
 }
 
-export interface WireTx { sig: string; keys: string[]; ixs: { prog: number; accts: number[]; data: Uint8Array }[]; lookups: { table: string; w: number[]; r: number[] }[] }
+export interface WireTx { sig: Uint8Array; keys: Uint8Array[]; ixs: { prog: number; accts: number[]; data: Uint8Array }[]; lookups: { table: string; w: number[]; r: number[] }[] }
 
+// raw parse: no base58 until the caller knows the tx is one it wants
 export function parseWire(b: Uint8Array): WireTx {
   const o = { i: 0 }
   const nsig = shortvec(b, o)
-  const sig = bs58.encode(b.subarray(o.i, o.i + 64))
+  const sig = b.subarray(o.i, o.i + 64)
   o.i += 64 * nsig
   let versioned = false
   if (b[o.i] & 0x80) { versioned = true; o.i++ }
   o.i += 3 // header
   const nkeys = shortvec(b, o)
-  const keys: string[] = []
-  for (let k = 0; k < nkeys; k++) { keys.push(bs58.encode(b.subarray(o.i, o.i + 32))); o.i += 32 }
+  const keys: Uint8Array[] = []
+  for (let k = 0; k < nkeys; k++) { keys.push(b.subarray(o.i, o.i + 32)); o.i += 32 }
   o.i += 32 // blockhash
   const nix = shortvec(b, o)
   const ixs: WireTx['ixs'] = []

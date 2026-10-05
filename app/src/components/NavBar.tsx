@@ -45,7 +45,7 @@ export function NavBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View style={[st.rail, { paddingTop: insets.top + 20 }]}>
       <View style={{ paddingHorizontal: 20, gap: 2 }}>
-        <Text style={st.brand}>FTL</Text>
+        <Text style={st.brand}>liquidity<Text style={{ color: C.text }}>xyz</Text></Text>
         <Text style={st.tag}>follow the liquidity</Text>
       </View>
       <View style={{ marginTop: 24, gap: 2, paddingHorizontal: 10 }}>
@@ -69,7 +69,7 @@ export function Pulse({ inline }: { inline?: boolean }) {
   if (inline) {
     return (
       <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-        <View style={[st.liveDot, { backgroundColor: l.connected ? C.accent : C.bad }]} />
+        <View style={[st.liveDot, { backgroundColor: l.healthy ? C.accent : C.bad }]} />
         {chains.map(c => (
           <View key={c} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={[st.chain, { color: CHAIN[c].color }]}>{CHAIN[c].short}</Text>
@@ -84,8 +84,8 @@ export function Pulse({ inline }: { inline?: boolean }) {
     <View style={{ marginTop: 'auto', padding: 20, gap: 16 }}>
       <View style={{ gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={[st.liveDot, { backgroundColor: l.connected ? C.accent : C.bad }]} />
-          <Text style={st.section}>{l.connected ? 'LIVE' : 'RECONNECTING'}</Text>
+          <View style={[st.liveDot, { backgroundColor: l.healthy ? C.accent : C.warn }]} />
+          <Text style={st.section}>{l.connected ? 'LIVE' : l.healthy ? 'LIVE · HTTP' : 'CONNECTING'}</Text>
         </View>
         {chains.map(c => (
           <View key={c} style={{ gap: 6 }}>
@@ -117,7 +117,7 @@ export function Pulse({ inline }: { inline?: boolean }) {
 
 const st = StyleSheet.create({
   rail: { width: 236, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: C.line, backgroundColor: C.bg, height: '100%' },
-  brand: { fontFamily: F.displayBold, fontSize: 30, color: C.accent, letterSpacing: -1.4, lineHeight: 32 },
+  brand: { fontFamily: F.displayBold, fontSize: 24, color: C.accent, letterSpacing: -1, lineHeight: 28 },
   tag: { fontFamily: F.monoBold, fontSize: 10, color: C.faint, letterSpacing: 1.6, textTransform: 'uppercase' },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 38, borderRadius: 9, paddingHorizontal: 10 },
   navLabel: { fontFamily: F.bodyMedium, fontSize: T.md, color: C.muted },

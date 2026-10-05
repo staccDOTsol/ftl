@@ -43,7 +43,7 @@ export default function Root() {
         contentStyle: { backgroundColor: C.bg },
         headerBackButtonDisplayMode: 'minimal',
       }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'FTL' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'liquidityxyz' }} />
         <Stack.Screen name="token/[chain]/[address]" options={{ title: 'Token' }} />
         <Stack.Screen name="wallet/[chain]/[address]" options={{ title: 'Wallet' }} />
         <Stack.Screen name="profile/[pubkey]" options={{ title: 'Profile' }} />

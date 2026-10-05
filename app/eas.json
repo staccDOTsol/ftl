@@ -2,7 +2,7 @@
   "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
   "build": {
     "base": {
-      "env": { "EXPO_PUBLIC_API_URL": "https://ftl-firehose.fly.dev", "EXPO_PUBLIC_WEB_HOST": "ftl-liquidity.vercel.app" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://ftl-firehose.fly.dev", "EXPO_PUBLIC_WEB_HOST": "liquidityxyz.fun" }
     },
     "preview": {
       "extends": "base",

@@ -2,7 +2,7 @@
 // the UI every 200 ms so a burst of 50 events is one render, not 50.
 
 import { useSyncExternalStore } from 'react'
-import { WS_URL } from './api'
+import { WS_URL, get } from './api'
 import type { Chain, ClientMsg, FlowEvent, ServerMsg, Status, TokenMeta, TokenSummary } from './types'
 
 type Listener = () => void
@@ -38,23 +38,67 @@ class Live {
   private dirty = false
   private eventHooks = new Set<(e: FlowEvent) => void>()
 
+  private lastMsg = 0
+  private downSince = Date.now()
+  private polling = false
+  private pollAfter = 0
+
   constructor() {
     setInterval(() => this.tick(), FLUSH_MS)
+    // watchdog: the server sends status every 5 s, so 15 s of silence is a dead socket
+    setInterval(() => {
+      if (this.ws && this.connected && Date.now() - this.lastMsg > 15_000) { try { this.ws.close() } catch {} }
+      if (!this.connected && Date.now() - this.downSince > 5000) void this.poll()
+    }, 2000)
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !this.connected) { this.retry = 0; this.kick() }
+      })
+    }
   }
+
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private kick() {
+    if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null }
+    if (this.ws) { try { this.ws.close() } catch {} return }
+    this.start()
+  }
+
+  // socket down: keep the page alive over HTTP until it comes back
+  private async poll() {
+    if (this.polling) return
+    this.polling = true
+    try {
+      const f = this.filter && this.filter.t === 'filter' ? this.filter : null
+      const after = this.pollAfter || (this.events[0]?.ts ?? Date.now() - 60_000)
+      const evs = await get<FlowEvent[]>('/api/feed', { after, limit: 100, chain: f?.chains?.length === 1 ? f.chains[0] : undefined, kinds: f?.kinds?.join(','), flagged: f?.flaggedOnly ? 1 : undefined })
+      if (evs.length) {
+        this.pollAfter = evs[0].ts
+        const have = new Set(this.events.map(e => e.id))
+        for (const e of evs.reverse()) if (!have.has(e.id)) { this.bump(e.chain, e.kind === 'launch' ? null : e.token); this.inbox.push({ ...e, fresh: Date.now() }) }
+      }
+      if (!this.status || Date.now() - this.lastStatusPoll > 5000) { this.lastStatusPoll = Date.now(); this.onStatus(await get<Status>('/api/status')) }
+    } catch {} finally { this.polling = false }
+  }
+  private lastStatusPoll = 0
+  // live either over the socket or, while it reconnects, over HTTP polling
+  get healthy() { return this.connected || (!!this.status && Date.now() - this.lastStatusPoll < 12_000) }
 
   start() {
     if (this.ws) return
     const ws = new WebSocket(WS_URL)
     this.ws = ws
-    ws.onopen = () => { this.connected = true; this.retry = 0; if (this.filter) ws.send(JSON.stringify(this.filter)); this.dirty = true }
+    ws.onopen = () => { this.connected = true; this.retry = 0; this.lastMsg = Date.now(); this.pollAfter = 0; if (this.filter) ws.send(JSON.stringify(this.filter)); this.dirty = true }
     ws.onclose = () => {
+      if (this.connected) this.downSince = Date.now()
       this.connected = false
       this.ws = null
       this.dirty = true
-      setTimeout(() => this.start(), Math.min(15_000, 500 * 2 ** this.retry++))
+      this.retryTimer = setTimeout(() => { this.retryTimer = null; this.start() }, Math.min(4000, 300 * 2 ** this.retry++))
     }
     ws.onerror = () => { try { ws.close() } catch {} }
     ws.onmessage = (m) => {
+      this.lastMsg = Date.now()
       let msg: ServerMsg
       try { msg = JSON.parse(String(m.data)) } catch { return }
       if (msg.t === 'event') {
@@ -81,18 +125,20 @@ class Live {
         let hit = false
         const next = this.events.map(e => (e.chain === msg.chain && e.token === msg.address ? (hit = true, { ...e, tokenMeta: { ...e.tokenMeta, ...msg.m } }) : e))
         if (hit) { this.events = next; this.dirty = true }
-      } else if (msg.t === 'status') {
-        this.status = msg.s
-        for (const c of ['solana', 'robinhood'] as Chain[]) {
-          const wins = msg.s.lanes.filter(x => x.chain === c).reduce((a, x) => a + x.firstSeenWins, 0)
-          const prev = this.lastWins[c]
-          this.lastWins[c] = wins
-          if (prev !== null) this.flow[c] = [...this.flow[c].slice(1), Math.max(0, wins - prev)]
-        }
-        this.dirty = true
-      }
+      } else if (msg.t === 'status') this.onStatus(msg.s)
       else if (msg.t === 'token') { this.tokens.set(`${msg.s.chain}:${msg.s.address}`, msg.s); this.tokenTick++; this.dirty = true }
     }
+  }
+
+  private onStatus(st: Status) {
+    this.status = st
+    for (const c of ['solana', 'robinhood'] as Chain[]) {
+      const wins = st.lanes.filter(x => x.chain === c).reduce((a, x) => a + x.firstSeenWins, 0)
+      const prev = this.lastWins[c]
+      this.lastWins[c] = wins
+      if (prev !== null) this.flow[c] = [...this.flow[c].slice(1), Math.max(0, wins - prev)]
+    }
+    this.dirty = true
   }
 
   private applyMeta(e: LiveEvent) {

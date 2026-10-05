@@ -64,7 +64,7 @@ export default function TokenScreen() {
             <Button label={following ? 'Following' : 'Follow token'} kind={following ? 'ghost' : 'primary'} style={{ flex: 1 }} onPress={() => social.toggle('token', t.chain, t.address).catch(() => {})} />
           </View>
           <Txt v="small">
-            {t.launchedTs ? `Launched on ${venue(t.launchVenue ?? '')} ${ago(t.launchedTs, now)} ago. ` : 'Launch not seen by FTL. '}
+            {t.launchedTs ? `Launched on ${venue(t.launchVenue ?? '')} ${ago(t.launchedTs, now)} ago. ` : 'Launch not seen. '}
             {t.graduatedTs ? `Graduated ${ago(t.graduatedTs, now)} ago.` : t.launchedTs ? 'Still on its curve.' : ''}
             {t.firstPoolTs ? ` First pool ${ago(t.firstPoolTs, now)} ago.` : ''}
           </Txt>

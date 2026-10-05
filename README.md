@@ -1,9 +1,9 @@
-# FTL — Follow The Liquidity
+# liquidityxyz — follow the liquidity
 
 Realtime socialfi for liquidity: every pool birth, liquidity add and pull on Solana and Robinhood Chain, scored against the bot-structure fingerprints recorded in [staccDOTsol/the-book](https://github.com/staccDOTsol/the-book). Follow wallets and tokens, post calls that score at graduation, get alerts when they move.
 
-- Web: https://ftl-liquidity.vercel.app
-- API + websocket: https://ftl-firehose.fly.dev (`/api/status`, `/ws`)
+- Web: https://liquidityxyz.fun (Vercel project `ftl-liquidity`)
+- API + websocket: https://ftl-firehose.fly.dev, `api.liquidityxyz.fun` once DNS verifies (`/api/status`, `/ws`)
 - iOS / Android: Expo app in `app/`, built on EAS (`@staccoverflow/ftl-follow-the-liquidity`)
 
 ## Feeds
@@ -11,7 +11,7 @@ Realtime socialfi for liquidity: every pool birth, liquidity add and pull on Sol
 | Chain | Lane | Source | Stage |
 |---|---|---|---|
 | Robinhood (4663) | `logs` | dRPC websocket `eth_subscribe logs`: v4 PoolManager Initialize / ModifyLiquidity / Swap, chain-wide Pons TokenLaunched / PoolGraduated / PoolRegistered | executed |
-| Solana | `preconf` | Triton Preconfs (Harmonic + BAM), raw wire txs before shreds | pending |
+| Solana | `preconf` | Triton Preconfs, every Harmonic and BAM region (the Dragon's Mouth x-token works), raw wire txs before shreds | pending |
 | Solana | `deshred` | Triton Dragon's Mouth `SubscribeDeshred`, before execution | pending |
 | Solana | `geyser` | Triton Dragon's Mouth `Subscribe`, processed, with metadata | confirmed |
 | Solana | `geyser-drpc` | dRPC Solana Geyser gRPC `Subscribe`, processed | confirmed |

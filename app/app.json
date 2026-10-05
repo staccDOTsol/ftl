@@ -1,40 +1,45 @@
 {
   "expo": {
-    "name": "FTL",
+    "name": "liquidityxyz",
     "slug": "ftl-follow-the-liquidity",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ftl",
+    "scheme": "liquidityxyz",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "xyz.stacc.ftl",
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "fun.liquidityxyz.app",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#07080B",
+        "backgroundColor": "#0b0e14",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "xyz.stacc.ftl"
+      "package": "fun.liquidityxyz.app"
     },
     "web": {
       "output": "single",
       "favicon": "./assets/images/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "liquidityxyz",
+      "shortName": "liquidityxyz",
+      "description": "Follow the liquidity: every pool birth, add and pull on Solana and Robinhood Chain, live, with the bot fingerprints from the book.",
+      "themeColor": "#0b0e14",
+      "backgroundColor": "#0b0e14"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#07080B",
+          "backgroundColor": "#0b0e14",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120
         }
       ],
       "expo-secure-store",
