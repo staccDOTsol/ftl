@@ -265,10 +265,22 @@ export function createSolanaRouterHandler(options: Options) {
     u.pathname = u.pathname.replace(/\/$/, '') + path
     return u.toString()
   }
-  async function getQuote(q: URLSearchParams) {
-    if (directEnabled) return publicQuote((await (await direct()).quote(localIntent(q))).quote, q)
-    return publicQuote(await upstream(`${router('/quote')}?${q}`, {}, 25_000), q)
+  const externalEnabled = !!options.routerUrl
+  // Best execution across both route sources. The direct venue router knows
+  // FTL-observed young pools immediately; the external router covers deep
+  // established markets. Either may lack a pair; whichever quotes more output
+  // wins, and the swap is built from that same source.
+  async function bestQuote(q: URLSearchParams): Promise<{ quote: any; source: 'direct' | 'external' }> {
+    const attempts: Promise<{ quote: any; source: 'direct' | 'external' }>[] = []
+    if (directEnabled) attempts.push(direct().then(async r => ({ quote: publicQuote((await r.quote(localIntent(q))).quote, q), source: 'direct' as const })))
+    if (externalEnabled) attempts.push(upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })))
+    if (!attempts.length) throw new RequestError(503, 'Solana trading is not configured yet')
+    const settled = await Promise.allSettled(attempts)
+    const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
+    if (!winners.length) { const first = settled[0] as PromiseRejectedResult; throw first.reason instanceof RequestError ? first.reason : new RequestError(404, 'No executable route is available for this pair and amount') }
+    return winners[0]
   }
+  async function getQuote(q: URLSearchParams) { return (await bestQuote(q)).quote }
   return async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
     const route = `${req.method}:${url.pathname}`
     if (!['GET:/api/quote/solana', 'POST:/api/swap/solana', 'GET:/api/router/solana', 'POST:/api/solana/rpc', 'GET:/api/liquidity/solana/capabilities', 'GET:/api/liquidity/solana/positions', 'POST:/api/liquidity/solana/quote', 'POST:/api/liquidity/solana/build'].includes(route)) return false
@@ -314,11 +326,20 @@ export function createSolanaRouterHandler(options: Options) {
           // Only the user's trade intent/minimum survive. Route plans, accounts,
           // destination overrides and fee recipients supplied by clients do not.
           let fresh: any
-          if (directEnabled) {
-            data = await (await direct()).swap(localIntent(q), wallet, minimum)
+          // Build on the direct router and quote the external router in parallel;
+          // the external route wins only when it returns strictly more output.
+          const [builtDirect, external] = await Promise.allSettled([
+            directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
+            externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
+          ])
+          const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
+          const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
+          if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
+          if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
+            data = (builtDirect as PromiseFulfilledResult<any>).value
             fresh = publicQuote(data.quoteResponse, q)
           } else {
-            fresh = await getQuote(q)
+            fresh = (external as PromiseFulfilledResult<any>).value
             if (BigInt(fresh.outAmount) < BigInt(minimum)) throw new RequestError(409, 'The price moved beyond your minimum received. Refresh the quote.')
             if (BigInt(fresh.otherAmountThreshold) < BigInt(minimum)) fresh.otherAmountThreshold = minimum
             data = await upstream(router('/swap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userPublicKey: wallet, transactionVersion: requestedVersion, wrapAndUnwrapSol: true, autoCreateOutAta: true, quoteResponse: fresh }) }, 30_000)
