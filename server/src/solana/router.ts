@@ -284,6 +284,59 @@ export function createSolanaRouterHandler(options: Options) {
   // All-venue positions for one owner over the same bounded transport. Used by
   // the holdings endpoint; errors carry the RequestError status, never a URL.
   const positions = (owner: string) => upstream(`${router('/liquidity/positions')}?${new URLSearchParams({ owner: address(owner) })}`, {}, 65_000, true)
+  // Positions narrowed to one venue and pool (venues that only list LP holdings per pool).
+  function liquidityPositions(params: { owner: string; venue?: string; pool?: string }) {
+    const q = new URLSearchParams({ owner: address(params.owner) })
+    if (params.pool !== undefined) q.set('pool', address(params.pool))
+    if (params.venue !== undefined) { if (!LP_VENUES.has(params.venue)) fail('Invalid liquidity venue'); q.set('venue', params.venue === 'raydium-amm' ? 'raydium-amm-v4' : params.venue) }
+    return upstream(`${router('/liquidity/positions')}?${q}`, {}, 65_000, true)
+  }
+  // Validated liquidity quote / build round trips; shared with the zap planner.
+  async function liquidityQuote(value: unknown): Promise<any> {
+    const intent = validateLiquidityRequest(value)
+    const data = await upstream(router('/liquidity/quote'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(intent) }, 65_000, true)
+    if (!object(data) || data.owner !== intent.owner || data.venue !== intent.venue || data.operation !== intent.operation || !Array.isArray(data.amounts) || !Number.isSafeInteger(data.expiresAt) || typeof data.quoteId !== 'string') throw new RequestError(502, 'Liquidity service returned a different quote')
+    return data
+  }
+  async function liquidityBuild(value: unknown): Promise<any> {
+    const intent = validateLiquidityRequest(value, true)
+    const data = await upstream(router('/liquidity/build'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(intent) }, 65_000, true)
+    return validateLiquidityBuild(data, intent)
+  }
+  // POST /api/swap/solana body → built swap. Only the user's trade intent and
+  // minimum survive; route plans, accounts, destination overrides and fee
+  // recipients supplied by clients do not.
+  async function buildSwap(j: any): Promise<any> {
+    if (!object(j) || !object(j.quoteResponse) || (j.wrapAndUnwrapSol !== undefined && j.wrapAndUnwrapSol !== true)) fail('Invalid swap request')
+    const requestedVersion = j.transactionVersion === undefined ? '1' : String(j.transactionVersion)
+    if (requestedVersion !== '1' && requestedVersion !== '0') fail('transactionVersion must be 1 or 0')
+    const wallet = address(j.userPublicKey), old = j.quoteResponse
+    const q = quoteParams(new URLSearchParams({ inputMint: old.inputMint, outputMint: old.outputMint, amount: old.inAmount, slippageBps: String(old.slippageBps), swapMode: old.swapMode, transactionVersion: requestedVersion }))
+    const minimum = amount(old.otherAmountThreshold)
+    let fresh: any, data: any
+    // Build on the direct router and quote the external router in parallel;
+    // the external route wins only when it returns strictly more output.
+    const [builtDirect, external] = await Promise.allSettled([
+      directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
+      externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
+    ])
+    const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
+    const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
+    if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
+    if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
+      data = (builtDirect as PromiseFulfilledResult<any>).value
+      fresh = publicQuote(data.quoteResponse, q)
+    } else {
+      fresh = (external as PromiseFulfilledResult<any>).value
+      if (BigInt(fresh.outAmount) < BigInt(minimum)) throw new RequestError(409, 'The price moved beyond your minimum received. Refresh the quote.')
+      if (BigInt(fresh.otherAmountThreshold) < BigInt(minimum)) fresh.otherAmountThreshold = minimum
+      data = await upstream(router('/swap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userPublicKey: wallet, transactionVersion: requestedVersion, wrapAndUnwrapSol: true, autoCreateOutAta: true, quoteResponse: fresh }) }, 30_000)
+    }
+    if (!object(data) || typeof data.swapTransaction !== 'string' || !Number.isSafeInteger(data.lastValidBlockHeight) || data.lastValidBlockHeight < 1) throw new RequestError(502, 'Router returned an invalid transaction')
+    transaction(data.swapTransaction, false)
+    if (transactionVersion(data.swapTransaction) !== requestedVersion || (data.transactionVersion !== undefined && String(data.transactionVersion) !== requestedVersion)) throw new RequestError(502, 'Router returned a different transaction version than requested')
+    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0, quoteResponse: fresh }
+  }
   async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
     const route = `${req.method}:${url.pathname}`
     if (!['GET:/api/quote/solana', 'POST:/api/swap/solana', 'GET:/api/router/solana', 'POST:/api/solana/rpc', 'GET:/api/liquidity/solana/capabilities', 'GET:/api/liquidity/solana/positions', 'POST:/api/liquidity/solana/quote', 'POST:/api/liquidity/solana/build'].includes(route)) return false
@@ -305,10 +358,7 @@ export function createSolanaRouterHandler(options: Options) {
         data=await upstream(`${router('/liquidity/positions')}?${q}`,{},65_000,true)
       } else if (route === 'POST:/api/liquidity/solana/quote' || route === 'POST:/api/liquidity/solana/build') {
         let j:unknown;try{j=JSON.parse(body)}catch{fail('Invalid JSON body')}
-        const build=route.endsWith('/build'), intent=validateLiquidityRequest(j,build)
-        data=await upstream(router(`/liquidity/${build?'build':'quote'}`),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(intent)},65_000,true)
-        if(build)data=validateLiquidityBuild(data,intent)
-        else if(!object(data)||data.owner!==intent.owner||data.venue!==intent.venue||data.operation!==intent.operation||!Array.isArray(data.amounts)||!Number.isSafeInteger(data.expiresAt)||typeof data.quoteId!=='string')throw new RequestError(502,'Liquidity service returned a different quote')
+        data = route.endsWith('/build') ? await liquidityBuild(j) : await liquidityQuote(j)
       } else if (route === 'GET:/api/router/solana') {
         if (directEnabled) {
           const { directRouterCoverage } = await import('./self-router.ts')
@@ -319,39 +369,8 @@ export function createSolanaRouterHandler(options: Options) {
       else {
         let j: any
         try { j = JSON.parse(body) } catch { fail('Invalid JSON body') }
-        if (route === 'POST:/api/swap/solana') {
-          if (!object(j) || !object(j.quoteResponse) || (j.wrapAndUnwrapSol !== undefined && j.wrapAndUnwrapSol !== true)) fail('Invalid swap request')
-          const requestedVersion = j.transactionVersion === undefined ? '1' : String(j.transactionVersion)
-          if (requestedVersion !== '1' && requestedVersion !== '0') fail('transactionVersion must be 1 or 0')
-          const wallet = address(j.userPublicKey), old = j.quoteResponse
-          const q = quoteParams(new URLSearchParams({ inputMint: old.inputMint, outputMint: old.outputMint, amount: old.inAmount, slippageBps: String(old.slippageBps), swapMode: old.swapMode, transactionVersion: requestedVersion }))
-          const minimum = amount(old.otherAmountThreshold)
-          // Only the user's trade intent/minimum survive. Route plans, accounts,
-          // destination overrides and fee recipients supplied by clients do not.
-          let fresh: any
-          // Build on the direct router and quote the external router in parallel;
-          // the external route wins only when it returns strictly more output.
-          const [builtDirect, external] = await Promise.allSettled([
-            directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
-            externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
-          ])
-          const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
-          const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
-          if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
-          if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
-            data = (builtDirect as PromiseFulfilledResult<any>).value
-            fresh = publicQuote(data.quoteResponse, q)
-          } else {
-            fresh = (external as PromiseFulfilledResult<any>).value
-            if (BigInt(fresh.outAmount) < BigInt(minimum)) throw new RequestError(409, 'The price moved beyond your minimum received. Refresh the quote.')
-            if (BigInt(fresh.otherAmountThreshold) < BigInt(minimum)) fresh.otherAmountThreshold = minimum
-            data = await upstream(router('/swap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userPublicKey: wallet, transactionVersion: requestedVersion, wrapAndUnwrapSol: true, autoCreateOutAta: true, quoteResponse: fresh }) }, 30_000)
-          }
-          if (!object(data) || typeof data.swapTransaction !== 'string' || !Number.isSafeInteger(data.lastValidBlockHeight) || data.lastValidBlockHeight < 1) throw new RequestError(502, 'Router returned an invalid transaction')
-          transaction(data.swapTransaction, false)
-          if (transactionVersion(data.swapTransaction) !== requestedVersion || (data.transactionVersion !== undefined && String(data.transactionVersion) !== requestedVersion)) throw new RequestError(502, 'Router returned a different transaction version than requested')
-          data = { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0, quoteResponse: fresh }
-        } else {
+        if (route === 'POST:/api/swap/solana') data = await buildSwap(j)
+        else {
           if (!options.rpcUrl) throw new RequestError(503, 'Solana wallet RPC is not configured yet')
           const request = validateRpc(j)
           limit(`rpc:${peer}:${request.method}`, request.method === 'sendTransaction' ? 10 : request.method === 'simulateTransaction' ? 20 : 90)
@@ -374,5 +393,5 @@ export function createSolanaRouterHandler(options: Options) {
     } finally { if (counted) inflight-- }
     return true
   }
-  return Object.assign(handle, { positions })
+  return Object.assign(handle, { positions, liquidityPositions, liquidityQuote, liquidityBuild, quote: (q: URLSearchParams) => getQuote(quoteParams(q)), buildSwap, upstream, router })
 }

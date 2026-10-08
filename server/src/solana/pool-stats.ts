@@ -16,6 +16,8 @@ export interface PoolStats {
   /** Percent. Farm / emission rewards as the venue reports them (null when the venue reports none). */
   rewardApr: number | null
   totalApr: number | null
+  /** Orca only: the whirlpool's tick spacing (32896 marks a Splash pool). */
+  tickSpacing?: number | null
   source: string; fetchedAt: number
 }
 export type PoolStatsFetcher = (url: string, init: RequestInit) => Promise<Response>
@@ -62,11 +64,11 @@ function finish(base: Omit<PoolStats, 'feeApr' | 'totalApr' | 'fetchedAt'> & { f
   const feeApr = base.feeApr ?? annualize(base.fees24hUsd, base.tvlUsd)
   const totalApr = feeApr === null && base.rewardApr === null ? null : (feeApr ?? 0) + (base.rewardApr ?? 0)
   return { venue: base.venue, pool: base.pool, tvlUsd: base.tvlUsd, volume24hUsd: base.volume24hUsd, fees24hUsd: base.fees24hUsd,
-    feeRateBps: base.feeRateBps, feeApr, rewardApr: base.rewardApr, totalApr, source: base.source, fetchedAt }
+    feeRateBps: base.feeRateBps, feeApr, rewardApr: base.rewardApr, totalApr, ...(base.tickSpacing !== undefined ? { tickSpacing: base.tickSpacing } : {}), source: base.source, fetchedAt }
 }
 
 type Upstream = (url: string) => Promise<any>
-const venues: Record<PoolStatsVenue, (pool: string, get: Upstream) => Promise<Omit<PoolStats, 'fetchedAt' | 'feeApr' | 'totalApr'> & { feeApr?: number | null }>> = {
+const venues: Record<PoolStatsVenue, (pool: string, get: Upstream) => Promise<Omit<PoolStats, 'fetchedAt' | 'feeApr' | 'totalApr'> & { feeApr?: number | null; tickSpacing?: number | null }>> = {
   'raydium-cpmm': (pool, get) => raydium('raydium-cpmm', pool, get),
   'raydium-clmm': (pool, get) => raydium('raydium-clmm', pool, get),
   'raydium-amm-v4': (pool, get) => raydium('raydium-amm-v4', pool, get),
@@ -77,7 +79,7 @@ const venues: Record<PoolStatsVenue, (pool: string, get: Upstream) => Promise<Om
     const tvlUsd = num(data.tvlUsdc), fees24hUsd = num(day.fees), rewards = num(day.rewards)
     const feeRate = num(data.feeRate) // hundredths of a basis point (1600 = 0.16%)
     return { venue: 'orca', pool, tvlUsd, volume24hUsd: num(day.volume), fees24hUsd,
-      feeRateBps: feeRate === null ? null : feeRate / 100, rewardApr: rewards && rewards > 0 ? annualize(rewards, tvlUsd) : null, source: 'api.orca.so' }
+      feeRateBps: feeRate === null ? null : feeRate / 100, rewardApr: rewards && rewards > 0 ? annualize(rewards, tvlUsd) : null, tickSpacing: num(data.tickSpacing), source: 'api.orca.so' }
   },
   'meteora-dlmm': (pool, get) => meteoraDatapi('meteora-dlmm', 'https://dlmm.datapi.meteora.ag', pool, get),
   'meteora-damm-v2': (pool, get) => meteoraDatapi('meteora-damm-v2', 'https://damm-v2.datapi.meteora.ag', pool, get),

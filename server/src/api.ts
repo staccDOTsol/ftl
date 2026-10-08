@@ -19,6 +19,7 @@ import { createSolanaRouterHandler } from './solana/router.ts'
 import { createSolanaHoldingsHandler } from './solana/holdings.ts'
 import { createPoolStatsHandler } from './solana/pool-stats.ts'
 import { createSolanaWrapHandler } from './solana/wrap.ts'
+import { createSolanaZapHandler } from './solana/zap.ts'
 import { createTokenMetaHandler, type TokenMetaRecord } from './solana/token-meta.ts'
 import { validPublicKey } from './solana/router.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
@@ -35,6 +36,12 @@ const handleSolanaHoldings = createSolanaHoldingsHandler({ rpcUrl: config.solana
   hot: limit => hot(new URLSearchParams({ chain: 'solana', limit: String(limit) })),
 } })
 const handleSolanaWrap = createSolanaWrapHandler({ rpcUrl: config.solanaRpc })
+// Simple liquidity: plan (pool choice + split + quotes) and per-step build of
+// SOL → LP and LP → SOL over the router handler's own quote and build paths.
+const handleSolanaZap = createSolanaZapHandler({ rpcUrl: config.solanaRpc, router: handleSolanaRouter, catalog: {
+  token: mint => getToken('solana', mint),
+  pools: (mint, limit) => (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY funded DESC, created_ts DESC LIMIT ?').all('solana', mint, limit) as any[]).map(rowToPool),
+} })
 // Symbol / name / image / decimals for any mint, FTL row → DAS → mint account;
 // DAS answers are written back through setTokenMeta like the enrichment queue.
 const handleTokenMeta = createTokenMetaHandler({ dasUrl: config.solanaDasRpc, rpcUrl: config.solanaRpc, catalog: {
@@ -198,6 +205,7 @@ export function startApi(port: number) {
       if (await handleSolanaHoldings(req, res, url)) return
       if (await handlePoolStats(req, res, url)) return
       if (await handleSolanaWrap(req, res, url, body)) return
+      if (await handleSolanaZap(req, res, url, body)) return
       if (await handleTokenMeta(req, res, url)) return
       if (await handleHeliusWaas(req, res, url, body)) return
       let out: unknown

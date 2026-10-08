@@ -9,11 +9,11 @@ import type { Chain, Flag } from '@/lib/types'
 
 type TxtVariant = 'title' | 'h1' | 'h2' | 'body' | 'small' | 'label' | 'mono' | 'monoSmall' | 'num'
 export function Txt({ v = 'body', color, style, children, numberOfLines, selectable }: { v?: TxtVariant; color?: string; style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number; selectable?: boolean }) {
-  return <Text selectable={selectable} numberOfLines={numberOfLines} style={[t[v], color ? { color } : null, style]}>{children}</Text>
+  return <Text selectable={selectable} numberOfLines={numberOfLines} dataSet={{ type: v }} style={[t[v], color ? { color } : null, style]}>{children}</Text>
 }
 
 export const t = StyleSheet.create({
-  title: { fontFamily: F.displayBold, fontSize: T.xxl, color: C.text, letterSpacing: -0.8, lineHeight: 32 },
+  title: { fontFamily: F.displayBold, fontSize: 32, color: C.text, letterSpacing: -1.2, lineHeight: 39 },
   h1: { fontFamily: F.displayBold, fontSize: T.xl, color: C.text, letterSpacing: -0.5 },
   h2: { fontFamily: F.display, fontSize: T.md, color: C.text, letterSpacing: -0.2 },
   body: { fontFamily: F.body, fontSize: T.md, color: C.text, lineHeight: 22 },
@@ -28,7 +28,7 @@ export const t = StyleSheet.create({
 type PressState = { pressed: boolean; hovered?: boolean; focused?: boolean }
 export function Press({ style, children, disabled, ...rest }: Omit<PressableProps, 'style' | 'children'> & { style?: (s: PressState) => StyleProp<ViewStyle>; children: ReactNode | ((s: PressState) => ReactNode) }) {
   return (
-    <Pressable disabled={disabled} {...rest} style={(s) => {
+    <Pressable disabled={disabled} accessibilityRole={rest.onPress ? 'button' : undefined} {...rest} style={(s) => {
       const st = s as PressState
       return [style?.(st), st.focused ? { outlineColor: C.accent, outlineWidth: 2, outlineStyle: 'solid' } as any : null, disabled ? { opacity: 0.45 } : null]
     }}>
@@ -39,7 +39,7 @@ export function Press({ style, children, disabled, ...rest }: Omit<PressableProp
 
 export function Screen({ children, edges = ['top'] }: { children: ReactNode; edges?: ('top' | 'bottom')[] }) {
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: C.bg }}>
+    <SafeAreaView edges={edges} dataSet={{ screen: true }} style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ flex: 1, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>{children}</View>
     </SafeAreaView>
   )
@@ -132,18 +132,21 @@ export function Button({ label, onPress, kind = 'primary', size = 'md', disabled
   const height = size === 'sm' ? 32 : size === 'lg' ? 52 : 44
   const fontSize = size === 'sm' ? T.sm : size === 'lg' ? T.lg : T.md
   return (
-    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button" accessibilityState={{ disabled: !!disabled, busy: !!busy }}
+    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button" accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }} dataSet={{ button: kind }}
       style={({ pressed, hovered }) => [s.btn, { height, borderRadius: size === 'sm' ? 9 : 12, paddingHorizontal: size === 'sm' ? 12 : 18 }, kind === 'primary' ? s.btnPrimary : kind === 'ghost' ? s.btnGhost : s.btnQuiet,
-        hovered && (kind === 'primary' ? { backgroundColor: C.accent, shadowColor: C.accent, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
+        hovered && (kind === 'primary' ? { backgroundColor: C.accent, opacity: 0.88 } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
         pressed && { transform: [{ scale: 0.97 }] }, style]}>
-      {busy ? <ActivityIndicator color={kind === 'primary' ? C.accentInk : C.text} /> : <Text style={[s.btnText, { fontSize }, kind === 'primary' && { color: C.accentInk }, kind === 'quiet' && { color: C.muted }]}>{label}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minWidth: 0 }}>
+        {busy ? <ActivityIndicator size="small" color={kind === 'primary' ? C.accentInk : C.text} /> : null}
+        <Text numberOfLines={1} style={[s.btnText, { fontSize, flexShrink: 1 }, kind === 'primary' && { color: C.accentInk }, kind === 'quiet' && { color: C.muted }]}>{label}</Text>
+      </View>
     </Press>
   )
 }
 
 export function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <View style={s.stat}>
+    <View style={s.stat} dataSet={{ stat: true }}>
       <Text style={[t.label]}>{label}</Text>
       <Text style={[t.num, { fontSize: T.lg }, color ? { color } : null]}>{value}</Text>
     </View>
@@ -163,7 +166,7 @@ export function Empty({ title, body, children }: { title: string; body?: string;
 
 export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <View style={{ marginTop: 24 }}>
+    <View style={{ marginTop: 24 }} dataSet={{ section: true }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 }}>
         <Txt v="label">{title}</Txt>
         {right}
@@ -213,7 +216,7 @@ export const s = StyleSheet.create({
   btnGhost: { borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
   btnQuiet: { backgroundColor: 'transparent' },
   btnText: { fontFamily: F.display, fontSize: T.md, color: C.text },
-  stat: { flex: 1, minWidth: 96, padding: 12, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, gap: 4 },
+  stat: { flex: 1, minWidth: 96, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: C.surface, gap: 6 },
   emptyRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.lineStrong, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   emptyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
 })
