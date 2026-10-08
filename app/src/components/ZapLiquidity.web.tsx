@@ -78,6 +78,8 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   const [positionError, setPositionError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string>('')
   const [progress, setProgress] = useState<ZapProgress | null>(null)
+  // One saved run exists at a time; one for another token still blocks new runs here.
+  const [otherRun, setOtherRun] = useState<ZapProgress | null>(null)
   const [busy, setBusy] = useState(false)
   const [phase, setPhase] = useState('')
   const [error, setError] = useState('')
@@ -109,7 +111,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   useEffect(() => {
     mounted.current = true
     const timer = setInterval(() => setNow(Date.now()), 1000)
-    const restore = setTimeout(() => { const saved = readProgress(); if (saved && saved.mint === mint) { setProgress(saved); setDirection(saved.direction) } }, 0)
+    const restore = setTimeout(() => { const saved = readProgress(); if (saved && saved.mint === mint) { setProgress(saved); setDirection(saved.direction); setOtherRun(null) } else setOtherRun(saved) }, 0)
     return () => { mounted.current = false; clearInterval(timer); clearTimeout(restore) }
   }, [mint])
   useEffect(() => {
@@ -259,7 +261,9 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   }
   async function start() {
     if (hasPending()) throw new Error('Resolve the pending wallet transaction before starting another operation.')
-    if (readProgress()) throw new Error('Finish or stop the operation in progress first.')
+    const open = readProgress()
+    if (open && open.mint !== mint) { setOtherRun(open); throw new Error(`A ${open.direction === 'in' ? 'deposit' : 'withdrawal'} for ${shortMint(open.mint)} is still open. Stop it below, then try again.`) }
+    if (open) throw new Error('Finish or stop the operation in progress first.')
     if (!plan || !owner || !version || current.current.key !== key || plan.owner !== owner) throw new Error('Wait for a fresh plan.')
     if (plan.expiresAt <= Date.now()) throw new Error('This plan expired. Wait for the refreshed one.')
     if (plan.mode === 'composed' && !composerAck) throw new Error('This run goes through the composer program. Review the composed route above and acknowledge it, then try again. Nothing was signed.')
@@ -410,6 +414,11 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
     {routerOk === false ? <Txt v="small" color={C.warn}>Liquidity routing is temporarily unavailable. Try again shortly, or use Advanced.</Txt> : null}
     {phase ? <Txt v="small" color={C.accent}>{phase}</Txt> : null}
     {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
+    {otherRun && !progress ? <View style={st.details}>
+      <Txt v="small" color={C.warn}>{otherRun.direction === 'in' ? 'A deposit' : 'A withdrawal'} for {shortMint(otherRun.mint)} is still open{otherRun.pending ? ' and waiting on a transaction' : ''}; it blocks new runs here. Confirmed steps already changed your balances.</Txt>
+      {otherRun.pending ? <Button kind="quiet" size="sm" label="View pending transaction ↗" onPress={() => void Linking.openURL(`https://solscan.io/tx/${otherRun.pending!.signature}`)} />
+        : <Button kind="quiet" size="sm" label="Stop its remaining steps" disabled={busy} onPress={() => { try { localStorage.removeItem(ZAP_KEY) } catch {} setOtherRun(null); setError('') }} />}
+    </View> : null}
 
     {progress ? <View style={st.details}>
       <Txt v="label">{progress.direction === 'in' ? 'Deposit in progress' : 'Withdrawal in progress'} · {venueName(progress.venue)}</Txt>

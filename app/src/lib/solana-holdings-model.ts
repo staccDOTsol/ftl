@@ -50,3 +50,22 @@ export function liquidityActionHref(action: Pick<HoldingAction, 'kind' | 'href' 
 }
 
 export const ACTION_LABEL: Record<HoldingActionKind, string> = { exit: 'Exit', unwrap: 'Unwrap', sell: 'Sell', add: 'Add liquidity', buy: 'Buy' }
+
+// The token picker's "Your tokens": native SOL and every nonzero SPL balance,
+// one row per mint (accounts summed; wrapped SOL is left to Unwrap), by USD
+// value where a mark exists, then by balance.
+export interface HeldToken { mint: string; amount: string; decimals: number; balance: number; usd: number | null; token: TokenSummary | null }
+export function heldTokens(holdings: Pick<Holdings, 'sol' | 'tokens'>, price: (mint: string) => number | undefined = () => undefined): HeldToken[] {
+  const byMint = new Map<string, { total: bigint; decimals: number; token: TokenSummary | null }>()
+  if (BigInt(holdings.sol.lamports) > 0n) byMint.set(SOL_MINT, { total: BigInt(holdings.sol.lamports), decimals: 9, token: null })
+  for (const t of holdings.tokens) {
+    if (t.wrappedSol || BigInt(t.amount) === 0n) continue
+    const row = byMint.get(t.mint) ?? { total: 0n, decimals: t.decimals, token: t.token }
+    row.total += BigInt(t.amount)
+    byMint.set(t.mint, row)
+  }
+  return [...byMint].map(([mint, { total, decimals, token }]) => {
+    const balance = Number(total) / 10 ** decimals, mark = price(mint)
+    return { mint, amount: total.toString(), decimals, balance, usd: mark ? balance * mark : null, token }
+  }).sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1) || b.balance - a.balance)
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { actionMint, holdingLabel, isActionHref, isSolanaAddress, liquidityActionHref, SOL_MINT, shortAddress } from '../src/lib/solana-holdings-model.ts'
+import { actionMint, heldTokens, holdingLabel, isActionHref, isSolanaAddress, liquidityActionHref, SOL_MINT, shortAddress } from '../src/lib/solana-holdings-model.ts'
 
 test('wallet address validation checks decoded length, not only characters', () => {
   assert.equal(isSolanaAddress(SOL_MINT), true)
@@ -45,4 +45,15 @@ test('add and exit actions on tokens without a token page open the terminal in L
   assert.equal(liquidityActionHref(exit, known, positions), exit.href)
   assert.equal(liquidityActionHref(sell, unseen, positions), sell.href)
   assert.ok(isActionHref(liquidityActionHref(exit, unseen, positions)))
+})
+
+test('held tokens: native SOL and nonzero SPL balances per mint, by USD value then balance', () => {
+  const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', BREAD = '53cTDPa69sUXtn4FiuXiKEipJGkUUaNxoisBiuSFkd5i', DUST = 'A9ECbJ9UKSgf92A5QTW7dcJMcA14mUw3g3c4SMkNKnH4'
+  const account = (mint, amount, decimals, extra = {}) => ({ account: mint, mint, amount, decimals, program: 'token', wrappedSol: false, token: null, pools: [], ...extra })
+  const tokens = [account(BREAD, '5000000', 6, { token: { symbol: 'BREAD' } }), account(USDC, '2500000', 6), account(BREAD, '1000000', 6), account(DUST, '0', 6), account(SOL_MINT, '9000000000', 9, { wrappedSol: true }), account(DUST, '7', 0)]
+  const rows = heldTokens({ sol: { lamports: '1500000000' }, tokens }, mint => ({ [SOL_MINT]: 100, [USDC]: 1 })[mint])
+  assert.deepEqual(rows.map(row => [row.mint, row.amount, row.usd]), [[SOL_MINT, '1500000000', 150], [USDC, '2500000', 2.5], [DUST, '7', null], [BREAD, '6000000', null]])
+  assert.equal(rows[3].token.symbol, 'BREAD')
+  assert.deepEqual(heldTokens({ sol: { lamports: '0' }, tokens: [] }), [])
+  assert.deepEqual(heldTokens({ sol: { lamports: '0' }, tokens: [account(BREAD, '1', 0)] }).map(row => row.usd), [null])
 })

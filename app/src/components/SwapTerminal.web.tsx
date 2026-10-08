@@ -11,12 +11,14 @@ import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import bs58 from 'bs58'
 import { C, F, T } from '@/theme'
 import { ApiError, get } from '@/lib/api'
-import { short, venue } from '@/lib/format'
+import { num, quoteSymbol, short, usd, venue } from '@/lib/format'
+import { live } from '@/lib/live'
 import type { PoolSummary, TokenSummary } from '@/lib/types'
 import { tokenMetaOne, useTokenMeta, type TokenMetaMap, type TokenMetaRecord } from '@/lib/token-meta'
 import { acknowledgeComposer, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, unacknowledgedComposedBuild, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
+import { getHoldings, heldTokens, type HeldToken, type Holdings } from '@/lib/solana-holdings'
 import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink, type SwapLinkAction, type SwapMode } from '@/lib/swap-link'
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Chip, Press, Seg, TokenAvatar, Txt } from './ui'
@@ -169,6 +171,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
     const values = await Promise.all(mints.map(async mint => [mint, await tokenBalance(owner, mint)] as const))
     if (mounted.current && signerRef.current?.address === owner) setBalances(old => ({ ...old, ...Object.fromEntries(values.map(([mint, raw]) => [mint, { owner, raw }])) }))
   }, [address, inputMint, outputMint])
+  // Any wallet transaction (swap or liquidity) makes the picker re-read holdings.
+  useEffect(() => { if (locked) holdingsCache.clear() }, [locked])
   useEffect(() => {
     let active = true
     const refresh = () => { void refreshBalances().catch(error => { if (active) setError(`Balance unavailable: ${messageOf(error)}`) }) }
@@ -461,7 +465,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
           <Txt v="small">Your trading wallet is separate from your profile key.</Txt>
         </View>
     </Dialog> : null}
-    {picker ? <TokenPicker side={picker} exclude={picker === 'in' ? output?.mint ?? null : input.mint} onClose={() => setPicker(null)} onPick={token => pick(picker, token)} /> : null}
+    {picker ? <TokenPicker side={picker} owner={address} exclude={picker === 'in' ? output?.mint ?? null : input.mint} onClose={() => setPicker(null)} onPick={token => pick(picker, token)} /> : null}
   </View>
 }
 
@@ -530,11 +534,31 @@ function TokenButton({ token, disabled, onPress }: { token: Token | null; disabl
   </Press>
 }
 
-// Search FTL-known tokens, paste any mint, or pick from the quick row.
-function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; exclude: string | null; onClose: () => void; onPick: (token: Token) => void }) {
+// The picker's "Your tokens" come from the holdings endpoint, which reads three
+// RPC calls and every venue's positions per request (seconds, rate limited), so
+// one read per owner is shared while in flight and reused for 30 s; later opens
+// show the last read at once while a fresh one lands.
+const HOLDINGS_TTL_MS = 30_000
+const holdingsCache = new Map<string, { at: number; read: Promise<Holdings>; data?: Holdings }>()
+function walletHoldings(owner: string): Promise<Holdings> {
+  const hit = holdingsCache.get(owner)
+  if (hit && Date.now() - hit.at < HOLDINGS_TTL_MS) return hit.read
+  const entry: { at: number; read: Promise<Holdings>; data?: Holdings } = { at: Infinity, read: getHoldings(owner), data: hit?.data }
+  holdingsCache.set(owner, entry)
+  if (holdingsCache.size > 4) holdingsCache.delete(holdingsCache.keys().next().value!)
+  entry.read.then(data => { entry.at = Date.now(); entry.data = data }, () => { if (holdingsCache.get(owner) === entry) holdingsCache.delete(owner) })
+  return entry.read
+}
+// USD marks exist only for the server's quote assets (SOL and the stables), by mint.
+const markOf = (mint: string) => { const symbol = quoteSymbol(mint); return symbol ? live.status?.prices?.[symbol] : undefined }
+
+// Search FTL-known tokens, paste any mint, or pick from the connected wallet's
+// tokens and the quick row.
+function TokenPicker({ side, owner, exclude, onClose, onPick }: { side: 'in' | 'out'; owner: string | null; exclude: string | null; onClose: () => void; onPick: (token: Token) => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Token[]>([])
   const [hot, setHot] = useState<Token[]>([])
+  const [holdings, setHoldings] = useState<{ owner: string; data: Holdings | null } | null>(() => { const data = owner ? holdingsCache.get(owner)?.data : undefined; return owner && data ? { owner, data } : null })
   const [searching, setSearching] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const pasted = isMintLike(query)
@@ -545,6 +569,18 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
     void get<TokenSummary[]>('/api/tokens/hot', { chain: 'solana', hours: 24, limit: 12 }).then(rows => { if (alive) setHot(rows.map(fromSummary)) }).catch(() => {})
     return () => { alive = false }
   }, [])
+  useEffect(() => {
+    if (!owner) return
+    let alive = true
+    void walletHoldings(owner).then(data => { if (alive) setHoldings({ owner, data }) }, () => { if (alive) setHoldings({ owner, data: null }) })
+    return () => { alive = false }
+  }, [owner])
+  const held = useMemo(() => {
+    if (!owner || holdings?.owner !== owner || !holdings.data) return []
+    try { return heldTokens(holdings.data, markOf) } catch { return [] }
+  }, [owner, holdings])
+  // FTL rows name most holdings; the metadata endpoint names the rest.
+  const heldMeta = useTokenMeta(held.filter(row => !row.token?.symbol).map(row => row.mint))
   useEffect(() => {
     const text = query.trim()
     let alive = true
@@ -564,8 +600,12 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
       onPick(results.find(token => token.mint === mint) ?? tokenOf(mint, pastedRecord ? { symbol: pastedRecord.symbol ?? undefined, name: pastedRecord.name ?? undefined, image: pastedRecord.image ?? undefined } : null))
     } catch (error) { setMessage(messageOf(error)) }
   }
+  const text = query.trim(), needle = text.toLowerCase()
+  const mine = held.map(row => ({ row, token: withMeta(row.token ? fromSummary(row.token) : tokenOf(row.mint), heldMeta) }))
+    .filter(({ token }) => token.mint !== exclude && (!text || token.mint === text || token.symbol.toLowerCase().includes(needle) || !!token.name?.toLowerCase().includes(needle)))
+  const reading = !!owner && holdings?.owner !== owner
   const quick = [...KNOWN_TOKENS.map(token => tokenOf(token.mint)), ...hot].filter(token => token.mint !== exclude)
-  const list = results.filter(token => token.mint !== exclude)
+  const list = results.filter(token => token.mint !== exclude && !mine.some(own => own.token.mint === token.mint))
   return <Dialog title={side === 'in' ? 'Pay with' : 'Choose a token'} onClose={onClose} className="lq-token-picker-dialog">
       <View style={{ gap: 14 }}>
         <TextInput accessibilityLabel="Search tokens or paste a mint" value={query} onChangeText={value => { setQuery(value); setMessage(null) }} autoFocus autoCapitalize="none" autoCorrect={false} placeholder="Search by symbol, name or paste a mint" placeholderTextColor={C.faint} style={[st.textInput, st.boxed]} />
@@ -579,21 +619,34 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
             <Txt v="mono" color={C.accent}>→</Txt>
           </Press> : null}
           {message ? <Txt v="small" color={C.warn}>{message}</Txt> : null}
+          {mine.length || reading && !text ? <>
+            <Txt v="label">{mine.length ? 'Your tokens' : 'Your tokens · Reading wallet…'}</Txt>
+            {mine.map(({ row, token }) => <PickRow key={token.mint} token={token} held={row} onPress={() => onPick(token)} />)}
+          </> : null}
           {!query.trim() ? <>
             <Txt v="label">Quick picks{hot.length ? ' · FTL hot tokens' : ''}</Txt>
             <View style={st.wrap}>{quick.map(token => <Chip key={token.mint} label={token.symbol} onPress={() => onPick(token)} />)}</View>
           </> : null}
           {query.trim() ? <Txt v="label">{searching ? 'Searching…' : `${list.length} ${list.length === 1 ? 'match' : 'matches'} in FTL’s index`}</Txt> : null}
-          {list.map(token => <Press key={token.mint} onPress={() => onPick(token)} accessibilityRole="button" style={({ hovered, pressed }) => [st.tokenRow, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
-            <TokenAvatar image={token.image} label={token.symbol} size={32} chain="solana" />
-            <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-              <Txt v="body" numberOfLines={1}>{token.symbol}{token.name ? <Txt v="small">  {token.name}</Txt> : null}</Txt>
-              <Txt v="monoSmall" numberOfLines={1}>{shortMint(token.mint)}</Txt>
-            </View>
-          </Press>)}
+          {list.map(token => <PickRow key={token.mint} token={token} onPress={() => onPick(token)} />)}
         </ScrollView>
       </View>
   </Dialog>
+}
+
+// One picker row; a held token adds its balance and, where marked, USD value.
+function PickRow({ token, held, onPress }: { token: Token; held?: HeldToken; onPress: () => void }) {
+  return <Press onPress={onPress} accessibilityRole="button" style={({ hovered, pressed }) => [st.tokenRow, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+    <TokenAvatar image={token.image} label={token.symbol} size={32} chain="solana" />
+    <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
+      <Txt v="body" numberOfLines={1}>{token.symbol}{token.name ? <Txt v="small">  {token.name}</Txt> : null}</Txt>
+      <Txt v="monoSmall" numberOfLines={1}>{shortMint(token.mint)}</Txt>
+    </View>
+    {held ? <View style={{ alignItems: 'flex-end', gap: 2 }}>
+      <Txt v="mono" numberOfLines={1}>{num(held.balance)}</Txt>
+      {held.usd !== null ? <Txt v="monoSmall">{usd(held.usd)}</Txt> : null}
+    </View> : null}
+  </Press>
 }
 
 const st = StyleSheet.create({

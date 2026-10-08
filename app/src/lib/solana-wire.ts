@@ -1,4 +1,4 @@
-import { VersionedTransaction } from '@solana/web3.js'
+import { VersionedTransaction, type VersionedMessage } from '@solana/web3.js'
 import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 
@@ -68,9 +68,47 @@ export function inspectTransaction(bytes: Uint8Array): WireTransaction {
     signatures: Array.from({ length: requiredSignatures }, (_, i) => bytes.slice(end + i * 64, end + (i + 1) * 64)) }
 }
 
+const LIGHTHOUSE = 'L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95'
+const COMPUTE_BUDGET = 'ComputeBudget111111111111111111111111111111'
+interface Account { key: string; isSigner: boolean; isWritable: boolean }
+interface Instruction { program: string; accounts: Account[]; data: Uint8Array }
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((byte, i) => byte === b[i])
+const sameAccount = (a: Account, b?: Account) => !!b && a.key === b.key && a.isSigner === b.isSigner && a.isWritable === b.isWritable
+const sameInstruction = (a: Instruction, b: Instruction) => a.program === b.program && sameBytes(a.data, b.data) &&
+  a.accounts.length === b.accounts.length && a.accounts.every((account, i) => sameAccount(account, b.accounts[i]))
+
+// Lookup-table accounts resolve symbolically (table:w|r:index); tables are never fetched.
+function resolve(message: VersionedMessage) {
+  const tables = message.addressTableLookups.map(table => ({ ...table, key: table.accountKey.toBase58() }))
+  const keys = [...message.staticAccountKeys.map(key => key.toBase58()),
+    ...tables.flatMap(table => table.writableIndexes.map(i => `${table.key}:w:${i}`)), ...tables.flatMap(table => table.readonlyIndexes.map(i => `${table.key}:r:${i}`))]
+  const accounts: Account[] = keys.map((key, i) => ({ key, isSigner: message.isAccountSigner(i), isWritable: message.isAccountWritable(i) }))
+  if (new Set(keys).size !== keys.length || message.compiledInstructions.some(ix => [ix.programIdIndex, ...ix.accountKeyIndexes].some(i => i >= keys.length))) return null
+  return { accounts, instructions: message.compiledInstructions.map(ix => ({ program: keys[ix.programIdIndex], accounts: ix.accountKeyIndexes.map(i => accounts[i]), data: ix.data })) }
+}
+
+// Phantom inserts Lighthouse assertions, and priority fees when a transaction
+// sets no compute budget, before signing. Anything else is a different transaction.
+function sameIntent(unsigned: Uint8Array, signed: Uint8Array) {
+  const a = VersionedTransaction.deserialize(unsigned), b = VersionedTransaction.deserialize(signed)
+  const expected = resolve(a.message), actual = resolve(b.message)
+  if (!expected || !actual || a.version !== b.version || a.message.recentBlockhash !== b.message.recentBlockhash) return false
+  const flags = new Map(actual.accounts.map(account => [account.key, account])), known = new Set(expected.accounts.map(account => account.key))
+  if (!expected.accounts.every(account => sameAccount(account, flags.get(account.key))) ||
+      actual.accounts.some(account => !known.has(account.key) && (account.isSigner || account.isWritable))) return false
+  // Only SetComputeUnitLimit (2) / SetComputeUnitPrice (3), once each, and only when we set no budget.
+  const budgeted = expected.instructions.some(ix => ix.program === COMPUTE_BUDGET), fees = new Set<number>()
+  const fee = (ix: Instruction) => !budgeted && ix.program === COMPUTE_BUDGET && !ix.accounts.length && !fees.has(ix.data[0]) &&
+    (ix.data[0] === 2 && ix.data.length === 5 || ix.data[0] === 3 && ix.data.length === 9) && !!fees.add(ix.data[0])
+  const rest = actual.instructions.filter(ix => ix.program !== LIGHTHOUSE && !fee(ix))
+  return rest.length === expected.instructions.length && rest.every((ix, i) => sameInstruction(expected.instructions[i], ix))
+}
+
 export function assertTransactionSignature(unsigned: Uint8Array, signed: Uint8Array) {
   const expected = inspectTransaction(unsigned), actual = inspectTransaction(signed)
-  if (expected.message.length !== actual.message.length || expected.message.some((byte, i) => byte !== actual.message[i])) {
+  // V1 stays byte-exact: no known wallet rewrites it.
+  if (!sameBytes(expected.message, actual.message) && (expected.version === '1' || actual.version === '1' || expected.version !== actual.version ||
+      expected.signerKeys.join() !== actual.signerKeys.join() || !sameIntent(unsigned, signed))) {
     throw new Error('Wallet returned a different transaction. Nothing was sent.')
   }
   if (actual.signerKeys.some((key, i) => !nacl.sign.detached.verify(actual.message, actual.signatures[i], bs58.decode(key)))) {
