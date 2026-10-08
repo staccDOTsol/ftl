@@ -539,13 +539,16 @@ export function createSolanaZapHandler(options: Options) {
         const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
         if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
         quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
-        if (!swapStep) {
+        // The swap back is sized to what this withdrawal credits now, not what the plan saw.
+        const credit = creditOf(builtRemove.quote, plan.mint)
+        const tokensBack = credit && BigInt(credit.expectedRaw) > 0n ? credit.expectedRaw : null
+        if (!swapStep || !tokensBack) {
           const removal = composedRemoval(removeInstructions.flat())
           if (!removal) throw unavailable('the withdrawal has no venue instruction to compose')
           steps = removal.steps
           note = 'One signature: the withdrawal runs through the composer; the position held only SOL, so nothing is swapped back'
         } else {
-        const builtSwap = await swapLeg(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, owner, version)
+        const builtSwap = await swapLeg(swapStep.inputMint, swapStep.outputMint, tokensBack, plan.slippageBps, owner, version)
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed')
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')

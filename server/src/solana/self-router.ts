@@ -633,6 +633,8 @@ export class DirectSolanaRouter {
         if (error instanceof DirectRouteError && error.status === 503) throw error
         if (scope.transient > 0 || isTransientRpcError(error)) throw rateLimited()
         lastReason = reasonOf(error, 'Current pool state cannot build an executable swap')
+        if (lastReason === 'Current pool state cannot build an executable swap')
+          console.warn('[direct] leg build failed:', route.plan[0]?.swapInfo.label, String((error as Error)?.message ?? error).replace(/https?:\/\/\S+/g, '[url]').slice(0, 300))
       }
     }
     noRoute(lastReason)
