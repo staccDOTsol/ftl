@@ -11,13 +11,13 @@ import bs58 from 'bs58'
 import { C, F, T } from '@/theme'
 import type { FlowEvent, Move, MoveVenue, PoolSummary, TokenSummary } from '@/lib/types'
 import { assertSignedMessage, decodeTransaction, getRouterStatus, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus } from '@/lib/solana'
-import { balancePercent, fromAtomic, shortMint, SOL_MINT, toAtomic } from '@/lib/solana-trade'
+import { acknowledgeComposer, balancePercent, COMPOSER_SOURCE_URL, composerAcknowledged, fromAtomic, shortMint, SOL_MINT, toAtomic } from '@/lib/solana-trade'
 import { hasPending, PENDING_KEY } from '@/lib/solana-pending'
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
 import { assertLiquidityTransactionIntent, liquidityPositions, simulateLiquidity, type LiquidityOperation, type LiquidityPosition, type LiquidityQuote } from '@/lib/solana-liquidity'
 import { compactAmount, estimateLine, KIND_LABEL, parseZapProgress, POOL_SCOPED_VENUES, PREFERENCE_OPTIONS, routingVenue, stepLabel, ZAP_KEY, zapBuild, zapPlan, type ZapBuild, type ZapDirection, type ZapDone, type ZapPlan, type ZapPreference, type ZapProgress } from '@/lib/solana-zap'
 import { useTokenMeta } from '@/lib/token-meta'
-import { usd } from '@/lib/format'
+import { usd, short } from '@/lib/format'
 import type { SolanaSigner } from './SolanaWallet.web'
 import SolanaLiquidity from './SolanaLiquidity.web'
 import { PoolYield } from './PoolYield.web'
@@ -32,6 +32,7 @@ const VENUE: Record<string, string> = { 'raydium-cpmm': 'Raydium CPMM', 'raydium
 const venueName = (id: string) => VENUE[id] ?? id.replaceAll('-', ' ')
 const messageOf = (error: unknown) => error instanceof Error ? error.message : 'The operation could not finish. Please try again.'
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const account = (address: string) => `https://solscan.io/account/${address}`
 const money = (x: number | null | undefined) => x === null || x === undefined ? '—' : usd(x).replace('K', 'k')
 const active = (p: LiquidityPosition) => p.removalMode === 'percentage' || (!!p.liquidity && /^[0-9]+$/.test(p.liquidity) && BigInt(p.liquidity) > 0n) || (p.amounts ?? []).some(a => (a.raw && BigInt(a.raw) > 0n) || (a.amount && BigInt(a.amount) > 0n))
 function readProgress(): ZapProgress | null { try { return parseZapProgress(localStorage.getItem(ZAP_KEY)) } catch { return null } }
@@ -82,6 +83,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ direction: ZapDirection; venue: string; pool: string; position?: string; signatures: string[]; done: ZapDone[] } | null>(null)
   const [routerOk, setRouterOk] = useState<boolean | null>(null)
+  const [ackedProgram, setAckedProgram] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const owner = signer?.address ?? null
   const version = signer?.transactionVersion ?? null
@@ -97,6 +99,9 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   const position = walletPositions.find(p => p.position === selected) ?? (!selected ? linkedPositions.length === 1 ? linkedPositions[0] : walletPositions.length === 1 ? walletPositions[0] : null : null)
   const key = owner && version ? (direction === 'in' ? (amountRaw ? `${owner}|${version}|in|${amountRaw}|${preference}|${forcedPool ?? ''}` : '') : (position ? `${owner}|${version}|out|${position.venue}|${position.pool}|${position.position}` : '')) : ''
   const plan = planState?.key === key ? planState.plan : null
+  // A composed plan runs through the lp-zap program; the browser acknowledges each program once.
+  const composed = plan?.mode === 'composed'
+  const composerAck = !composed || ackedProgram === (plan?.composerProgramId ?? 'unreported') || composerAcknowledged(plan?.composerProgramId)
   const locked = busy || !!progress
   const solBalance = balance?.owner === owner ? balance.raw : null
   useEffect(() => { current.current = { signer, key } }, [signer, key])
@@ -214,7 +219,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
         const { owner: signerOwner, version: signerVersion } = value
         built.transactions.forEach(tx => assertLiquidityTransactionIntent(tx, signerOwner, signerVersion))
         if (!mounted.current || current.current.signer?.address !== value.owner) throw new Error('Wallet changed. Nothing was sent.')
-        value = { ...value, built: { step: value.step, kind: built.kind, transactions: built.transactions, next: 0, quote: built.quote, pool: built.pool, position: built.position, note: built.note } }
+        value = { ...value, built: { step: value.step, mode: built.mode, kind: built.kind, transactions: built.transactions, next: 0, quote: built.quote, pool: built.pool, position: built.position, note: built.note } }
         persist(value)
       }
       while (value.built!.next < value.built!.transactions.length) {
@@ -243,7 +248,8 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
       }
       const finished: NonNullable<ZapProgress['built']> = value.built!
       const entry: ZapDone = { step: finished.step, kind: finished.kind ?? 'swap', quote: finished.quote, pool: finished.pool, position: finished.position, signatures: value.confirmed.slice(value.confirmed.length - finished.transactions.length) }
-      value = { ...value, step: value.step + 1, built: undefined, done: [...value.done, entry] }
+      // A composed build is the whole plan in one transaction: no later steps remain.
+      value = { ...value, step: finished.mode === 'composed' ? value.titles.length : value.step + 1, built: undefined, done: [...value.done, entry] }
       persist(value)
     }
     persist(null)
@@ -256,6 +262,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
     if (readProgress()) throw new Error('Finish or stop the operation in progress first.')
     if (!plan || !owner || !version || current.current.key !== key || plan.owner !== owner) throw new Error('Wait for a fresh plan.')
     if (plan.expiresAt <= Date.now()) throw new Error('This plan expired. Wait for the refreshed one.')
+    if (plan.mode === 'composed' && !composerAck) throw new Error('This run goes through the composer program. Review the composed route above and acknowledge it, then try again. Nothing was signed.')
     const value: ZapProgress = { planId: plan.planId, owner, version, direction: plan.direction, mint, venue: plan.pool.venue, pool: plan.pool.pool, titles: plan.steps.map(step => step.title), step: 0, confirmed: [], done: [], expiresAt: plan.expiresAt }
     persist(value)
     await execute(value)
@@ -287,8 +294,8 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
     return { label: 'Deposit', onPress: () => void act(start) }
   })()
   const primaryDisabled = progress ? owner !== progress.owner : !owner ? !onConnect && !signer : busy || routerOk === false || (direction === 'out'
-    ? !position || planError?.key === key || !plan
-    : !amountRaw || solBalance !== null && BigInt(amountRaw) + 10_000_000n > BigInt(solBalance) || noPool || planError?.key === key || !plan || version === null)
+    ? !position || planError?.key === key || !plan || (composed && !composerAck)
+    : !amountRaw || solBalance !== null && BigInt(amountRaw) + 10_000_000n > BigInt(solBalance) || noPool || planError?.key === key || !plan || version === null || (composed && !composerAck))
   const poolBadge = (venue: string, kind: ZapPlan['pool']['kind']) => <View style={st.poolRow}><Txt v="num" style={{ fontSize: T.sm }}>{venueName(venue)}</Txt><Chip label={KIND_LABEL[kind]} color={kind === 'constant' ? C.accent : kind === 'splash' ? C.violet : C.gold} active /></View>
   const moveFor = (): Move | null => {
     if (!result) return null
@@ -388,13 +395,16 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
       </>}
     </View>
 
+    {plan && !progress && composed ? <ComposedZapNotice plan={plan} acknowledged={composerAck}
+      onAcknowledge={() => { acknowledgeComposer(plan.composerProgramId); setAckedProgram(plan.composerProgramId ?? 'unreported') }} /> : null}
+
     {plan && !progress ? <View style={st.details}>
-      <Press onPress={() => setShowDetails(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: showDetails }} style={({ hovered }) => [st.between, { paddingVertical: 4 }, hovered && { opacity: 0.8 }]}><Txt v="monoSmall" color={C.text}>{plan.steps.length} guided steps · {showDetails ? 'Hide route' : 'View route'}</Txt><Txt v="monoSmall" color={C.accent}>{showDetails ? '−' : '+'}</Txt></Press>
+      <Press onPress={() => setShowDetails(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: showDetails }} style={({ hovered }) => [st.between, { paddingVertical: 4 }, hovered && { opacity: 0.8 }]}><Txt v="monoSmall" color={C.text}>{composed ? `${plan.steps.length} steps · one signature · ` : `${plan.steps.length} guided steps · `}{showDetails ? 'Hide route' : 'View route'}</Txt><Txt v="monoSmall" color={C.accent}>{showDetails ? '−' : '+'}</Txt></Press>
       {showDetails ? plan.steps.map((step, i) => <View key={`${step.kind}:${i}`} style={st.between}><Txt v="monoSmall" color={C.text}>{stepLabel(i, plan.steps.length, step.title)}</Txt><Txt v="monoSmall">{step.kind === 'swap' ? `min ${compactAmount(step.minOut, step.outputMint === SOL_MINT ? 9 : plan.estimate.tokenDecimals ?? decimals ?? 0)} ${step.outputMint === SOL_MINT ? 'SOL' : symbol}` : 'quoted live before signing'}</Txt></View>) : null}
       <View style={st.between}><Txt v="monoSmall">Network fees</Txt><Txt v="monoSmall" color={C.text}>≈ {plan.estimate.networkFeeSolApprox} SOL + account rent</Txt></View>
       <View style={st.between}><Txt v="monoSmall">Slippage per step</Txt><Txt v="monoSmall" color={C.text}>{plan.slippageBps / 100}%</Txt></View>
       {plan.steps.filter(step => step.kind === 'swap').map((step, i) => step.kind === 'swap' ? <View key={`minimum-${i}`} style={st.between}><Txt v="monoSmall">Swap minimum</Txt><Txt v="monoSmall" color={C.text}>{compactAmount(step.minOut, step.outputMint === SOL_MINT ? 9 : plan.estimate.tokenDecimals ?? decimals ?? 0)} {step.outputMint === SOL_MINT ? 'SOL' : symbol}</Txt></View> : null)}
-      <Txt v="monoSmall">Steps confirm in order. Earlier confirmed steps remain if a later step fails.</Txt>
+      <Txt v="monoSmall">{composed ? 'Both steps run in one transaction: all of it lands or none of it does.' : 'Steps confirm in order. Earlier confirmed steps remain if a later step fails.'}</Txt>
     </View> : null}
 
     {routerOk === false ? <Txt v="small" color={C.warn}>Liquidity routing is temporarily unavailable. Try again shortly, or use Advanced.</Txt> : null}
@@ -429,10 +439,46 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, i
   </View>
 }
 
+// Disclosure for a composed zap: both steps run through the lp-zap composer in
+// one transaction and its fee is taken in kind on the swapped side. Signing
+// needs one acknowledgement per browser and composer program, like swaps.
+function ComposedZapNotice({ plan, acknowledged, onAcknowledge }: { plan: ZapPlan; acknowledged: boolean; onAcknowledge: () => void }) {
+  const program = plan.composerProgramId, recipient = plan.composerFeeRecipient, feeBps = plan.composerFeeBps ?? 10
+  const inLabel = plan.direction === 'in'
+  return <View style={st.composerBox} accessibilityRole="summary" accessibilityLabel="Composed zap disclosure">
+    <Txt v="label" color={C.text}>One signature · composed through lp-zap</Txt>
+    <Txt v="small">
+      The {inLabel ? 'swap and the deposit' : 'withdrawal and the swap back'} run in one transaction through the lp-zap composer program. The {inLabel ? 'deposit is sized from what the swap actually delivers' : 'swap spends exactly what the withdrawal delivers'}, so nothing is left half-done.
+    </Txt>
+    <View style={st.links}>
+      {program
+        ? <Press onPress={() => void Linking.openURL(account(program))} accessibilityRole="link"><Txt v="monoSmall" color={C.accent}>Program {short(program, 4)} ↗</Txt></Press>
+        : <Txt v="monoSmall" color={C.warn}>Program id not reported by the router</Txt>}
+      <Press onPress={() => void Linking.openURL(COMPOSER_SOURCE_URL)} accessibilityRole="link"><Txt v="monoSmall" color={C.accent}>Source ↗</Txt></Press>
+    </View>
+    <Txt v="small" color={C.text}>Composer fee: {feeBps / 100}% of the swapped side, taken in that token{recipient ? <Txt v="monoSmall"> · paid to {short(recipient, 4)}</Txt> : null}</Txt>
+    <Txt v="small" color={C.text}>What it enforces</Txt>
+    <Txt v="small">Each step keeps its quoted minimum — the swap&apos;s minimum out and the venue&apos;s own deposit bounds. If any step fails, nothing happens and only the network fee is spent.</Txt>
+    <Txt v="small" color={C.text}>What it does not cover</Txt>
+    <Txt v="small">Prices can move before the transaction lands. When a build cannot prove every amount on chain, the server falls back to two separate transactions and says so in the run.</Txt>
+    <Press onPress={acknowledged ? undefined : onAcknowledge} disabled={acknowledged} accessibilityRole="checkbox" accessibilityState={{ checked: acknowledged }}
+      style={({ hovered }) => [st.ack, acknowledged && st.ackDone, hovered && !acknowledged && { opacity: 0.85 }]}>
+      <View style={[st.tick, acknowledged && st.tickDone]}>{acknowledged ? <Txt v="monoSmall" color={C.bg}>✓</Txt> : null}</View>
+      <Txt v="small" color={C.text} style={{ flex: 1 }}>I understand this {inLabel ? 'deposit' : 'withdrawal'} runs through the composer program and pays its fee on the swapped side.</Txt>
+    </Press>
+  </View>
+}
+
 const st = StyleSheet.create({
   stack: { gap: 10 },
   panel: { padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.lineStrong, backgroundColor: C.bg, gap: 8 },
   details: { gap: 6, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg },
+  composerBox: { gap: 6, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.accent + '44', backgroundColor: C.accentDim },
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  ack: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line },
+  ackDone: { borderColor: C.accent + '66' },
+  tick: { width: 18, height: 18, borderRadius: 5, borderWidth: 1, borderColor: C.muted, alignItems: 'center', justifyContent: 'center' },
+  tickDone: { backgroundColor: C.accent, borderColor: C.accent },
   alternatives: { gap: 8, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.raised },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },

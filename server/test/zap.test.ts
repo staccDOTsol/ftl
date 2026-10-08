@@ -3,8 +3,11 @@ import http from 'node:http'
 import { test } from 'node:test'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
+import { PublicKey } from '@solana/web3.js'
 import { createSolanaRouterHandler } from '../src/solana/router.ts'
-import { addParameters, classifyPool, createSolanaZapHandler, eligiblePools, PLAN_TTL, rankCandidates, removeIntent, resolvePosition, SOL_MINT, splitDeposit, type ZapCandidate } from '../src/solana/zap.ts'
+import { addParameters, classifyPool, createSolanaZapHandler, eligiblePools, instructionsOf, PLAN_TTL, rankCandidates, removeIntent, resolvePosition, SOL_MINT, splitDeposit, type ZapCandidate } from '../src/solana/zap.ts'
+import { decodeV1 } from '../src/solana/transaction-v1.ts'
+import { decodeCompose } from '../src/solana/compose.ts'
 import type { PoolStats } from '../src/solana/pool-stats.ts'
 import type { PoolSummary } from '../../shared/types.ts'
 
@@ -37,6 +40,31 @@ function encodedV1() {
   return Buffer.concat([message, Buffer.alloc(64)]).toString('base64')
 }
 const pool = (address: string, venue: string, extra: Partial<PoolSummary> = {}): PoolSummary => ({ chain: 'solana', address, venue, token: MINT, quote: SOL_MINT, feeBps: null, createdTs: 1, creator: null, liqEvents: 2, funded: true, ...extra })
+
+// ---- wire helpers: a V1 carrying arbitrary instructions, so built swaps and
+// deposits can carry the exact u64 amounts a composer must locate -----------
+const SYSTEM = '1'.repeat(32)
+const COMPOSER = 'BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx'
+const u64le = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b }
+function venueV1(ixs: { programId: string; data: Buffer }[]): string {
+  const kp = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(7))
+  const programs = [...new Set(ixs.map(ix => ix.programId))]
+  const keys = [kp.publicKey, ...programs.map(p => new PublicKey(p).toBuffer())]
+  const header = Buffer.alloc(42)
+  header.set([0x81, 1, 0, keys.length - 1]); header.writeUInt32LE(15, 4); header.fill(1, 8, 40)
+  header[40] = ixs.length; header[41] = keys.length
+  const config = Buffer.alloc(16)
+  config.writeBigUInt64LE(1000n, 0); config.writeUInt32LE(200_000, 8); config.writeUInt32LE(67_108_864, 12)
+  const body: Buffer[] = []
+  const heads: Buffer[] = []
+  for (const ix of ixs) {
+    const at = Buffer.alloc(4)
+    at[0] = 1 + programs.indexOf(ix.programId); at[1] = 0; at.writeUInt16LE(ix.data.length, 2)
+    heads.push(at)
+  }
+  for (const ix of ixs) body.push(ix.data)
+  return Buffer.concat([header, ...keys.map(k => Buffer.from(k)), config, ...heads, ...body, Buffer.alloc(64)]).toString('base64')
+}
 const stats = (venue: string, poolAddress: string, tvlUsd: number | null, feeRateBps: number | null = 25, tickSpacing?: number): PoolStats => ({ venue: venue as any, pool: poolAddress, tvlUsd, volume24hUsd: 1, fees24hUsd: 1, feeRateBps, feeApr: 1, rewardApr: null, totalApr: 1, ...(tickSpacing !== undefined ? { tickSpacing } : {}), source: 'x', fetchedAt: 1 })
 
 test('classification: constant venues, Orca splash by tick spacing, everything else concentrated', () => {
@@ -108,6 +136,10 @@ type Scenario = {
   pools?: PoolSummary[]; stats?: Record<string, PoolStats | Error>
   sol?: number; token?: string; statuses?: Record<string, { err: unknown; confirmationStatus: string } | null>
   positions?: unknown[]; failQuote?: boolean; failAdd?: string[]
+  /** lp-zap program id: plans compose and the fakes build provable instructions. */
+  composer?: string
+  /** With a composer: the swap build stays opaque, so composing must fall back. */
+  plainSwap?: boolean
 }
 async function withZap(scenario: Scenario, run: (request: (path: string, body: unknown) => Promise<{ status: number; data: any; text: string }>, calls: { url: string; body: any }[], clock: { now: number }) => Promise<void>) {
   const calls: { url: string; body: any }[] = []
@@ -119,6 +151,8 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
     calls.push({ url, body })
     if (url.startsWith(RPC)) {
       if (body.method === 'getBalance') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: scenario.sol ?? 2_000_000_000 } })
+      if (body.method === 'getAccountInfo') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', data: ['', 'base64'] } } })
+      if (body.method === 'getLatestBlockhash') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { blockhash: bs58.encode(Buffer.alloc(32, 7)), lastValidBlockHeight: 999 } } })
       if (body.method === 'getTokenAccountsByOwner') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: scenario.token === undefined ? [] : [{ pubkey: TRAP, account: { data: { parsed: { type: 'account', info: { mint: body.params[1].mint, tokenAmount: { amount: scenario.token, decimals: 6 } } } } } }] } })
       if (body.method === 'getSignatureStatuses') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: body.params[0].map((s: string) => scenario.statuses?.[s] ?? null) } })
       return Response.json({ jsonrpc: '2.0', id: 1, error: { code: -32601, message: `unknown method at ${RPC}` } })
@@ -130,7 +164,18 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
       const out = q.inputMint === SOL_MINT ? amount * 2n : amount / 2n
       return Response.json({ inputMint: q.inputMint, outputMint: q.outputMint, inAmount: q.amount, outAmount: out.toString(), otherAmountThreshold: (out * 99n / 100n).toString(), swapMode: 'ExactIn', slippageBps: Number(q.slippageBps), priceImpactPct: null, contextSlot: 1, routePlan: [{ percent: 100, swapInfo: { ammKey: DAMM, label: 'Meteora DAMM v2', inputMint: q.inputMint, outputMint: q.outputMint, inAmount: q.amount, outAmount: out.toString(), feeAmount: '1', feeMint: q.inputMint } }] })
     }
-    if (u.pathname.endsWith('/swap')) return Response.json({ swapTransaction: encodedV1(), transactionVersion: body.transactionVersion, lastValidBlockHeight: 999, prioritizationFeeLamports: 100 })
+    if (u.pathname.endsWith('/swap')) {
+      if (scenario.composer && !scenario.plainSwap) {
+        // The venue swap carries the quoted amounts, wrapped in setup and cleanup.
+        const amountIn = BigInt(body.quoteResponse.inAmount), minOut = BigInt(body.quoteResponse.otherAmountThreshold)
+        return Response.json({ swapTransaction: venueV1([
+          { programId: SYSTEM, data: Buffer.from([2, 3]) },
+          { programId: DAMM, data: Buffer.concat([Buffer.from([9]), u64le(amountIn), u64le(minOut), Buffer.from([7])]) },
+          { programId: SYSTEM, data: Buffer.from([3]) },
+        ]), transactionVersion: body.transactionVersion, lastValidBlockHeight: 999, prioritizationFeeLamports: 100 })
+      }
+      return Response.json({ swapTransaction: encodedV1(), transactionVersion: body.transactionVersion, lastValidBlockHeight: 999, prioritizationFeeLamports: 100 })
+    }
     if (u.pathname.endsWith('/liquidity/positions')) return Response.json({ positions: scenario.positions ?? [], errors: [] })
     if (u.pathname.endsWith('/liquidity/quote')) {
       if (scenario.failAdd?.includes(body.pool)) return Response.json({ message: `Pool is frozen; see ${ROUTER}/docs` }, { status: 422 })
@@ -138,19 +183,31 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
       const amounts = body.operation === 'add'
         ? [{ mint: body.mintA, decimals: 6, expectedRaw: body.amountA, limitRaw: body.amountA, direction: 'debit' }, { mint: body.mintB, decimals: 9, expectedRaw: (BigInt(body.amountB) * 9n / 10n).toString(), limitRaw: body.amountB, direction: 'debit' }]
         : [{ mint: MINT, decimals: 6, expectedRaw: '5000000', limitRaw: '4950000', direction: 'credit' }, { mint: SOL_MINT, decimals: 9, expectedRaw: '30000000', limitRaw: '29700000', direction: 'credit' }]
-      const quote = { quoteId, expiresAt: clock.now + 60_000, owner: body.owner, venue: body.venue, operation: body.operation, pool: body.pool, mintA: body.mintA ?? MINT, mintB: body.mintB ?? SOL_MINT, position: body.position ?? POSITION, slot: 1, transactionVersion: body.transactionVersion, amounts, details: body.venue === 'meteora-dlmm' ? { inferredRange: true, priceLower: '1', priceUpper: '2', binCount: body.parameters?.binCount } : {} }
+      const quote = { quoteId, expiresAt: clock.now + 60_000, owner: body.owner, venue: body.venue, operation: body.operation, pool: body.pool, mintA: body.mintA ?? MINT, mintB: body.mintB ?? SOL_MINT, position: body.position ?? POSITION, slot: 1, transactionVersion: body.transactionVersion, amounts,
+        details: { ...(body.venue === 'meteora-dlmm' ? { inferredRange: true, priceLower: '1', priceUpper: '2', binCount: body.parameters?.binCount } : {}),
+          ...(scenario.composer && body.operation === 'add' ? { liquidity: (BigInt(body.amountA) * 7n).toString() } : {}) } }
       quotes.set(quoteId, { quote, request: body })
       return Response.json(quote)
     }
     if (u.pathname.endsWith('/liquidity/build')) {
       const saved = quotes.get(body.quoteId)
       if (!saved) return Response.json({ message: 'Quote expired' }, { status: 409 })
+      if (scenario.composer && saved.quote.operation === 'add') {
+        // A liquidity-driven deposit: liquidity first, then the two spend bounds.
+        const data = Buffer.concat([Buffer.from([8]), u64le(BigInt(saved.quote.details.liquidity)),
+          u64le(BigInt(saved.quote.amounts[0].limitRaw)), u64le(BigInt(saved.quote.amounts[1].limitRaw))])
+        return Response.json({ transactions: [{ transaction: venueV1([
+          { programId: SYSTEM, data: Buffer.from([1]) },
+          { programId: DAMM, data },
+          { programId: SYSTEM, data: Buffer.from([4]) },
+        ]), lastValidBlockHeight: 999, transactionVersion: '1', expectedSigners: [OWNER] }], pool: saved.quote.pool, position: saved.quote.position, quote: saved.quote })
+      }
       return Response.json({ transactions: [{ transaction: encodedV1(), lastValidBlockHeight: 999, transactionVersion: '1', expectedSigners: [OWNER] }], pool: saved.quote.pool, position: saved.quote.position, quote: saved.quote })
     }
     return Response.json({ error: `unexpected ${url}` }, { status: 500 })
   }
   const router = createSolanaRouterHandler({ routerUrl: ROUTER, rpcUrl: RPC, fetch: fetcher, now: () => clock.now })
-  const handler = createSolanaZapHandler({ rpcUrl: RPC, router, fetch: fetcher, now: () => clock.now,
+  const handler = createSolanaZapHandler({ rpcUrl: RPC, router, ...(scenario.composer ? { composerProgramId: scenario.composer } : {}), fetch: fetcher, now: () => clock.now,
     poolStats: async (_venue, p) => { const s = scenario.stats?.[p]; if (!s) throw new Error(`no stats https://api.orca.so/${p}`); if (s instanceof Error) throw s; return s },
     catalog: { token: mint => mint === MINT ? { chain: 'solana', address: MINT, symbol: 'BORDR', decimals: 6, launchedTs: null, launchVenue: null, graduatedTs: null, firstPoolTs: 1, pools: 1, fundedPools: 1, lpWallets: 1, events: 1, lastTs: 1, score: 1, flags: [] } : null, pools: () => scenario.pools ?? [] } })
   const server = http.createServer(async (req, res) => {
@@ -305,4 +362,75 @@ test('RPC failures and oversized bodies collapse to fixed client-safe messages',
   assert.equal(r.status, 409)
   const big = await request('/api/zap/solana/plan', { ...planIn(), pad: 'x'.repeat(40_000) })
   assert.equal(big.status, 413)
+}))
+
+// ---- the composer: both steps in one transaction, or a clean fallback -------
+const FEE_RECIPIENT = '331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPnUPd76Mth'
+test('composed: the composer turns both zap-in steps into one transaction, sized from the swap\'s real output', async () => withZap({ ...bordr, composer: COMPOSER }, async (request, calls) => {
+  const plan = (await request('/api/zap/solana/plan', planIn())).data
+  assert.equal(plan.mode, 'composed')
+  assert.equal(plan.composerProgramId, COMPOSER)
+  assert.equal(plan.composerFeeBps, 10)
+  assert.equal(plan.composerFeeRecipient, FEE_RECIPIENT)
+  assert.equal(plan.estimate.networkFeeSolApprox, '0.000005', 'one transaction, one base fee')
+  const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+  assert.equal(r.status, 200, r.text)
+  const built = r.data
+  assert.equal(built.mode, 'composed')
+  assert.equal(built.kind, 'add')
+  assert.equal(built.step, 0)
+  assert.equal(built.transactions.length, 1)
+  assert.deepEqual(built.transactions[0].expectedSigners, [OWNER])
+  assert.match(built.note, /One signature/)
+  const addQuote = calls.filter(c => c.url.endsWith('/liquidity/quote')).at(-1)!.body
+  assert.deepEqual({ amountA: addQuote.amountA, amountB: addQuote.amountB }, { amountA: '995000000', amountB: '497500000' }, 'the deposit is quoted for the swap\'s expected output and the planned SOL side')
+  // The wire: setup, one compose call, cleanup. The compose carries both
+  // venue steps, the deposit patched from the swap's real token delta.
+  const bytes = Buffer.from(built.transactions[0].transaction, 'base64')
+  assert.equal(bytes[0], 0x81, 'a V1 transaction')
+  const decoded = decodeV1(bytes)
+  const programs = decoded.ixs.map(ix => bs58.encode(decoded.keys[ix.prog]))
+  assert.equal(programs.filter(p => p === COMPOSER).length, 1, 'exactly one compose call')
+  assert.ok(programs.every(p => p === SYSTEM || p === COMPOSER), 'only setup, the composer and cleanup run outside')
+  const description = decodeCompose(decoded.ixs[programs.indexOf(COMPOSER)].data)
+  assert.equal(description.steps.length, 2)
+  assert.ok(description.steps[0].fee, 'the swap step pays the composer fee in kind')
+  assert.deepEqual(description.steps[1].fee, null, 'the deposit is not fee\'d again')
+  assert.equal(description.steps[1].patches.length, 3, 'liquidity rescaled, both spend bounds rewritten')
+  assert.deepEqual(description.steps[1].patches.map(p => p.mode), [1, 0, 1])
+  assert.deepEqual({ num: description.steps[1].patches[0].num, den: description.steps[1].patches[0].den }, { num: 7, den: 1 })
+}))
+test('composed: an unprovable swap build falls back to the sequential stepper', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {
+  const plan = (await request('/api/zap/solana/plan', planIn())).data
+  assert.equal(plan.mode, 'composed')
+  const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+  assert.equal(r.status, 200, r.text)
+  assert.equal(r.data.mode, 'sequential')
+  assert.equal(r.data.kind, 'swap')
+  assert.equal(r.data.transactions[0].instructions.length, 1, 'the opaque swap still rides along')
+}))
+test('composed: the withdrawal and the swap back run as one transaction', async () => withZap({ ...bordr, composer: COMPOSER, token: '4800000', positions: [
+  { venue: 'meteora-dlmm', pool: DLMM, position: POSITION, mintA: MINT, mintB: SOL_MINT, liquidity: null, removalMode: 'percentage', owner: OWNER },
+] }, async (request, calls) => {
+  const plan = (await request('/api/zap/solana/plan', { owner: OWNER, mint: MINT, direction: 'out', position: { venue: 'meteora-dlmm', pool: DLMM } })).data
+  assert.equal(plan.mode, 'composed')
+  const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+  assert.equal(r.status, 200, r.text)
+  assert.equal(r.data.mode, 'composed')
+  assert.equal(r.data.kind, 'remove')
+  assert.equal(r.data.transactions.length, 1)
+  assert.deepEqual(r.data.transactions[0].expectedSigners, [OWNER])
+  const swapQuoteUrl = new URL(calls.filter(c => c.url.includes('/quote?')).at(-1)!.url)
+  assert.equal(swapQuoteUrl.searchParams.get('amount'), '5000000', 'the swap back is quoted for the planned token credit')
+  const decoded = decodeV1(Buffer.from(r.data.transactions[0].transaction, 'base64'))
+  const programs = decoded.ixs.map(ix => bs58.encode(decoded.keys[ix.prog]))
+  assert.ok(programs.includes(COMPOSER))
+  const description = decodeCompose(decoded.ixs[programs.indexOf(COMPOSER)].data)
+  assert.equal(description.steps.length, 2, 'the withdrawal and the swap back')
+  assert.deepEqual(description.steps[0].fee, null, 'the withdrawal itself is not fee\'d')
+  assert.equal(description.steps[1].patches.length, 2)
+  assert.equal(description.steps[1].patches[0].mode, 0, 'the swap spends the raw token delta')
+  assert.deepEqual({ mode: description.steps[1].patches[1].mode, num: description.steps[1].patches[1].num, den: description.steps[1].patches[1].den },
+    { mode: 1, num: 99, den: 200 }, 'the minimum out scales with what the withdrawal delivered')
+  assert.ok(description.steps[1].fee, 'the swap back pays the composer fee in kind')
 }))

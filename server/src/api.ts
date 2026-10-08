@@ -41,7 +41,7 @@ const handleSolanaHoldings = createSolanaHoldingsHandler({ rpcUrl: config.solana
 const handleSolanaWrap = createSolanaWrapHandler({ rpcUrl: config.solanaQuoteRpc })
 // Simple liquidity: plan (pool choice + split + quotes) and per-step build of
 // SOL → LP and LP → SOL over the router handler's own quote and build paths.
-const handleSolanaZap = createSolanaZapHandler({ rpcUrl: config.solanaQuoteRpc, router: handleSolanaRouter, catalog: {
+const handleSolanaZap = createSolanaZapHandler({ rpcUrl: config.solanaQuoteRpc, router: handleSolanaRouter, composerProgramId: config.lpZapProgramId, catalog: {
   token: mint => getToken('solana', mint),
   pools: (mint, limit) => (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY funded DESC, created_ts DESC LIMIT ?').all('solana', mint, limit) as any[]).map(rowToPool),
 } })

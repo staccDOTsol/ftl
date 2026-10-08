@@ -7,8 +7,8 @@ import type { LiquidityQuote, LiquidityTransaction, PoolStats } from './solana-l
 export type PoolKind = 'constant' | 'splash' | 'concentrated'
 export type ZapPreference = 'auto' | 'constant' | 'splash' | 'concentrated'
 export type ZapDirection = 'in' | 'out'
-/** 'sequential' = one prebuilt transaction per step; a later 'composed' mode will carry the same steps as raw instructions. */
-export type ZapMode = 'sequential'
+/** 'sequential' = one prebuilt transaction per step, confirmed in order. 'composed' = both steps run as one transaction through the on-chain lp-zap composer, the second sized from the first's real balance delta; unprovable builds come back 'sequential'. */
+export type ZapMode = 'sequential' | 'composed'
 export interface RawInstruction { programId: string; keys: { pubkey: string; isSigner: boolean; isWritable: boolean }[]; data: string }
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 export const CONSTANT_VENUES: ReadonlySet<string> = new Set(['pumpswap', 'raydium-cpmm', 'raydium-amm-v4', 'meteora-damm', 'meteora-damm-v2'])
@@ -30,6 +30,8 @@ export interface ZapEstimate { depositSol?: string; positionValueSol?: string; r
 export interface ZapPlan {
   planId: string; mode?: ZapMode; direction: ZapDirection; mint: string; owner: string; transactionVersion: '1' | '0'; slippageBps: number
   pool: ZapPoolChoice; alternatives: ZapAlternative[]; steps: ZapStep[]; estimate: ZapEstimate; expiresAt: number
+  /** Present on composed plans: the program the wallet will call and its fee. */
+  composerProgramId?: string; composerFeeRecipient?: string; composerFeeBps?: number
 }
 export interface ZapBuild { step: number; mode?: ZapMode; kind: ZapStep['kind']; transactions: (LiquidityTransaction & { instructions?: RawInstruction[] | null })[]; quote: any; pool?: string; position?: string; note?: string }
 export interface ZapPlanRequest { owner: string; mint: string; direction: ZapDirection; amount?: string; position?: { venue: string; pool: string; position?: string }; preference?: ZapPreference; slippageBps?: number; transactionVersion?: '1' | '0' }
@@ -91,7 +93,7 @@ export interface ZapDone { step: number; kind: ZapStep['kind']; quote: any; pool
 export interface ZapProgress {
   planId: string; owner: string; version: '1' | '0'; direction: ZapDirection; mint: string; venue: string; pool: string
   titles: string[]; step: number; confirmed: string[]; done: ZapDone[]; expiresAt: number
-  built?: { step: number; kind?: ZapStep['kind']; transactions: LiquidityTransaction[]; next: number; quote: any; pool?: string; position?: string; note?: string }
+  built?: { step: number; mode?: ZapMode; kind?: ZapStep['kind']; transactions: LiquidityTransaction[]; next: number; quote: any; pool?: string; position?: string; note?: string }
   pending?: { signature: string; lastValidBlockHeight: number }
 }
 const SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{80,90}$/

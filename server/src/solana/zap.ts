@@ -7,19 +7,21 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import bs58 from 'bs58'
-import { TransactionMessage, VersionedTransaction } from '@solana/web3.js'
+import { PublicKey, TransactionMessage, VersionedTransaction } from '@solana/web3.js'
 import type { PoolSummary, TokenSummary } from '../../../shared/types.ts'
 import { validPublicKey } from './router.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { parsePositions, type HoldingPosition } from './holdings.ts'
 import { fetchPoolStats, isPoolStatsVenue, POOL_STATS_VENUES, type PoolStats, type PoolStatsVenue } from './pool-stats.ts'
+import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT } from './compose.ts'
+import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 export type PoolKind = 'constant' | 'splash' | 'concentrated'
 export type ZapPreference = 'auto' | 'constant' | 'splash' | 'concentrated'
 export type ZapDirection = 'in' | 'out'
-/** How the steps execute. 'sequential' = one prebuilt transaction per step, confirmed in order. A later 'composed' mode can hand the same steps to an on-chain composer as raw instructions. */
-export type ZapMode = 'sequential'
+/** How the steps execute. 'sequential' = one prebuilt transaction per step, confirmed in order. 'composed' = both steps run as one transaction through the on-chain lp-zap composer, the second sized from the first's real balance delta; builds that cannot prove every offset fall back to 'sequential'. */
+export type ZapMode = 'sequential' | 'composed'
 export interface RawInstruction { programId: string; keys: { pubkey: string; isSigner: boolean; isWritable: boolean }[]; data: string }
 export const CONSTANT_VENUES: ReadonlySet<string> = new Set(['pumpswap', 'raydium-cpmm', 'raydium-amm-v4', 'meteora-damm', 'meteora-damm-v2'])
 /** Orca Splash pools are whirlpools created with this tick spacing. */
@@ -182,9 +184,12 @@ export type Step = SwapStep | AddStep | RemoveStep
 export interface ZapPool { venue: string; pool: string; kind: PoolKind; mintA: string; mintB: string; stats?: PoolStats | null; reason: string }
 export interface ZapPlan {
   planId: string; owner: string; direction: ZapDirection; mint: string; transactionVersion: '1' | '0'; slippageBps: number
+  mode: ZapMode
   pool: ZapPool; alternatives: { venue: string; pool: string; kind: PoolKind; stats?: PoolStats | null }[]
   steps: Step[]
   estimate: { depositSol?: string; positionValueSol?: string; receiveSol?: string; tokenExpected?: string; tokenDecimals?: number; networkFeeSolApprox: string }
+  /** Set on composed plans so the disclosure names the program the wallet calls. */
+  composerProgramId?: string
   createdAt: number; expiresAt: number
 }
 export interface ZapCatalog { token: (mint: string) => TokenSummary | null; pools: (mint: string, limit: number) => PoolSummary[] }
@@ -198,11 +203,17 @@ export interface ZapRouter {
 type Options = {
   rpcUrl?: string; router: ZapRouter; catalog: ZapCatalog
   poolStats?: (venue: PoolStatsVenue, pool: string) => Promise<PoolStats>
+  /** lp-zap composer program id; plans it can compose say mode 'composed'. */
+  composerProgramId?: string
   fetch?: typeof fetch; now?: () => number
 }
+/** One transaction when both steps run through the composer; a step each otherwise. */
+const composedFee = (steps: Step[]) => uiText(5_000n, 9)
+const sequentialFee = (steps: Step[]) => uiText(BigInt(steps.length) * 10_000n, 9)
 const publicStep = (step: Step) => step.kind === 'remove' ? { kind: step.kind, title: step.title, venue: step.venue, pool: step.pool, position: step.position, quote: step.quote } : step
-const publicPlan = (plan: ZapPlan) => ({ planId: plan.planId, mode: 'sequential' as ZapMode, direction: plan.direction, mint: plan.mint, owner: plan.owner, transactionVersion: plan.transactionVersion, slippageBps: plan.slippageBps,
-  pool: plan.pool, alternatives: plan.alternatives, steps: plan.steps.map(publicStep), estimate: plan.estimate, expiresAt: plan.expiresAt })
+const publicPlan = (plan: ZapPlan) => ({ planId: plan.planId, mode: plan.mode, direction: plan.direction, mint: plan.mint, owner: plan.owner, transactionVersion: plan.transactionVersion, slippageBps: plan.slippageBps,
+  pool: plan.pool, alternatives: plan.alternatives, steps: plan.steps.map(publicStep), estimate: plan.estimate, expiresAt: plan.expiresAt,
+  ...(plan.mode === 'composed' ? { composerProgramId: plan.composerProgramId, composerFeeRecipient: FEE_RECIPIENT.toBase58(), composerFeeBps: Number(FEE_BPS) } : {}) })
 
 function reply(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }).end(JSON.stringify(data))
@@ -297,10 +308,11 @@ export function createSolanaZapHandler(options: Options) {
     const positionValue = swap + (solDebit ? BigInt(solDebit.expectedRaw) : keep)
     const plan: ZapPlan = {
       planId: randomUUID(), owner, direction: 'in', mint, transactionVersion, slippageBps,
+      mode: options.composerProgramId ? 'composed' : 'sequential', ...(options.composerProgramId ? { composerProgramId: options.composerProgramId } : {}),
       pool: { venue: chosen.venue, pool: chosen.pool, kind: chosen.kind, mintA: addQuote.mintA ?? mint, mintB: addQuote.mintB ?? SOL_MINT, stats: chosen.stats, reason: input.pool === chosen.pool ? `${describeChoice(chosen, ranked).replace(/\.$/, '')} (your pick).` : describeChoice(chosen, ranked) },
       alternatives: ranked.filter(c => c.pool !== chosen!.pool).slice(0, MAX_ALTERNATIVES).map(c => ({ venue: c.venue, pool: c.pool, kind: c.kind, stats: c.stats })),
       steps: [swapStep, addStep],
-      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals: tokenDebit?.decimals, networkFeeSolApprox: uiText(2n * 10_000n, 9) },
+      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals: tokenDebit?.decimals, networkFeeSolApprox: options.composerProgramId ? composedFee([swapStep, addStep]) : sequentialFee([swapStep, addStep]) },
       createdAt: now(), expiresAt: now() + PLAN_TTL,
     }
     return plan
@@ -324,11 +336,13 @@ export function createSolanaZapHandler(options: Options) {
       receive += BigInt(quote.outAmount)
     }
     const kind = classifyPool(venue, venue === 'orca' ? await poolStats('orca', position.pool).catch(() => null) : null)
+    const composed = !!options.composerProgramId && steps.length === 2
     return {
       planId: randomUUID(), owner, direction: 'out', mint, transactionVersion, slippageBps,
+      mode: composed ? 'composed' : 'sequential', ...(composed ? { composerProgramId: options.composerProgramId } : {}),
       pool: { venue, pool: position.pool, kind, mintA: position.mintA, mintB: position.mintB, reason: `Your ${venueLabel(venue)} position, withdrawn in full and swapped back to SOL.` },
       alternatives: [], steps,
-      estimate: { positionValueSol: uiText(receive, 9), receiveSol: uiText(receive, 9), tokenExpected: tokenCredit?.expectedRaw, tokenDecimals: tokenCredit?.decimals, networkFeeSolApprox: uiText(BigInt(steps.length) * 10_000n, 9) },
+      estimate: { positionValueSol: uiText(receive, 9), receiveSol: uiText(receive, 9), tokenExpected: tokenCredit?.expectedRaw, tokenDecimals: tokenCredit?.decimals, networkFeeSolApprox: composed ? composedFee(steps) : sequentialFee(steps) },
       createdAt: now(), expiresAt: now() + PLAN_TTL,
     }
   }
@@ -372,6 +386,77 @@ export function createSolanaZapHandler(options: Options) {
     const quote = await options.router.liquidityQuote({ ...step.intent, transactionVersion })
     const built = await options.router.liquidityBuild({ quoteId: quote.quoteId, owner, transactionVersion })
     return { step: index, mode: 'sequential' as ZapMode, kind: 'remove', transactions: withInstructions(built.transactions), quote: built.quote, pool: built.pool, position: built.position }
+  }
+  /** Both steps of a composed plan as one transaction through the lp-zap
+   * composer: each step is rebuilt against live state exactly as buildStep
+   * does, every amount offset is proven from the bytes the venue builders just
+   * produced, and the second step is patched from the first's real delta.
+   * Any failure returns null and the caller serves the sequential build. */
+  async function buildComposedZap(plan: ZapPlan, version: '1' | '0'): Promise<Record<string, unknown> | null> {
+    const programId = options.composerProgramId
+    if (!programId || plan.steps.length !== 2) return null
+    const owner = plan.owner, payer = new PublicKey(owner)
+    try {
+      let steps: import('./compose.ts').ZapComposeStep[]
+      let quote: any, pool: any, position: any, note: string
+      if (plan.direction === 'in') {
+        const [swapStep, addStep] = plan.steps as [SwapStep, AddStep]
+        if (swapStep.kind !== 'swap' || addStep.kind !== 'add') return null
+        const spendable = await solBalance(owner) - SOL_RESERVE
+        const lamports = spendable < BigInt(swapStep.amount) ? spendable : BigInt(swapStep.amount)
+        if (lamports <= 0n) return null
+        const addSol = spendable - lamports
+        const solAmount = addSol < BigInt(addStep.solAmount) ? addSol : BigInt(addStep.solAmount)
+        if (solAmount <= 0n) return null
+        const quoted = await swapQuote(SOL_MINT, plan.mint, lamports.toString(), plan.slippageBps, version)
+        const builtSwap = await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
+        if (builtSwap.composed === true) return null // a composer-built swap cannot nest inside the composer
+        const swapInstructions = instructionsOf(builtSwap.swapTransaction)
+        if (!swapInstructions) return null
+        const addQuote = await options.router.liquidityQuote({ venue: addStep.venue, operation: 'add', owner, pool: addStep.pool, mintA: addStep.mintA, mintB: addStep.mintB, amountA: builtSwap.quoteResponse.outAmount, amountB: solAmount.toString(), slippageBps: plan.slippageBps, parameters: addStep.parameters, transactionVersion: version })
+        const builtAdd = await options.router.liquidityBuild({ quoteId: addQuote.quoteId, owner, transactionVersion: version })
+        const addInstructions = builtAdd.transactions.map((tx: any) => instructionsOf(tx.transaction))
+        if (addInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+        const tokenProgram = await mintTokenProgram(rpc, plan.mint)
+        if (!tokenProgram) return null
+        const assembly = assembleComposedZap({ direction: 'in', owner, tokenMint: plan.mint, tokenProgram,
+          swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) },
+          add: { instructions: addInstructions.flat(), quote: builtAdd.quote } })
+        if (!assembly) return null
+        steps = assembly.steps
+        quote = builtAdd.quote; pool = builtAdd.pool; position = builtAdd.position
+        note = 'One signature: the swap and the deposit run atomically through the composer, the deposit sized from what the swap really delivered'
+      } else {
+        const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep]
+        if (removeStep.kind !== 'remove' || swapStep.kind !== 'swap') return null
+        const removeQuote = await options.router.liquidityQuote({ ...removeStep.intent, transactionVersion: version })
+        const builtRemove = await options.router.liquidityBuild({ quoteId: removeQuote.quoteId, owner, transactionVersion: version })
+        const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
+        if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+        const fresh = await swapQuote(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, version)
+        const builtSwap = await options.router.buildSwap({ quoteResponse: fresh, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
+        if (builtSwap.composed === true) return null
+        const swapInstructions = instructionsOf(builtSwap.swapTransaction)
+        if (!swapInstructions) return null
+        const tokenProgram = await mintTokenProgram(rpc, plan.mint)
+        if (!tokenProgram) return null
+        const assembly = assembleComposedZap({ direction: 'out', owner, tokenMint: plan.mint, tokenProgram,
+          remove: { instructions: removeInstructions.flat() },
+          swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) } })
+        if (!assembly) return null
+        steps = assembly.steps
+        quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
+        note = 'One signature: the withdrawal and the swap back run atomically through the composer, the swap spending exactly what the withdrawal delivered'
+      }
+      const composed = composeZap(steps, { programId: new PublicKey(programId), payer })
+      const latest = await rpc('getLatestBlockhash', [{ commitment: 'confirmed' }])
+      const blockhash = latest?.value?.blockhash, height = latest?.value?.lastValidBlockHeight
+      if (typeof blockhash !== 'string' || !validPublicKey(blockhash) || !Number.isSafeInteger(height) || height < 1) return null
+      const transaction = buildComposedTransaction({ payer, blockhash, version, programId: new PublicKey(programId), before: composed.before, compose: composed.compose, after: composed.after })
+      return { step: 0, mode: 'composed' as ZapMode, kind: plan.direction === 'in' ? 'add' : 'remove',
+        transactions: [{ transaction, lastValidBlockHeight: height, transactionVersion: version, expectedSigners: [owner] }],
+        quote, pool, position, note }
+    } catch { return null }
   }
   function validatePlanRequest(j: unknown) {
     if (!object(j)) fail('Invalid plan request')
@@ -422,7 +507,14 @@ export function createSolanaZapHandler(options: Options) {
           if (signatures.length < j.step) throw new RequestError(409, `Confirm step ${j.step} before continuing`)
           await verifyConfirmed(signatures)
         }
-        reply(res, 200, await buildStep(plan, j.step, (transactionVersion ?? plan.transactionVersion) as '1' | '0'))
+        const version = (transactionVersion ?? plan.transactionVersion) as '1' | '0'
+        // A composed plan starts as one transaction through the lp-zap composer;
+        // unprovable builds fall through to the sequential stepper below.
+        if (plan.mode === 'composed' && j.step === 0 && signatures.length === 0) {
+          const composed = await buildComposedZap(plan, version)
+          if (composed) { reply(res, 200, composed); return true }
+        }
+        reply(res, 200, await buildStep(plan, j.step, version))
       }
     } catch (e) {
       const { status, message } = clientError(e)
