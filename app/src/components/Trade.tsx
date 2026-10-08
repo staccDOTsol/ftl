@@ -8,6 +8,9 @@ import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
 import { Button, Chip, Txt } from './ui'
 import SolanaTrade from './SolanaTrade'
 
+// Deep-link presets: exit opens Liquidity on remove, liquidity opens Liquidity, sell opens Swap on the sell side.
+export type TradeAction = 'exit' | 'liquidity' | 'sell'
+
 const open = (url: string) => Linking.openURL(url)
 
 function rawTokens(raw: string, decimals: number): number | null {
@@ -16,7 +19,7 @@ function rawTokens(raw: string, decimals: number): number | null {
   return Number.isFinite(amount) ? amount : null
 }
 
-export function Trade({ t, pools, origin, initialAction }: { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: 'exit' | 'liquidity' }) {
+export function Trade({ t, pools, origin, initialAction }: { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: TradeAction }) {
   const traps = pools.filter(p => (p.feeBps ?? 0) >= 7000)
   return (
     <View style={st.card}>

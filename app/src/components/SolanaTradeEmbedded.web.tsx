@@ -7,13 +7,13 @@ import { Button, Txt } from './ui'
 import type { SolanaSigner } from './SolanaTrade.web'
 
 const config = { cluster: 'mainnet-beta' as const, theme: { darkMode: true, primaryColor: C.accent } }
-type Props = { onBack: () => void; children: (signer: SolanaSigner) => ReactNode }
+type Props = { onBack: () => void; title?: string; children: (signer: SolanaSigner) => ReactNode }
 
-function Connected({ children }: Props) {
+function Connected({ children, title }: Props) {
   const wallet = useHeliusWallet()
   // Wallet Kit 1.1 does not advertise V1 support. Negotiate V0 explicitly.
   const signer: SolanaSigner = { address: wallet.address, transactionVersion: '0', connect: wallet.login, disconnect: wallet.logout, sign: wallet.signTransaction }
-  return <View style={{ gap: 12 }}><Txt v="h2">Trade here · embedded wallet</Txt>{children(signer)}</View>
+  return <View style={{ gap: 12 }}><Txt v="h2">{title ?? 'Trade here · embedded wallet'}</Txt>{children(signer)}</View>
 }
 
 export default function SolanaTradeEmbedded(props: Props) {

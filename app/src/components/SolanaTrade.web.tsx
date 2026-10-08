@@ -13,15 +13,16 @@ import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStat
 import { inspectTransaction, preferredTransactionVersion, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
 import SolanaLiquidity from './SolanaLiquidity.web'
+import type { TradeAction } from './Trade'
 
-type Props = { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: 'exit' | 'liquidity' }
+type Props = { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: TradeAction }
 export interface SolanaSigner { address: string | null; transactionVersion: TransactionVersion | null; connect: () => Promise<void>; disconnect: () => Promise<void>; sign: (bytes: Uint8Array) => Promise<Uint8Array> }
-type StandardSolanaWallet = Wallet & { features: StandardConnectFeature & SolanaSignTransactionFeature & Partial<StandardDisconnectFeature & StandardEventsFeature> }
-function isStandardSolana(wallet: Wallet): wallet is StandardSolanaWallet {
+export type StandardSolanaWallet = Wallet & { features: StandardConnectFeature & SolanaSignTransactionFeature & Partial<StandardDisconnectFeature & StandardEventsFeature> }
+export function isStandardSolana(wallet: Wallet): wallet is StandardSolanaWallet {
   return wallet.chains.includes('solana:mainnet') && StandardConnect in wallet.features && SolanaSignTransaction in wallet.features
 }
-const signingAccount = (accounts: readonly WalletAccount[]) => accounts.find(account => account.chains.includes('solana:mainnet') && account.features.includes(SolanaSignTransaction)) ?? null
-interface InjectedWallet {
+export const signingAccount = (accounts: readonly WalletAccount[]) => accounts.find(account => account.chains.includes('solana:mainnet') && account.features.includes(SolanaSignTransaction)) ?? null
+export interface InjectedWallet {
   publicKey?: { toBase58(): string }
   connect(): Promise<unknown>
   disconnect(): Promise<void>
@@ -40,7 +41,7 @@ function readPending(): PendingSwap | null {
   } catch { return null }
 }
 
-function injectedWallets(): { name: string; provider: InjectedWallet }[] {
+export function injectedWallets(): { name: string; provider: InjectedWallet }[] {
   if (typeof window === 'undefined') return []
   const browser = window as unknown as { phantom?: { solana?: InjectedWallet }; solflare?: InjectedWallet; solana?: InjectedWallet }
   const candidates = [
@@ -141,7 +142,7 @@ function InjectedTrade({ provider, name, onBack, ...props }: Props & { provider:
 }
 
 function WalletActions(props: Props & { signer: SolanaSigner | null; onBack?: () => void }) {
-  const [mode, setMode] = useState<'swap' | 'liquidity'>(() => props.initialAction ? 'liquidity' : 'swap')
+  const [mode, setMode] = useState<'swap' | 'liquidity'>(() => props.initialAction && props.initialAction !== 'sell' ? 'liquidity' : 'swap')
   const [exitRequest, setExitRequest] = useState(props.initialAction === 'exit')
   const [locked, setLocked] = useState(false)
   useEffect(() => {
@@ -163,8 +164,8 @@ function WalletActions(props: Props & { signer: SolanaSigner | null; onBack?: ()
   </View>
 }
 
-function TradeForm({ t, pools, signer, onBack, onLockChange }: Props & { signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void }) {
-  const [side, setSide] = useState<'buy' | 'sell'>('buy')
+function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Props & { signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void }) {
+  const [side, setSide] = useState<'buy' | 'sell'>(() => initialAction === 'sell' ? 'sell' : 'buy')
   const [pair, setPair] = useState(SOL_MINT)
   const [customMint, setCustomMint] = useState('')
   const [amount, setAmount] = useState('')

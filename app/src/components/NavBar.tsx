@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ComponentProps } from 'react'
-import type { Tabs } from 'expo-router'
+import { router, type Tabs } from 'expo-router'
 import { C, CHAIN, F, T, WIDE } from '@/theme'
 import { useLive } from '@/lib/live'
 import { useClock } from '@/lib/clock'
@@ -57,6 +57,10 @@ export function NavBar({ state, descriptors, navigation }: BottomTabBarProps) {
             <Text style={[st.navLabel, it.focused && { color: C.text }]}>{it.label}</Text>
           </Press>
         ))}
+        <Press onPress={() => router.push('/holdings')} accessibilityRole="link" style={({ hovered, pressed }) => [st.navItem, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+          <Text style={[st.glyph, { color: C.ghost, width: 20 }]}>?</Text>
+          <Text style={st.navLabel}>What can I do</Text>
+        </Press>
       </View>
       <Pulse />
     </View>

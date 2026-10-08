@@ -8,12 +8,13 @@ import { balancePercent, fromAtomic, shortMint, SOL_MINT, toAtomic } from '@/lib
 import { inspectTransaction } from '@/lib/solana-wire'
 import { assertApprovedLiquidity, assertLiquidityQuote, assertLiquidityTransactionIntent, liquidityBuild, liquidityCapabilities, liquidityPositions, liquidityQuote, simulateLiquidity, type LiquidityBuild, type LiquidityOperation, type LiquidityParameter, type LiquidityPosition, type LiquidityQuote, type LiquidityTransaction, type LiquidityVenue } from '@/lib/solana-liquidity'
 import type { SolanaSigner } from './SolanaTrade.web'
+import type { TradeAction } from './Trade'
 import { Button, Chip, Seg, Txt } from './ui'
 
 const ADVANCED = new Set(['tickLowerIndex', 'tickUpperIndex', 'minBinId', 'maxBinId', 'strategyType', 'configIndex'])
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
-type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: 'exit' | 'liquidity'; exitRequest?: boolean }
+type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: TradeAction; exitRequest?: boolean }
 type Batch = { build: LiquidityBuild; owner: string; version: '1' | '0'; next: number; confirmed: string[]; pending?: { signature: string; lastValidBlockHeight: number } }
 const BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
 const PENDING_KEY = 'liquidityxyz.solana.pending.v1'

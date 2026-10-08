@@ -30,6 +30,11 @@ export default function Me() {
           <Txt v="monoSmall" selectable>{social.pubkey ?? (social.ready ? 'No active FTL profile key' : '…')}</Txt>
         </View>
 
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
+          <Button label="What can I do with what I’m holding?" onPress={() => router.push('/holdings')} />
+          <Txt v="small">Paste or connect a Solana wallet. FTL reads its SOL, tokens and liquidity positions and lists the exits, sells, adds and buys it can execute here.</Txt>
+        </View>
+
         <Section title="Handle">
           <View style={{ paddingHorizontal: 16, gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.lineStrong, borderRadius: 10, paddingHorizontal: 12, backgroundColor: C.surface }}>

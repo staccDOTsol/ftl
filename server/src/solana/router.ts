@@ -281,7 +281,10 @@ export function createSolanaRouterHandler(options: Options) {
     return winners[0]
   }
   async function getQuote(q: URLSearchParams) { return (await bestQuote(q)).quote }
-  return async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
+  // All-venue positions for one owner over the same bounded transport. Used by
+  // the holdings endpoint; errors carry the RequestError status, never a URL.
+  const positions = (owner: string) => upstream(`${router('/liquidity/positions')}?${new URLSearchParams({ owner: address(owner) })}`, {}, 65_000, true)
+  async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
     const route = `${req.method}:${url.pathname}`
     if (!['GET:/api/quote/solana', 'POST:/api/swap/solana', 'GET:/api/router/solana', 'POST:/api/solana/rpc', 'GET:/api/liquidity/solana/capabilities', 'GET:/api/liquidity/solana/positions', 'POST:/api/liquidity/solana/quote', 'POST:/api/liquidity/solana/build'].includes(route)) return false
     let counted = false
@@ -371,4 +374,5 @@ export function createSolanaRouterHandler(options: Options) {
     } finally { if (counted) inflight-- }
     return true
   }
+  return Object.assign(handle, { positions })
 }

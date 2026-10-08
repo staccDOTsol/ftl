@@ -129,7 +129,7 @@ export default function TokenScreen() {
           )}
         </Section>
 
-        <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : eventId ? 'liquidity' : undefined} />
+        <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : action === 'sell' ? 'sell' : action === 'liquidity' || eventId ? 'liquidity' : undefined} />
 
         <Section title={`Calls & comments · ${page.posts.length}`}>
           {page.posts.map(p => <PostItem key={p.id} p={p} now={now} />)}
