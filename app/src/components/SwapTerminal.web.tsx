@@ -13,7 +13,7 @@ import type { TokenSummary } from '@/lib/types'
 import { balancePercent, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
-import { formatBps, isMintLike, KNOWN_TOKENS, rateString, type SwapLink } from '@/lib/swap-link'
+import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink } from '@/lib/swap-link'
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Chip, Press, TokenAvatar, Txt } from './ui'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
@@ -67,7 +67,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   const [balances, setBalances] = useState<Record<string, { owner: string; raw: string }>>({})
   const [quoteResult, setQuoteResult] = useState<{ response: SolanaQuote; at: number; wallet: string | null; key: string } | null>(null)
   const [quoting, setQuoting] = useState(false)
-  const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [quoteError, setQuoteError] = useState<{ message: string; at: number } | null>(null)
   const [networkFee, setNetworkFee] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<Phase>('idle')
@@ -161,24 +161,25 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       const result = await getSolanaQuote({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: Number(bps), transactionVersion: version as TransactionVersion })
       if (request === seq.current && mounted.current) { setQuoteResult({ response: result, at: Date.now(), wallet: signerRef.current?.address ?? null, key }); setNow(Date.now()) }
     } catch (error) {
-      if (request === seq.current && mounted.current) { setQuoteResult(null); setQuoteError(messageOf(error)) }
+      if (request === seq.current && mounted.current) { setQuoteResult(null); setQuoteError({ message: messageOf(error), at: Date.now() }) }
     } finally { if (request === seq.current && mounted.current) setQuoting(false) }
   }, [])
+  // Inputs are disabled while a swap runs, so this never fires mid-swap; the
+  // in-flight swap keeps its own `seq` snapshot.
   useEffect(() => {
     seq.current++
     setQuoteResult(null); setQuoteError(null); setQuoting(false); setNetworkFee(null)
-    if (!quoteKey || locked) return
+    if (!quoteKey) return
     const timer = setTimeout(() => void fetchQuote(quoteKey), 350)
     return () => clearTimeout(timer)
-  }, [quoteKey, address, locked, fetchQuote])
+  }, [quoteKey, address, fetchQuote])
   useEffect(() => {
     if (!quoteKey || locked || quoting) return
-    const due = quote ? quote.at + REFRESH_MS : quoteError ? now + REFRESH_MS : null
+    const due = quote ? quote.at + REFRESH_MS : quoteError ? quoteError.at + REFRESH_MS : null
     if (due === null) return
     const timer = setTimeout(() => void fetchQuote(quoteKey), Math.max(0, due - Date.now()))
     return () => clearTimeout(timer)
-    // `now` ticks each second so a refresh scheduled before a quote arrives is re-planned.
-  }, [quoteKey, locked, quoting, quote, quoteError, now, fetchQuote])
+  }, [quoteKey, locked, quoting, quote, quoteError, fetchQuote])
 
   const onSigner = useCallback((signer: SolanaSigner | null, name: string | null) => {
     signerRef.current = signer
@@ -200,7 +201,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     if (side === 'in') {
       if (output?.mint === token.mint) setTokens(token, input)
       else setTokens(token, output)
-    } else if (token.mint === input.mint) setTokens(output ?? tokenOf(SOL_MINT), token)
+    } else if (token.mint === input.mint) setTokens(output ?? tokenOf(token.mint === SOL_MINT ? USDC_MINT : SOL_MINT), token)
     else setTokens(input, token)
   }
   function applyCustomBps() {
@@ -385,7 +386,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       </View>
     </View> : null}
 
-    {quoteError && !quote ? <Txt v="small" color={C.warn}>{quoteError}</Txt> : null}
+    {quoteError && !quote ? <Txt v="small" color={C.warn}>{quoteError.message}</Txt> : null}
     {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
 
     {resolved ? <View style={[st.details, { borderColor: resolved.state === 'confirmed' ? C.accent + '66' : C.warn + '66' }]}>

@@ -46,6 +46,7 @@ export default function Root() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'liquidityxyz' }} />
         <Stack.Screen name="token/[chain]/[address]" options={{ title: 'Token' }} />
         <Stack.Screen name="holdings" options={{ title: 'What can I do' }} />
+        <Stack.Screen name="swap" options={{ title: 'Swap' }} />
         <Stack.Screen name="research/index" options={{ title: 'Research' }} />
         <Stack.Screen name="research/[chain]/[address]" options={{ title: 'Coin research' }} />
         <Stack.Screen name="embedded-wallet" options={{ title: 'Embedded wallet' }} />

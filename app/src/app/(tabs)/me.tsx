@@ -33,6 +33,8 @@ export default function Me() {
         <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
           <Button label="What can I do with what I’m holding?" onPress={() => router.push('/holdings')} />
           <Txt v="small">Paste or connect a Solana wallet. FTL reads its SOL, tokens and liquidity positions and lists the exits, sells, adds and buys it can execute here.</Txt>
+          <Button label="Swap ⇄" kind="ghost" onPress={() => router.push('/swap')} />
+          <Txt v="small">Swap any two Solana tokens through FTL’s router in one full-page terminal.</Txt>
         </View>
 
         <Section title="Handle">
@@ -70,6 +72,7 @@ export default function Me() {
             <Txt v="small">Your calls, comments, likes, follows, handle, and optional push token are tied to this device profile key. Public blockchain activity is separate.</Txt>
             <Button label="Read privacy policy" kind="ghost" onPress={() => void Linking.openURL('https://www.liquidityxyz.fun/privacy.html')} />
             <Button label="Account deletion details" kind="quiet" onPress={() => void Linking.openURL('https://www.liquidityxyz.fun/account-deletion.html')} />
+            <Button label="Source on GitHub ↗" kind="quiet" onPress={() => void Linking.openURL('https://github.com/staccDOTsol/ftl')} />
             {deleteMsg ? <Txt v="small" color={deleteMsg.startsWith('Deleted') ? C.good : C.bad}>{deleteMsg}</Txt> : null}
             {!confirmDelete ? <Button label="Delete my profile and data" kind="ghost" disabled={!social.pubkey} onPress={() => { setDeleteMsg(null); setConfirmDelete(true) }} /> : (
               <View style={{ gap: 8, padding: 12, borderWidth: 1, borderColor: C.bad, borderRadius: 10 }}>

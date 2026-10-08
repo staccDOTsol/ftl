@@ -10,6 +10,12 @@ import { assertApprovedLiquidity, assertLiquidityQuote, assertLiquidityTransacti
 import type { SolanaSigner } from './SolanaTrade.web'
 import type { TradeAction } from './Trade'
 import { Button, Chip, Seg, Txt } from './ui'
+import { ShareMove } from './ShareMove.web'
+import { PoolCrowd } from './PoolCrowd.web'
+import { FollowTradingWallet } from './FollowTradingWallet.web'
+import { WrapSol } from './WrapSol.web'
+import { PoolYield } from './PoolYield.web'
+import type { Move, MoveVenue } from '@/lib/types'
 
 const ADVANCED = new Set(['tickLowerIndex', 'tickUpperIndex', 'minBinId', 'maxBinId', 'strategyType', 'configIndex'])
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
@@ -52,7 +58,9 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
   const [busy, setBusy] = useState(false)
   const [phase, setPhase] = useState('')
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ pool: string; position?: string; signatures: string[]; operation: LiquidityOperation } | null>(null)
+  const [result, setResult] = useState<{ pool: string; position?: string; signatures: string[]; operation: LiquidityOperation; venue: string; amounts: LiquidityQuote['amounts'] } | null>(null)
+  const [showWrap, setShowWrap] = useState(false)
+  const [showCrowd, setShowCrowd] = useState(false)
   const [advanced, setAdvanced] = useState(false)
   const [editMints, setEditMints] = useState(false)
   const owner = signer?.address ?? null
@@ -227,7 +235,7 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       }
       if (value.pending || !mounted.current) return
     }
-    persist(null); setQuote(null); setPool(value.build.pool); setResult({ pool: value.build.pool, position: value.build.position, signatures: value.confirmed, operation: value.build.quote.operation }); await refreshPositions()
+    persist(null); setQuote(null); setPool(value.build.pool); setResult({ pool: value.build.pool, position: value.build.position, signatures: value.confirmed, operation: value.build.quote.operation, venue: value.build.quote.venue, amounts: value.build.quote.amounts }); await refreshPositions()
   }
   async function start() {
     if (localStorage.getItem(PENDING_KEY)) throw new Error('Resolve the pending wallet transaction before starting another operation.')
@@ -268,6 +276,7 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       <View><Txt v="h2">Liquidity</Txt><Txt v="small">Open a pool, add to it, or pull your position. Every step signs with your wallet.</Txt></View>
       {owner ? <View style={st.pill}><View style={[st.dot, { backgroundColor: C.accent }]} /><Txt v="monoSmall" color={C.text}>{shortMint(owner)} · V{version}</Txt></View> : null}
     </View>
+    {owner ? <FollowTradingWallet address={owner} /> : null}
     {!loaded ? <Txt v="small">Loading venues…</Txt> : null}
     {['meteora-dbc', 'raydium-launchlab', 'pumpfun'].includes(venue) ? <Txt v="small">This is a launch curve. Use Swap to trade it; its protocol manages launch and migration. Choose an AMM below to initialize an independent liquidity pool.</Txt> : null}
     <View style={st.section}>
@@ -286,6 +295,8 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
         <View style={st.between}><Txt v="label">Pool</Txt>{knownPools.length ? <Txt v="monoSmall">{knownPools.length} on {venueName(venue)}</Txt> : null}</View>
         {knownPools.length ? <View style={st.row}>{knownPools.map(item => <Chip key={item.address} label={`${shortMint(item.address)}${item.funded ? '' : ' · empty'}`} color={item.funded ? C.accent : C.gold} active={pool === item.address} onPress={() => { if (!locked) choosePool(item.address) }} />)}</View> : <Txt v="small">FTL has not seen a {venueName(venue)} pool for this token. Paste one, or open a new pool.</Txt>}
         <TextInput accessibilityLabel="Liquidity pool address" value={pool} onChangeText={choosePool} editable={!locked} placeholder="Pool account address" placeholderTextColor={C.faint} autoCapitalize="none" style={st.input} />
+        {pool ? <PoolYield venue={venue} pool={pool} /> : null}
+        {pool ? <><Chip label={showCrowd ? 'Hide who’s in this pool' : 'Who’s in this pool'} active={showCrowd} onPress={() => setShowCrowd(value => !value)} />{showCrowd ? <PoolCrowd pool={pool} chain="solana" /> : null}</> : null}
         {operation === 'remove' ? <>
           <View style={st.between}><Txt v="label">Your positions</Txt><Button label="Refresh" kind="quiet" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
           {positions?.owner === owner && positions?.errors.some(item => item.venue === venue) ? <Txt v="small" color={C.warn}>This venue could not return all positions. Refresh before treating an empty result as no position.</Txt> : null}
@@ -305,6 +316,7 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
           <TextInput accessibilityLabel="Liquidity mint B" value={mintB} onChangeText={setMintB} editable={!locked} autoCapitalize="none" style={st.input} />
         </> : <Txt v="monoSmall" selectable>{label(mintA)} {mintA} · {label(mintB)} {mintB}</Txt>}
         {amountField(mintA, amountA, setAmountA)}{amountField(mintB, amountB, setAmountB)}
+        {signer && [mintA, mintB].includes(SOL_MINT) ? <><Chip label={showWrap ? 'Hide wrap / unwrap' : 'Wrap or unwrap SOL'} active={showWrap} onPress={() => setShowWrap(value => !value)} />{showWrap ? <WrapSol signer={signer} defaultDirection={nativeSol ? 'unwrap' : 'wrap'} onDone={() => setResult(previous => previous)} /> : null}</> : null}
         {operation === 'initialize' ? <Txt v="small">{Number(amountA) > 0 && Number(amountB) > 0 ? `Seed ratio ${Number(amountB) / Number(amountA)} ${label(mintB)} per ${label(mintA)}` : 'This venue may open without a deposit. Set its initial price below when required.'}</Txt> : null}
         {rangeVenue ? <View style={st.rangeBox}>
           <View style={st.between}><Txt v="label">Range</Txt><Chip label={advanced ? 'Hide ticks' : 'Set ticks'} active={advanced} onPress={() => setAdvanced(value => !value)} /></View>
@@ -348,7 +360,8 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       <Button kind={quote ? 'ghost' : 'primary'} label={quote ? 'Requote' : 'Quote liquidity'} disabled={busy || !owner || !version || !canOperate} onPress={() => void act(requestQuote)} style={{ flex: 1 }} />
       {quote ? <Button label="Review & sign" disabled={busy || quote.expiresAt <= now} onPress={() => void act(start)} style={{ flex: 1 }} /> : null}
     </View>}
-    {result ? <View style={[st.quote, { borderColor: C.accent + '66' }]}><Txt v="h2" color={C.accent}>{result.operation === 'initialize' ? 'Pool opened' : result.operation === 'remove' ? 'Liquidity withdrawn' : 'Liquidity added'}</Txt><Txt v="monoSmall" selectable>Pool {result.pool}</Txt>{result.position ? <Txt v="monoSmall" selectable>Position {result.position}</Txt> : null}<View style={st.row}>{result.signatures.map((signature, i) => <Chip key={signature} label={`Transaction ${i + 1} ↗`} color={C.accent} active onPress={() => void Linking.openURL(`https://solscan.io/tx/${signature}`)} />)}</View>{result.operation === 'initialize' ? <Button label="Add liquidity to this pool" disabled={locked} onPress={() => { setPool(result.pool); setOperation('add'); setParameters({}); setQuote(null) }} /> : null}</View> : null}
+    {result ? <View style={[st.quote, { borderColor: C.accent + '66' }]}><Txt v="h2" color={C.accent}>{result.operation === 'initialize' ? 'Pool opened' : result.operation === 'remove' ? 'Liquidity withdrawn' : 'Liquidity added'}</Txt><Txt v="monoSmall" selectable>Pool {result.pool}</Txt>{result.position ? <Txt v="monoSmall" selectable>Position {result.position}</Txt> : null}<View style={st.row}>{result.signatures.map((signature, i) => <Chip key={signature} label={`Transaction ${i + 1} ↗`} color={C.accent} active onPress={() => void Linking.openURL(`https://solscan.io/tx/${signature}`)} />)}</View>{result.operation === 'initialize' ? <Button label="Add liquidity to this pool" disabled={locked} onPress={() => { setPool(result.pool); setOperation('add'); setParameters({}); setQuote(null) }} /> : null}
+      {result.signatures.length ? <ShareMove chain="solana" token={t.address} symbol={t.symbol || undefined} graduated={!!t.graduatedTs} tx={result.signatures[result.signatures.length - 1]} move={{ venue: result.venue as MoveVenue, operation: result.operation, pool: result.pool, amounts: result.amounts.slice(0, 4).map(amount => ({ mint: amount.mint, amount: fromAtomic(amount.expectedRaw, amount.decimals), symbol: label(amount.mint) })) } satisfies Move} /> : null}</View> : null}
     <View style={st.section}>
       <View style={st.between}><Txt v="label">My positions on {t.symbol || 'this token'}</Txt><Button kind="quiet" label="Refresh" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
       {!owner ? <Txt v="small">Connect your wallet to check your positions.</Txt> : null}
@@ -356,7 +369,7 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       {positions?.owner === owner ? positions.errors.map(item => <Txt key={item.venue} v="monoSmall">{venueName(item.venue)}: {item.error}</Txt>) : null}
       {owner && positions?.owner !== owner && positionError?.owner !== owner ? <Txt v="small">Loading positions…</Txt> : null}
       {tokenPositions.map(position => <View key={`${position.venue}:${position.position}`} style={st.between}>
-        <View><Txt v="h2">{venueName(position.venue)}</Txt><Txt v="monoSmall" selectable>{shortMint(position.position)} · {label(position.mintA)} / {label(position.mintB)} · {position.removalMode === 'percentage' ? 'bin position' : `${position.liquidity ?? '—'} units`}</Txt></View>
+        <View style={{ gap: 4 }}><Txt v="h2">{venueName(position.venue)}</Txt><Txt v="monoSmall" selectable>{shortMint(position.position)} · {label(position.mintA)} / {label(position.mintB)} · {position.removalMode === 'percentage' ? 'bin position' : `${position.liquidity ?? '—'} units`}</Txt><PoolYield venue={position.venue} pool={position.pool} /></View>
         <Button kind="ghost" label="Exit" disabled={locked} onPress={() => { choosePosition(position); setOperation('remove'); setParameters({}) }} />
       </View>)}
       {owner && positions?.owner === owner && !tokenPositions.length ? <Txt v="small">No positions on this token for {shortMint(owner)}.</Txt> : null}

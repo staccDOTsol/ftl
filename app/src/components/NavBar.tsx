@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions, Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ComponentProps } from 'react'
 import { router, type Tabs } from 'expo-router'
@@ -61,8 +61,20 @@ export function NavBar({ state, descriptors, navigation }: BottomTabBarProps) {
           <Text style={[st.glyph, { color: C.ghost, width: 20 }]}>?</Text>
           <Text style={st.navLabel}>What can I do</Text>
         </Press>
+        <Press onPress={() => router.push('/swap')} accessibilityRole="link" style={({ hovered, pressed }) => [st.navItem, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+          <Text style={[st.glyph, { color: C.ghost, width: 20 }]}>⇄</Text>
+          <Text style={st.navLabel}>Swap</Text>
+        </Press>
       </View>
       <Pulse />
+      <View style={{ marginTop: 'auto', paddingHorizontal: 20, paddingBottom: 20, gap: 4 }}>
+        <Text style={st.tag}>open source</Text>
+        {[['liquidityxyz', 'https://github.com/staccDOTsol/ftl'], ['router', 'https://github.com/staccDOTsol/autobahn'], ['lst engine', 'https://github.com/staccDOTsol/permissionless-lst-engine']].map(([label, url]) => (
+          <Press key={url} onPress={() => void Linking.openURL(url)} accessibilityRole="link" style={({ hovered }) => [{ paddingVertical: 2 }, hovered && { opacity: 0.8 }]}>
+            <Text style={[st.navLabel, { fontSize: 12 }]}>github · {label} ↗</Text>
+          </Press>
+        ))}
+      </View>
     </View>
   )
 }

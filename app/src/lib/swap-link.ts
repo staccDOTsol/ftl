@@ -1,5 +1,6 @@
 // Pure helpers for the swap terminal: deep links, rate lines, well-known mints.
-import { fromAtomic, SOL_MINT } from './solana-trade'
+// Dependency-free on purpose so `node --test` can load it without a bundler.
+export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 
 export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 export const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
@@ -51,8 +52,13 @@ export function rateString(inRaw: string | bigint, inDecimals: number, outRaw: s
   const PRECISION = 12
   // output per one whole input unit, carried at PRECISION extra decimals
   const scaled = output * 10n ** BigInt(inDecimals + PRECISION) / input
-  const text = fromAtomic(scaled, outDecimals + PRECISION)
-  return trimSignificant(text, 6)
+  return trimSignificant(decimalString(scaled, outDecimals + PRECISION), 6)
+}
+
+function decimalString(value: bigint, decimals: number): string {
+  const scale = 10n ** BigInt(decimals)
+  const fraction = (value % scale).toString().padStart(decimals, '0').replace(/0+$/, '')
+  return `${value / scale}${fraction ? `.${fraction}` : ''}`
 }
 
 // Keeps up to `digits` significant figures after any leading zeros, so tiny
