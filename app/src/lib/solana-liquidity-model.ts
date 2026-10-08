@@ -26,6 +26,7 @@ export interface LiquidityQuote {
   mintA?: string; mintB?: string
   amounts: { mint: string; decimals: number; expectedRaw: string; limitRaw: string; direction: 'debit' | 'credit' }[]
   position?: string; slot: number; warnings?: string[]
+  details?: Record<string, string | number | boolean | null>
 }
 export interface LiquidityTransaction { transaction: string; lastValidBlockHeight: number; expectedSigners: string[] }
 export interface LiquidityBuild { transactions: LiquidityTransaction[]; pool: string; position?: string; quote: LiquidityQuote }

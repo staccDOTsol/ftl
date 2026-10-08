@@ -10,6 +10,9 @@ import { assertApprovedLiquidity, assertLiquidityQuote, assertLiquidityTransacti
 import type { SolanaSigner } from './SolanaTrade.web'
 import { Button, Chip, Seg, Txt } from './ui'
 
+const ADVANCED = new Set(['tickLowerIndex', 'tickUpperIndex', 'minBinId', 'maxBinId', 'strategyType', 'configIndex'])
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+
 type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: 'exit' | 'liquidity'; exitRequest?: boolean }
 type Batch = { build: LiquidityBuild; owner: string; version: '1' | '0'; next: number; confirmed: string[]; pending?: { signature: string; lastValidBlockHeight: number } }
 const BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
@@ -49,6 +52,8 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
   const [phase, setPhase] = useState('')
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ pool: string; position?: string; signatures: string[]; operation: LiquidityOperation } | null>(null)
+  const [advanced, setAdvanced] = useState(false)
+  const [editMints, setEditMints] = useState(false)
   const owner = signer?.address ?? null
   const version = signer?.transactionVersion ?? null
   const current = useRef({ signer, key: '' })
@@ -59,6 +64,12 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
   const walletPositions = positions?.owner === owner ? positions.rows : []
   const selectedPosition = walletPositions.find(item => item.position === positionId && item.pool === pool && item.venue === venue)
   const knownPools = useMemo(() => pools.filter(item => routingVenue(item.venue) === venue), [pools, venue])
+  const poolsByVenue = useMemo(() => {
+    const counts: Record<string, { total: number; funded: number }> = {}
+    for (const item of pools) { const id = routingVenue(item.venue); counts[id] ??= { total: 0, funded: 0 }; counts[id].total++; if (item.funded) counts[id].funded++ }
+    return counts
+  }, [pools])
+  const orderedVenues = useMemo(() => [...venues].sort((a, b) => (poolsByVenue[b.id]?.funded ?? 0) - (poolsByVenue[a.id]?.funded ?? 0) || (poolsByVenue[b.id]?.total ?? 0) - (poolsByVenue[a.id]?.total ?? 0)), [venues, poolsByVenue])
   const schema = selectedVenue?.parameters?.[operation] ?? []
   const wrapField = schema.find(field => field.name === 'wrapSol')
   const nativeSol = !wrapField || (parameters.wrapSol ?? String(wrapField.default ?? false)) === 'true'
@@ -89,8 +100,14 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
   }, [origin, exitRequest, loaded, locked])
   useEffect(() => {
     let alive = true
-    void liquidityCapabilities().then(response => { if (alive) { setVenues(response.venues); setLoaded(true); setVenue(response.venues.find(item => item.capabilities.length)?.id ?? '') } }).catch(error => { if (alive) { setError(errorMessage(error)); setLoaded(true) } })
+    void liquidityCapabilities().then(response => { if (alive) { setVenues(response.venues); setLoaded(true)
+      const counts: Record<string, number> = {}
+      for (const item of pools) counts[routingVenue(item.venue)] = (counts[routingVenue(item.venue)] ?? 0) + (item.funded ? 2 : 1)
+      const best = response.venues.filter(item => item.capabilities.length).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))[0]
+      setVenue(best?.id ?? '')
+      if (best && counts[best.id]) { const first = pools.find(item => routingVenue(item.venue) === best.id && item.funded) ?? pools.find(item => routingVenue(item.venue) === best.id); if (first) { setPool(first.address); if (first.token) setMintA(first.token); if (first.quote) setMintB(first.quote) } } } }).catch(error => { if (alive) { setError(errorMessage(error)); setLoaded(true) } })
     return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const refreshPositions = useCallback(async () => {
     if (!owner) return
@@ -223,89 +240,144 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
     const value = { build: built, owner, version, next: 0, confirmed: [] }
     persist(value)
   }
+
+  const label = (mint: string) => mint === SOL_MINT ? (nativeSol ? 'SOL' : 'WSOL') : mint === USDC_MINT ? 'USDC' : mint === t.address ? (t.symbol || shortMint(mint)) : shortMint(mint)
+  const details = (quote?.details ?? {}) as Record<string, string | number | boolean | null | undefined>
+  const basicSchema = schema.filter(field => !ADVANCED.has(field.name) && !(percentageRemoval && field.name === 'removeBps'))
+  const advancedSchema = schema.filter(field => ADVANCED.has(field.name))
+  const rangeVenue = ['raydium-clmm', 'orca', 'meteora-dlmm'].includes(venue) && operation === 'add'
+  const rangeManual = advancedSchema.some(field => (parameters[field.name] ?? '').trim() !== '')
+  const venuePositions = walletPositions.filter(item => item.venue === venue && (!pool || item.pool === pool))
+  const tokenPositions = walletPositions.filter(position => position.mintA === t.address || position.mintB === t.address || position.pool === result?.pool)
   function amountField(mint: string, amount: string, change: (value: string) => void) {
     const token = tokens[mint], balance = token?.owner === owner && (mint !== SOL_MINT || token.nativeSol === nativeSol) ? token.raw : null
-    return <View style={st.box}>
-      <View style={st.row}><Txt v="monoSmall">{mint === SOL_MINT ? nativeSol ? 'SOL' : 'WSOL' : mint === t.address ? t.symbol || shortMint(mint) : shortMint(mint)}</Txt><Txt v="small">{balance !== null && token ? `Balance ${fromAtomic(balance, token.decimals)}` : owner ? 'Loading balance…' : 'Connect to see balance'}</Txt></View>
+    return <View style={st.amountBox}>
+      <View style={st.between}>
+        <View style={st.inline}><View style={[st.dot, { backgroundColor: mint === t.address ? C.accent : C.violet }]} /><Txt v="h2">{label(mint)}</Txt></View>
+        <Txt v="monoSmall">{balance !== null && token ? `Balance ${fromAtomic(balance, token.decimals)}` : owner ? 'Loading balance…' : 'Connect to see balance'}</Txt>
+      </View>
       <TextInput accessibilityLabel={`Liquidity amount ${mint === mintA ? 'A' : 'B'}`} value={amount} onChangeText={change} keyboardType="decimal-pad" editable={!locked} placeholder="0.00" placeholderTextColor={C.faint} style={st.amount} />
-      <View style={st.row}>{[10, 25, 50, 100].map(percent => <Button key={percent} label={`${percent}%`} kind="quiet" disabled={locked || balance === null || !token} onPress={() => change(fromAtomic(balancePercent(balance!, percent, mint === SOL_MINT && nativeSol), token.decimals))} style={{ flex: 1 }} />)}</View>
-      {mint === SOL_MINT ? <Txt v="monoSmall">{nativeSol ? 'Native SOL. Shortcuts reserve 0.01 SOL for fees and rent.' : 'Wrapped SOL token balance. Enable native SOL below to wrap during this operation.'}</Txt> : null}
+      <View style={st.row}>{[10, 25, 50, 100].map(percent => <Chip key={percent} label={`${percent}%`} onPress={() => { if (!locked && balance !== null && token) change(fromAtomic(balancePercent(balance, percent, mint === SOL_MINT && nativeSol), token.decimals)) }} />)}
+        {mint === SOL_MINT ? <Txt v="monoSmall" style={{ marginLeft: 'auto' }}>{nativeSol ? 'keeps 0.01 SOL for fees' : 'wrapped SOL balance'}</Txt> : null}</View>
     </View>
   }
+  const fieldControl = (field: LiquidityParameter) => <Parameter key={`${operation}:${field.name}`} field={field} value={parameters[field.name] ?? String(field.default ?? '')} disabled={locked} change={value => setParameters(previous => ({ ...previous, [field.name]: value }))} />
   return <View style={st.stack}>
-    <Txt v="h2">Liquidity</Txt><Txt v="small">Initialize a pool, add funds or withdraw your position. Each step uses the selected wallet.</Txt>
-    <Txt v="small">Multi-transaction operations commit one step at a time. You review the full sequence before signing; later steps cannot undo earlier confirmations.</Txt>
-    {!loaded ? <Txt v="small">Loading venue capabilities…</Txt> : null}
+    <View style={st.between}>
+      <View><Txt v="h2">Liquidity</Txt><Txt v="small">Open a pool, add to it, or pull your position. Every step signs with your wallet.</Txt></View>
+      {owner ? <View style={st.pill}><View style={[st.dot, { backgroundColor: C.accent }]} /><Txt v="monoSmall" color={C.text}>{shortMint(owner)} · V{version}</Txt></View> : null}
+    </View>
+    {!loaded ? <Txt v="small">Loading venues…</Txt> : null}
     {['meteora-dbc', 'raydium-launchlab', 'pumpfun'].includes(venue) ? <Txt v="small">This is a launch curve. Use Swap to trade it; its protocol manages launch and migration. Choose an AMM below to initialize an independent liquidity pool.</Txt> : null}
-    <View style={st.row}>{venues.map(item => <Chip key={item.id} label={venueName(item.id)} active={item.id === venue} onPress={() => { if (!locked) chooseVenue(item.id) }} />)}</View>
-    {selectedVenue?.note || selectedVenue?.reason ? <Txt v="small">{selectedVenue.note || selectedVenue.reason}</Txt> : null}
-    {!selectedVenue ? <Txt v="small">Choose an available venue after its capabilities load.</Txt> : !selectedVenue.capabilities.length ? <Txt v="small">This venue has no direct LP operations. Pre-bond launch curves use their protocol’s launch and migration flow.</Txt> : <>
+    <View style={st.section}>
+      <View style={st.between}><Txt v="label">Venue</Txt><Txt v="monoSmall">{pools.length ? `${pools.filter(item => item.funded).length} funded of ${pools.length} pools on ${t.symbol || 'this token'}` : 'no pools seen yet'}</Txt></View>
+      <View style={st.row}>{orderedVenues.map(item => {
+        const stats = poolsByVenue[item.id]
+        return <Chip key={item.id} label={venueName(item.id)} active={item.id === venue} color={stats?.funded ? C.accent : stats ? C.gold : C.ghost} count={stats?.total} onPress={() => { if (!locked) chooseVenue(item.id) }} />
+      })}</View>
+      {loaded ? <Txt v="monoSmall">counted venues already hold {t.symbol || 'this token'} · mint {t.symbol || 'the token'} liquidity anywhere else with New pool</Txt> : null}
+      {selectedVenue?.note || selectedVenue?.reason ? <Txt v="small">{selectedVenue.note || selectedVenue.reason}</Txt> : null}
+    </View>
+    {!selectedVenue ? <Txt v="small">Choose a venue once capabilities load.</Txt> : !selectedVenue.capabilities.length ? <Txt v="small">This venue has no direct LP operations. Pre-bond launch curves use their protocol’s launch and migration flow.</Txt> : <>
       <Seg value={operation} options={(['initialize', 'add', 'remove'] as const).map(value => ({ value, label: value === 'initialize' ? 'New pool' : value === 'add' ? 'Add' : 'Remove' }))} onChange={value => { if (!locked) { setOperation(value); setParameters({}); setError('') } }} />
       {!canOperate && selectedVenue ? <Txt v="small">{title(operation)} is unavailable for this venue.</Txt> : null}
-      {operation !== 'initialize' ? <>
-        <Txt v="label">Pool</Txt><View style={st.row}>{knownPools.map(item => <Chip key={item.address} label={shortMint(item.address)} active={pool === item.address} onPress={() => { if (!locked) choosePool(item.address) }} />)}</View>
+      {operation !== 'initialize' ? <View style={st.section}>
+        <View style={st.between}><Txt v="label">Pool</Txt>{knownPools.length ? <Txt v="monoSmall">{knownPools.length} on {venueName(venue)}</Txt> : null}</View>
+        {knownPools.length ? <View style={st.row}>{knownPools.map(item => <Chip key={item.address} label={`${shortMint(item.address)}${item.funded ? '' : ' · empty'}`} color={item.funded ? C.accent : C.gold} active={pool === item.address} onPress={() => { if (!locked) choosePool(item.address) }} />)}</View> : <Txt v="small">FTL has not seen a {venueName(venue)} pool for this token. Paste one, or open a new pool.</Txt>}
         <TextInput accessibilityLabel="Liquidity pool address" value={pool} onChangeText={choosePool} editable={!locked} placeholder="Pool account address" placeholderTextColor={C.faint} autoCapitalize="none" style={st.input} />
-        <View style={st.row}><Txt v="label">Your positions</Txt><Button label="Refresh positions" kind="quiet" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
-        {positions?.owner === owner && positions?.errors.some(item => item.venue === venue) ? <Txt v="small" color={C.warn}>This venue could not return all positions. Refresh before treating an empty result as no position.</Txt> : null}
-        {!owner ? <Txt v="small">Connect your wallet to load positions.</Txt> : positions?.owner !== owner ? <Txt v="small">{positionError?.owner === owner ? 'Positions unavailable. Refresh to try again.' : 'Loading your positions…'}</Txt> : walletPositions.filter(item => item.venue === venue && (!pool || item.pool === pool)).length === 0 ? <Txt v="small">No positions returned for this wallet and pool.</Txt> : walletPositions.filter(item => item.venue === venue && (!pool || item.pool === pool)).map(item => <Button key={item.position} kind={positionId === item.position ? 'primary' : 'ghost'} label={`${shortMint(item.position)}${item.removalMode === 'percentage' ? ' · bin position' : ` · ${item.liquidity ?? '—'} liquidity units`}`} disabled={locked} onPress={() => choosePosition(item)} />)}
-      </> : null}
-      {operation !== 'remove' ? <>
-        <Txt v="label">Token mints</Txt>
-        <TextInput accessibilityLabel="Liquidity mint A" value={mintA} onChangeText={setMintA} editable={!locked} autoCapitalize="none" style={st.input} />
-        <TextInput accessibilityLabel="Liquidity mint B" value={mintB} onChangeText={setMintB} editable={!locked} autoCapitalize="none" style={st.input} />
+        {operation === 'remove' ? <>
+          <View style={st.between}><Txt v="label">Your positions</Txt><Button label="Refresh" kind="quiet" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
+          {positions?.owner === owner && positions?.errors.some(item => item.venue === venue) ? <Txt v="small" color={C.warn}>This venue could not return all positions. Refresh before treating an empty result as no position.</Txt> : null}
+          {!owner ? <Txt v="small">Connect your wallet to load positions.</Txt> : positions?.owner !== owner ? <Txt v="small">{positionError?.owner === owner ? 'Positions unavailable. Refresh to try again.' : 'Loading your positions…'}</Txt> : venuePositions.length === 0 ? <Txt v="small">No positions returned for this wallet and pool.</Txt> : venuePositions.map(item => <Button key={item.position} kind={positionId === item.position ? 'primary' : 'ghost'} label={`${shortMint(item.position)}${item.removalMode === 'percentage' ? ' · bin position' : ` · ${item.liquidity ?? '—'} liquidity units`}`} disabled={locked} onPress={() => choosePosition(item)} />)}
+        </> : null}
+      </View> : null}
+      {operation !== 'remove' ? <View style={st.section}>
+        <View style={st.between}>
+          <Txt v="label">Pair</Txt>
+          <View style={st.row}>
+            {[SOL_MINT, USDC_MINT].map(mint => <Chip key={mint} label={`vs ${label(mint)}`} active={mintB === mint} onPress={() => { if (!locked) { setMintB(mint); setQuote(null) } }} />)}
+            <Chip label={editMints ? 'Done' : 'Edit mints'} onPress={() => setEditMints(value => !value)} />
+          </View>
+        </View>
+        {editMints ? <>
+          <TextInput accessibilityLabel="Liquidity mint A" value={mintA} onChangeText={setMintA} editable={!locked} autoCapitalize="none" style={st.input} />
+          <TextInput accessibilityLabel="Liquidity mint B" value={mintB} onChangeText={setMintB} editable={!locked} autoCapitalize="none" style={st.input} />
+        </> : <Txt v="monoSmall" selectable>{label(mintA)} {mintA} · {label(mintB)} {mintB}</Txt>}
         {amountField(mintA, amountA, setAmountA)}{amountField(mintB, amountB, setAmountB)}
-        {operation === 'initialize' ? <View style={st.box}><Txt v="label">Seed ratio · token B per token A</Txt><Txt v="monoSmall" selectable>A: {mintA}</Txt><Txt v="monoSmall" selectable>B: {mintB}</Txt><Txt v="small">{Number(amountA) > 0 && Number(amountB) > 0 ? `Entered amount ratio: ${Number(amountB) / Number(amountA)} B per A` : 'This venue may initialize without a deposit. Set its initial price below when required.'}</Txt></View> : null}
-      </> : percentageRemoval ? <View style={st.box}><Txt v="label">Share of position to withdraw</Txt><Txt v="h2">{removeBps ? `${Number(removeBps) / 100}%` : 'Choose a share'}</Txt><Txt v="small">Applies to the liquidity across this position’s bin range.</Txt><View style={st.row}>{[10, 25, 50, 100].map(percent => <Button key={percent} kind="quiet" label={`${percent}%`} disabled={locked || !selectedPosition} onPress={() => setParameters(previous => ({ ...previous, removeBps: String(percent * 100) }))} style={{ flex: 1 }} />)}</View></View> : <View style={st.box}><Txt v="label">Position liquidity to withdraw</Txt><Txt v="small">Balance {selectedPosition?.liquidity ?? '—'} liquidity units</Txt><TextInput accessibilityLabel="Liquidity units to remove" value={liquidity} onChangeText={setLiquidity} editable={!locked} keyboardType="number-pad" placeholder="0" placeholderTextColor={C.faint} style={st.amount} /><View style={st.row}>{[10, 25, 50, 100].map(percent => <Button key={percent} kind="quiet" label={`${percent}%`} disabled={locked || !selectedPosition?.liquidity} onPress={() => setLiquidity(balancePercent(selectedPosition!.liquidity!, percent, false).toString())} style={{ flex: 1 }} />)}</View></View>}
-      {schema.filter(field => !(percentageRemoval && field.name === 'removeBps')).map(field => <Parameter key={`${operation}:${field.name}`} field={field} value={parameters[field.name] ?? String(field.default ?? '')} disabled={locked} change={value => setParameters(previous => ({ ...previous, [field.name]: value }))} />)}
-      <View style={st.row}><Txt v="small">Slippage</Txt>{[50, 100, 300].map(value => <Chip key={value} label={`${value / 100}%`} active={slippageBps === value} onPress={() => { if (!locked) setSlippageBps(value) }} />)}</View>
+        {operation === 'initialize' ? <Txt v="small">{Number(amountA) > 0 && Number(amountB) > 0 ? `Seed ratio ${Number(amountB) / Number(amountA)} ${label(mintB)} per ${label(mintA)}` : 'This venue may open without a deposit. Set its initial price below when required.'}</Txt> : null}
+        {rangeVenue ? <View style={st.rangeBox}>
+          <View style={st.between}><Txt v="label">Range</Txt><Chip label={advanced ? 'Hide ticks' : 'Set ticks'} active={advanced} onPress={() => setAdvanced(value => !value)} /></View>
+          <Txt v="small">{rangeManual ? 'Using the ticks you entered.' : `Auto. The range is inferred from your amounts around the live price: more ${label(mintA)} leans above it, more ${label(mintB)} leans below.`}</Txt>
+          {advanced ? advancedSchema.map(fieldControl) : null}
+        </View> : advancedSchema.length ? <><Chip label={advanced ? 'Hide advanced' : 'Advanced'} active={advanced} onPress={() => setAdvanced(value => !value)} />{advanced ? advancedSchema.map(fieldControl) : null}</> : null}
+      </View> : percentageRemoval ? <View style={st.section}><Txt v="label">Share to withdraw</Txt><Txt v="h1">{removeBps ? `${Number(removeBps) / 100}%` : 'Choose a share'}</Txt><Txt v="small">Applies across this position’s bin range.</Txt><View style={st.row}>{[10, 25, 50, 100].map(percent => <Chip key={percent} label={`${percent}%`} active={removeBps === String(percent * 100)} onPress={() => { if (!locked && selectedPosition) setParameters(previous => ({ ...previous, removeBps: String(percent * 100) })) }} />)}</View></View> : <View style={st.section}><Txt v="label">Liquidity to withdraw</Txt><Txt v="monoSmall">Position holds {selectedPosition?.liquidity ?? '—'} liquidity units</Txt><TextInput accessibilityLabel="Liquidity units to remove" value={liquidity} onChangeText={setLiquidity} editable={!locked} keyboardType="number-pad" placeholder="0" placeholderTextColor={C.faint} style={st.amount} /><View style={st.row}>{[10, 25, 50, 100].map(percent => <Chip key={percent} label={`${percent}%`} onPress={() => { if (!locked && selectedPosition?.liquidity) setLiquidity(balancePercent(selectedPosition.liquidity, percent, false).toString()) }} />)}</View></View>}
+      {basicSchema.length ? <View style={st.row}>{basicSchema.map(fieldControl)}</View> : null}
+      <View style={st.between}><Txt v="label">Slippage</Txt><View style={st.row}>{[50, 100, 300].map(value => <Chip key={value} label={`${value / 100}%`} active={slippageBps === value} onPress={() => { if (!locked) setSlippageBps(value) }} />)}</View></View>
     </>}
-    {quote ? <View style={st.box}>
-      <View style={st.row}><Txt v="h2">{title(quote.operation)}</Txt><Txt v="monoSmall" color={quote.expiresAt > now ? C.accent : C.warn}>{quote.expiresAt > now ? `${Math.ceil((quote.expiresAt - now) / 1000)}s remaining` : 'Quote expired'}</Txt></View>
-      {quote.operation === 'initialize' ? <Txt v="small">Seed amounts below belong to their displayed mint. Any initial price is token B per token A as entered above; check both sides before approving.</Txt> : null}
-      {!quote.amounts.length ? <Txt v="small">This step initializes the pool without a token deposit.</Txt> : null}
-      {quote.mintA && quote.mintB ? <View style={st.stack}><Txt v="label">Pool token order</Txt><Txt v="monoSmall" selectable>A: {quote.mintA}</Txt><Txt v="monoSmall" selectable>B: {quote.mintB}</Txt></View> : null}
-      {quote.amounts.map((amount, index) => <View key={`${amount.mint}:${index}`} style={st.stack}><Txt v="mono">{amount.direction === 'debit' ? 'Pay' : 'Receive'} {fromAtomic(amount.expectedRaw, amount.decimals)} {shortMint(amount.mint)}</Txt><Txt v="monoSmall" selectable>{amount.mint}</Txt><Txt v="small">{amount.direction === 'debit' ? 'Maximum debit' : 'Minimum received'}: {fromAtomic(amount.limitRaw, amount.decimals)} {shortMint(amount.mint)}</Txt></View>)}
+    {quote ? <View style={st.quote}>
+      <View style={st.between}><Txt v="h2">{title(quote.operation)} · {venueName(quote.venue)}</Txt><Txt v="monoSmall" color={quote.expiresAt > now ? C.accent : C.warn}>{quote.expiresAt > now ? `${Math.ceil((quote.expiresAt - now) / 1000)}s` : 'expired'}</Txt></View>
+      {quote.operation === 'initialize' ? <Txt v="small">Seed amounts belong to their displayed mint. Initial price is {label(mintB)} per {label(mintA)} as entered; check both sides before approving.</Txt> : null}
+      {!quote.amounts.length ? <Txt v="small">This step opens the pool without a token deposit.</Txt> : null}
+      {quote.amounts.map((amount, index) => <View key={`${amount.mint}:${index}`} style={st.between}>
+        <View><Txt v="label">{amount.direction === 'debit' ? 'You pay' : 'You receive'}</Txt><Txt v="h1">{fromAtomic(amount.expectedRaw, amount.decimals)} {label(amount.mint)}</Txt></View>
+        <View style={{ alignItems: 'flex-end' }}><Txt v="monoSmall">{amount.direction === 'debit' ? 'max' : 'min'} {fromAtomic(amount.limitRaw, amount.decimals)}</Txt><Txt v="monoSmall" selectable>{shortMint(amount.mint)}</Txt></View>
+      </View>)}
+      {details.priceLower !== undefined && details.priceUpper !== undefined ? <View style={st.rangeBox}>
+        <View style={st.between}><Txt v="label">Range{details.inferredRange ? ' · auto' : ''}</Txt><Txt v="monoSmall">{label(quote.mintB ?? mintB)} per {label(quote.mintA ?? mintA)}</Txt></View>
+        <View style={st.between}><Txt v="num">{String(details.priceLower)}</Txt><Txt v="monoSmall" color={C.accent}>now {String(details.priceCurrent ?? '—')}</Txt><Txt v="num">{String(details.priceUpper)}</Txt></View>
+        <Txt v="monoSmall">{details.tickLowerIndex !== undefined ? `ticks ${String(details.tickLowerIndex)} → ${String(details.tickUpperIndex)}` : details.minBinId !== undefined ? `bins ${String(details.minBinId)} → ${String(details.maxBinId)}` : ''}</Txt>
+      </View> : null}
+      {quote.mintA && quote.mintB ? <Txt v="monoSmall" selectable>Pool order A {shortMint(quote.mintA)} · B {shortMint(quote.mintB)}</Txt> : null}
       {quote.warnings?.map(warning => <Txt key={warning} v="small" color={C.warn}>{warning}</Txt>)}
-      <Txt v="monoSmall">Network fees and account rent are additional. Each transaction is simulated before wallet approval.</Txt>
+      <Txt v="monoSmall">Network fees and rent are extra. Each transaction is simulated before your wallet is asked.</Txt>
     </View> : null}
     {phase ? <Txt v="small" color={C.accent}>{phase}</Txt> : null}{error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
-    {batch ? <View style={st.box}>
+    {batch ? <View style={st.quote}>
       <Txt v="label">{title(batch.build.quote.operation)} · {venueName(batch.build.quote.venue)}</Txt>
       <Txt v="monoSmall" selectable>Pool {batch.build.pool}</Txt>
-      {batch.build.quote.amounts.map((amount, index) => <View key={`${amount.mint}:${index}`} style={st.stack}><Txt v="small">{amount.direction === 'debit' ? 'Maximum debit' : 'Minimum received'} {fromAtomic(amount.limitRaw, amount.decimals)} {shortMint(amount.mint)}</Txt><Txt v="monoSmall" selectable>{amount.mint}</Txt></View>)}
+      {batch.build.quote.amounts.map((amount, index) => <Txt key={`${amount.mint}:${index}`} v="small">{amount.direction === 'debit' ? 'Max debit' : 'Min received'} {fromAtomic(amount.limitRaw, amount.decimals)} {label(amount.mint)}</Txt>)}
       <Txt v="h2">{batch.confirmed.length}/{batch.build.transactions.length} transactions confirmed</Txt>
-      {batch.build.transactions.length > 1 ? <Txt v="small" color={C.warn}>This operation is not atomic. Each transaction commits separately; a later failure does not reverse earlier confirmed steps.</Txt> : null}
+      {batch.build.transactions.length > 1 ? <Txt v="small" color={C.warn}>Not atomic. Each transaction commits separately; a later failure does not reverse earlier confirmed steps.</Txt> : null}
       <Txt v="small">{batch.pending ? 'Waiting for this transaction before any next step.' : 'Continue the approved operation with the same wallet.'}</Txt>
       {batch.pending ? <Button kind="quiet" label="View pending transaction ↗" onPress={() => void Linking.openURL(`https://solscan.io/tx/${batch.pending!.signature}`)} /> : null}
       <Button label={batch.pending ? 'Check confirmation & continue' : `Review & sign ${batch.next + 1}/${batch.build.transactions.length}`} disabled={busy || owner !== batch.owner} onPress={() => void act(() => execute(batch))} />
       {!batch.pending ? <Button kind="quiet" label="Stop remaining steps" disabled={busy} onPress={() => { persist(null); setQuote(null); void refreshPositions() }} /> : null}
     </View> : <View style={st.row}>
-      <Button label="Quote liquidity" disabled={busy || !owner || !version || !canOperate} onPress={() => void act(requestQuote)} style={{ flex: 1 }} />
+      {signer && !owner ? <Button label="Connect wallet" disabled={busy} onPress={() => void act(signer.connect)} style={{ flex: 1 }} /> : null}
+      <Button kind={quote ? 'ghost' : 'primary'} label={quote ? 'Requote' : 'Quote liquidity'} disabled={busy || !owner || !version || !canOperate} onPress={() => void act(requestQuote)} style={{ flex: 1 }} />
       {quote ? <Button label="Review & sign" disabled={busy || quote.expiresAt <= now} onPress={() => void act(start)} style={{ flex: 1 }} /> : null}
     </View>}
-    {result ? <View style={st.box}><Txt v="h2" color={C.accent}>{result.operation === 'initialize' ? 'Pool initialized' : 'Liquidity confirmed'}</Txt><Txt v="monoSmall" selectable>Pool: {result.pool}</Txt>{result.position ? <Txt v="monoSmall" selectable>Position: {result.position}</Txt> : null}{result.signatures.map((signature, i) => <Button key={signature} kind="quiet" label={`Transaction ${i + 1} ↗`} onPress={() => void Linking.openURL(`https://solscan.io/tx/${signature}`)} />)}{result.operation === 'initialize' ? <Button label="Add liquidity to this pool" disabled={locked} onPress={() => { setPool(result.pool); setOperation('add'); setParameters({}); setQuote(null) }} /> : null}</View> : null}
-    <View style={st.box}>
-      <View style={st.row}><Txt v="h2">My positions</Txt><Button kind="quiet" label="Refresh" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
-      <Txt v="small">{owner ? `Connected wallet ${shortMint(owner)}` : 'Connect your wallet to check your positions.'}</Txt>
+    {result ? <View style={[st.quote, { borderColor: C.accent + '66' }]}><Txt v="h2" color={C.accent}>{result.operation === 'initialize' ? 'Pool opened' : result.operation === 'remove' ? 'Liquidity withdrawn' : 'Liquidity added'}</Txt><Txt v="monoSmall" selectable>Pool {result.pool}</Txt>{result.position ? <Txt v="monoSmall" selectable>Position {result.position}</Txt> : null}<View style={st.row}>{result.signatures.map((signature, i) => <Chip key={signature} label={`Transaction ${i + 1} ↗`} color={C.accent} active onPress={() => void Linking.openURL(`https://solscan.io/tx/${signature}`)} />)}</View>{result.operation === 'initialize' ? <Button label="Add liquidity to this pool" disabled={locked} onPress={() => { setPool(result.pool); setOperation('add'); setParameters({}); setQuote(null) }} /> : null}</View> : null}
+    <View style={st.section}>
+      <View style={st.between}><Txt v="label">My positions on {t.symbol || 'this token'}</Txt><Button kind="quiet" label="Refresh" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
+      {!owner ? <Txt v="small">Connect your wallet to check your positions.</Txt> : null}
       {positionError?.owner === owner ? <Txt v="small" color={C.warn}>Positions could not refresh: {positionError.message}</Txt> : null}
-      {positions?.owner === owner ? positions.errors.map(item => <Txt key={item.venue} v="small" color={C.warn}>{venueName(item.venue)} positions unavailable: {item.error}</Txt>) : null}
+      {positions?.owner === owner ? positions.errors.map(item => <Txt key={item.venue} v="monoSmall">{venueName(item.venue)}: {item.error}</Txt>) : null}
       {owner && positions?.owner !== owner && positionError?.owner !== owner ? <Txt v="small">Loading positions…</Txt> : null}
-      {walletPositions.filter(position => position.mintA === t.address || position.mintB === t.address || position.pool === result?.pool).map(position => <View key={`${position.venue}:${position.position}`} style={st.stack}><Txt v="monoSmall" selectable>{venueName(position.venue)} · {position.position}</Txt><Txt v="small">{shortMint(position.mintA)} / {shortMint(position.mintB)} · {position.removalMode === 'percentage' ? 'Bin position' : `${position.liquidity ?? '—'} liquidity units`}</Txt><Button kind="ghost" label="Check my exit" disabled={locked} onPress={() => { choosePosition(position); setOperation('remove'); setParameters({}) }} /></View>)}
-      {owner && positions?.owner === owner && !walletPositions.some(position => position.mintA === t.address || position.mintB === t.address || position.pool === result?.pool) ? <Txt v="small">No positions for this token were returned for your connected wallet.</Txt> : null}
+      {tokenPositions.map(position => <View key={`${position.venue}:${position.position}`} style={st.between}>
+        <View><Txt v="h2">{venueName(position.venue)}</Txt><Txt v="monoSmall" selectable>{shortMint(position.position)} · {label(position.mintA)} / {label(position.mintB)} · {position.removalMode === 'percentage' ? 'bin position' : `${position.liquidity ?? '—'} units`}</Txt></View>
+        <Button kind="ghost" label="Exit" disabled={locked} onPress={() => { choosePosition(position); setOperation('remove'); setParameters({}) }} />
+      </View>)}
+      {owner && positions?.owner === owner && !tokenPositions.length ? <Txt v="small">No positions on this token for {shortMint(owner)}.</Txt> : null}
     </View>
-    {signer && !owner ? <Button label="Connect wallet" disabled={busy} onPress={() => void act(signer.connect)} /> : null}
-    {owner ? <Txt v="monoSmall">Wallet {shortMint(owner)} · V{version}</Txt> : <Txt v="small">Choose a wallet to quote and manage liquidity.</Txt>}
     {onBack ? <Button kind="quiet" label="Choose another wallet" disabled={locked} onPress={onBack} /> : null}
   </View>
 }
 
 function Parameter({ field, value, change, disabled }: { field: LiquidityParameter; value: string; change: (value: string) => void; disabled: boolean }) {
   const options = field.type === 'boolean' ? [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }] : field.options
-  return <View style={st.stack}><Txt v="label">{field.label}{field.required ? '' : ' · optional'}</Txt>{options ? <View style={st.row}>{options.map(option => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <Chip key={String(item.value)} label={item.label} active={value === String(item.value)} onPress={() => { if (!disabled) change(String(item.value)) }} /> })}</View> : <TextInput accessibilityLabel={field.label} value={value} onChangeText={change} editable={!disabled} autoCapitalize="none" style={st.input} />}</View>
+  return <View style={[st.stack, { minWidth: 160, flexGrow: 1 }]}><Txt v="label">{field.label}{field.required ? '' : ' · optional'}</Txt>{options ? <View style={st.row}>{options.map(option => { const item = typeof option === 'string' ? { value: option, label: option } : option; return <Chip key={String(item.value)} label={item.label} active={value === String(item.value)} onPress={() => { if (!disabled) change(String(item.value)) }} /> })}</View> : <TextInput accessibilityLabel={field.label} value={value} onChangeText={change} editable={!disabled} autoCapitalize="none" placeholder={field.default !== undefined ? String(field.default) : 'auto'} placeholderTextColor={C.faint} style={st.input} />}</View>
 }
 const st = StyleSheet.create({
   stack: { gap: 10 }, row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  box: { gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg },
-  input: { minWidth: 0, height: 44, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: C.line, color: C.text, fontFamily: F.mono, fontSize: 12 },
-  amount: { minWidth: 0, height: 48, color: C.text, fontFamily: F.monoBold, fontSize: 22 },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+  section: { gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
+  amountBox: { gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.lineStrong, backgroundColor: C.bg },
+  rangeBox: { gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.line, backgroundColor: C.raised },
+  quote: { gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: C.lineStrong, backgroundColor: C.bg },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 28, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  input: { minWidth: 0, height: 44, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: C.line, color: C.text, fontFamily: F.mono, fontSize: 12, backgroundColor: C.bg },
+  amount: { minWidth: 0, height: 52, color: C.text, fontFamily: F.monoBold, fontSize: 26 },
 })
