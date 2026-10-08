@@ -226,9 +226,9 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
         <TextInput accessibilityLabel="Trade amount" value={amount} onChangeText={editAmount} editable={!locked} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={C.faint} style={st.amount} />
         <Txt v="mono">{label(inputMint)}</Txt>
       </View>
-      <View style={st.wrap}>{[10, 25, 50, 100].map(percent => <Button key={percent} kind="quiet" label={`${percent}%`} disabled={locked || balance === null || decimals[inputMint] === undefined} onPress={() => {
-        if (balance !== null) editAmount(fromAtomic(balancePercent(balance, percent, inputMint === SOL_MINT), decimals[inputMint]))
-      }} style={{ flex: 1 }} />)}</View>
+      <View style={st.wrap}>{[10, 25, 50, 100].map(percent => <Chip key={percent} label={`${percent}%`} onPress={() => {
+        if (!locked && balance !== null && decimals[inputMint] !== undefined) editAmount(fromAtomic(balancePercent(balance, percent, inputMint === SOL_MINT), decimals[inputMint]))
+      }} />)}</View>
       {inputMint === SOL_MINT && address ? <Txt v="monoSmall">Shortcuts leave 0.01 SOL for network fees and account rent.</Txt> : null}
     </View>
     <View style={st.wrap}><Chip label="Open in swap terminal ↗" onPress={() => router.push(swapLink(SOL_MINT, t.address) as never)} /></View>

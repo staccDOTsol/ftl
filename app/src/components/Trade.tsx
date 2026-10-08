@@ -224,7 +224,7 @@ function RobinhoodBuy({ t, trapAddrs }: { t: TokenSummary; trapAddrs: Set<string
 }
 
 const st = StyleSheet.create({
-  card: { marginHorizontal: 16, padding: 14, gap: 10, borderRadius: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line },
+  card: { marginHorizontal: 16, marginTop: 20, padding: 16, gap: 12, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: C.lineStrong, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
   warn: { padding: 10, borderRadius: 10, backgroundColor: C.warn + '14', borderWidth: 1, borderColor: C.warn + '44' },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: C.lineStrong, borderRadius: 10, paddingHorizontal: 12, backgroundColor: C.bg },
   input: { flex: 1, height: 44, color: C.text, fontFamily: F.monoBold, fontSize: 16 },

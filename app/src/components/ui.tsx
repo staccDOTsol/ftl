@@ -49,10 +49,10 @@ export function Chip({ label, active, onPress, color, count }: { label: string; 
   const c = color ?? C.accent
   return (
     <Press onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!active }} hitSlop={4}
-      style={({ pressed, hovered }) => [s.chip, hovered && !active && { borderColor: C.lineStrong, backgroundColor: C.hover }, active && { borderColor: c + '88', backgroundColor: c + '1A' }, pressed && { transform: [{ scale: 0.96 }] }]}>
-      <View style={[s.chipDot, { backgroundColor: active ? c : C.ghost }]} />
-      <Text style={[s.chipText, active && { color: C.text }]}>{label}</Text>
-      {count !== undefined ? <Text style={s.chipCount}>{count}</Text> : null}
+      style={({ pressed, hovered }) => [s.chip, hovered && !active && { borderColor: C.lineStrong, backgroundColor: C.hover }, active && { borderColor: c + 'AA', backgroundColor: c + '1F' }, pressed && { transform: [{ scale: 0.96 }] }, !onPress && { opacity: 0.85 }]}>
+      <View style={[s.chipDot, { backgroundColor: active ? c : count ? c + '99' : C.ghost }]} />
+      <Text style={[s.chipText, active && { color: C.text, fontFamily: F.display }]}>{label}</Text>
+      {count !== undefined ? <View style={[s.chipCountWrap, active && { backgroundColor: c + '33' }]}><Text style={[s.chipCount, active && { color: C.text }]}>{count}</Text></View> : null}
     </Press>
   )
 }
@@ -126,13 +126,17 @@ export function Spark({ values, color, height = 18, width = 60 }: { values: numb
   )
 }
 
-export function Button({ label, onPress, kind = 'primary', disabled, busy, style }: { label: string; onPress?: () => void; kind?: 'primary' | 'ghost' | 'quiet'; disabled?: boolean; busy?: boolean; style?: StyleProp<ViewStyle> }) {
+// Weight ladder: one primary per view, ghost for secondary, quiet for tertiary.
+// Sizes keep tertiary actions from reading as big mint slabs.
+export function Button({ label, onPress, kind = 'primary', size = 'md', disabled, busy, style }: { label: string; onPress?: () => void; kind?: 'primary' | 'ghost' | 'quiet'; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; busy?: boolean; style?: StyleProp<ViewStyle> }) {
+  const height = size === 'sm' ? 32 : size === 'lg' ? 52 : 44
+  const fontSize = size === 'sm' ? T.sm : size === 'lg' ? T.lg : T.md
   return (
-    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button"
-      style={({ pressed, hovered }) => [s.btn, kind === 'primary' ? s.btnPrimary : kind === 'ghost' ? s.btnGhost : s.btnQuiet,
-        hovered && (kind === 'primary' ? { backgroundColor: C.accent, shadowColor: C.accent, shadowOpacity: 0.5, shadowRadius: 16 } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
+    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button" accessibilityState={{ disabled: !!disabled, busy: !!busy }}
+      style={({ pressed, hovered }) => [s.btn, { height, borderRadius: size === 'sm' ? 9 : 12, paddingHorizontal: size === 'sm' ? 12 : 18 }, kind === 'primary' ? s.btnPrimary : kind === 'ghost' ? s.btnGhost : s.btnQuiet,
+        hovered && (kind === 'primary' ? { backgroundColor: C.accent, shadowColor: C.accent, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
         pressed && { transform: [{ scale: 0.97 }] }, style]}>
-      {busy ? <ActivityIndicator color={kind === 'primary' ? C.accentInk : C.text} /> : <Text style={[s.btnText, kind === 'primary' && { color: C.accentInk }]}>{label}</Text>}
+      {busy ? <ActivityIndicator color={kind === 'primary' ? C.accentInk : C.text} /> : <Text style={[s.btnText, { fontSize }, kind === 'primary' && { color: C.accentInk }, kind === 'quiet' && { color: C.muted }]}>{label}</Text>}
     </Press>
   )
 }
@@ -195,10 +199,11 @@ export const s = StyleSheet.create({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 30, borderRadius: 8, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
   chipDot: { width: 6, height: 6, borderRadius: 3 },
   chipText: { fontFamily: F.bodyMedium, fontSize: T.sm, color: C.muted },
-  chipCount: { fontFamily: F.mono, fontSize: T.xs, color: C.faint },
+  chipCount: { fontFamily: F.monoBold, fontSize: 10, color: C.muted },
+  chipCountWrap: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9, backgroundColor: C.raised, alignItems: 'center', justifyContent: 'center' },
   seg: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 10, padding: 3, borderWidth: 1, borderColor: C.line, gap: 2 },
   segItem: { flex: 1, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 7, paddingHorizontal: 10 },
-  segActive: { backgroundColor: C.raised },
+  segActive: { backgroundColor: C.raised, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   segText: { fontFamily: F.bodyMedium, fontSize: T.sm, color: C.faint },
   badgeText: { fontFamily: F.monoBold, fontSize: 10, letterSpacing: 0.6 },
   flag: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 5, height: 18, justifyContent: 'center' },

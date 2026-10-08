@@ -94,8 +94,10 @@ export default function TokenScreen() {
               {t.website ? <Chip label="Website" onPress={() => Linking.openURL(/^https?:/.test(t.website!) ? t.website! : `https://${t.website}`)} /> : null}
             </View>
           ) : null}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button label={following ? 'Following' : 'Follow token'} kind={following ? 'ghost' : 'primary'} style={{ flex: 1 }} onPress={() => social.toggle('token', t.chain, t.address).catch(() => {})} />
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <Button label={following ? 'Following' : 'Follow'} kind={following ? 'ghost' : 'primary'} size="sm" onPress={() => social.toggle('token', t.chain, t.address).catch(() => {})} />
+            {t.chain === 'solana' ? <Button label="Swap terminal ⇄" kind="ghost" size="sm" onPress={() => router.push(`/swap?in=SOL&out=${t.address}`)} /> : null}
+            {t.chain === 'solana' ? <Button label="Liquidity" kind="ghost" size="sm" onPress={() => router.push(`/swap?mode=liquidity&out=${t.address}`)} /> : null}
           </View>
           <Txt v="small">
             {t.launchedTs ? `Launched on ${venue(t.launchVenue ?? '')} ${ago(t.launchedTs, now)} ago. ` : 'Launch not seen. '}
@@ -116,6 +118,8 @@ export default function TokenScreen() {
           ) : null}
         </View>
 
+        <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : action === 'sell' ? 'sell' : action === 'liquidity' || eventId ? 'liquidity' : undefined} />
+
         <Section title="Call it">
           <Composer chain={t.chain} token={t.address} graduated={!!t.graduatedTs} onPosted={p => setPage(pg => pg ? { ...pg, posts: [p, ...pg.posts] } : pg)} />
         </Section>
@@ -129,7 +133,6 @@ export default function TokenScreen() {
           )}
         </Section>
 
-        <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : action === 'sell' ? 'sell' : action === 'liquidity' || eventId ? 'liquidity' : undefined} />
 
         <Section title={`Calls & comments · ${page.posts.length}`}>
           {page.posts.map(p => <PostItem key={p.id} p={p} now={now} />)}
