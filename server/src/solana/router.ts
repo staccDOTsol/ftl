@@ -293,9 +293,9 @@ export function createSolanaRouterHandler(options: Options) {
     const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
     if (!winners.length) {
       const reasons = settled.map(r => (r as PromiseRejectedResult).reason)
-      // Rate-limited only when the direct router could not read its candidate
-      // pools AND the external router (when configured) also failed transiently.
-      if (directEnabled && directTransient(reasons[0]) && (!externalEnabled || externalTransient(reasons[1])))
+      // Rate-limited whenever the direct router could not read its candidate
+      // pools: an external 404 proves nothing about pools only FTL knows.
+      if (directEnabled && directTransient(reasons[0]))
         throw new RequestError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S)
       throw reasons[0] instanceof RequestError ? reasons[0] : new RequestError(404, 'No executable route is available for this pair and amount')
     }
