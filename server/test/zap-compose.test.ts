@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { PublicKey } from '@solana/web3.js'
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { composeZap, decodeCompose, FEE_RECIPIENT, type ZapComposeStep } from '../src/solana/compose.ts'
 import { assembleComposedZap, proveVenueAdd, proveVenueSwap, u32Ratio, WSOL_MINT } from '../src/solana/zap-compose.ts'
 import type { RawInstruction } from '../src/solana/zap.ts'
@@ -16,6 +16,7 @@ const u64 = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(v
 const ix = (programId: string, data: Buffer): RawInstruction => ({ programId, keys: [], data: data.toString('base64') })
 const swapIx = (amountIn: bigint, minOut: bigint) => ix(VENUE, Buffer.concat([Buffer.from([9]), u64(amountIn), u64(minOut), Buffer.from([7])]))
 
+const DLMM_PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'
 test('u32 ratio: exact when the reduced fraction fits, dyadic downward otherwise, null when unreachable', () => {
   assert.deepEqual(u32Ratio(1n, 1n), { num: 1, den: 1 })
   assert.deepEqual(u32Ratio(6n, 4n), { num: 3, den: 2 })
@@ -105,35 +106,47 @@ test('zap in assembly: the swap feeds a fee\'d token account, the deposit is pat
   assert.ok(keys.includes(FEE_RECIPIENT.toBase58()))
 })
 
-test('zap out assembly: every withdrawal instruction is a step, and the swap back spends exactly what arrived', () => {
+test('zap out assembly: the withdrawal\'s venue instructions are steps, and the swap back spends exactly what arrived', () => {
   const amountIn = 5_000_000n, minOut = 2_475_000n
-  const remove = ix(SYSTEM, Buffer.from([5, 5, 5, 5]))
+  // Account plumbing around the venue instructions rides outside the compose call, in order.
+  const createAta = ix(ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(), Buffer.from([1]))
+  const remove = ix(DLMM_PROGRAM, Buffer.from([5, 5, 5, 5])), claim = ix(DLMM_PROGRAM, Buffer.from([6, 6]))
+  const closeWsol = ix(TOKEN_PROGRAM_ID.toBase58(), Buffer.from([9]))
   const wrap = ix(SYSTEM, Buffer.from([6]))
   const assembly = assembleComposedZap({ direction: 'out', owner: OWNER, tokenMint: TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
-    remove: { instructions: [remove] },
+    remove: { instructions: [createAta, remove, claim, closeWsol] },
     swap: { instructions: [wrap, swapIx(amountIn, minOut), ix(SYSTEM, Buffer.from([7]))], amountIn, minOut } })
   assert.ok(assembly)
   const steps: ZapComposeStep[] = assembly!.steps
-  assert.equal(steps.length, 2)
+  assert.equal(steps.length, 3, 'the two venue instructions and the swap back')
   const composed = composeZap(steps, { programId: new PublicKey(COMPOSER), payer: new PublicKey(OWNER) })
+  assert.deepEqual(composed.before.map(i => i.data[0]), [1, 6], 'the token account is made first, then the swap\'s own setup')
+  assert.deepEqual(composed.after.map(i => i.data[0]), [9, 7], 'wrapped SOL closes after the compose call')
   const description = decodeCompose(Buffer.from(composed.compose.data))
-  assert.equal(description.steps.length, 2)
+  assert.equal(description.steps.length, 3)
   assert.equal(description.watch.length, 2, 'the token account feeds the patches, the WSOL account the fee')
-  assert.deepEqual(description.steps[0].fee, null, 'the withdrawal itself is not fee\'d')
-  assert.equal(description.steps[1].patches.length, 2)
-  assert.equal(description.steps[1].patches[0].mode, 0, 'the swap spends the raw token delta')
-  assert.deepEqual({ mode: description.steps[1].patches[1].mode, num: description.steps[1].patches[1].num, den: description.steps[1].patches[1].den },
+  assert.deepEqual([description.steps[0].fee, description.steps[1].fee], [null, null], 'the withdrawal itself is not fee\'d')
+  const swapBack = description.steps[2]
+  assert.equal(swapBack.patches.length, 2)
+  assert.equal(swapBack.patches[0].mode, 0, 'the swap spends the raw token delta')
+  assert.deepEqual({ mode: swapBack.patches[1].mode, num: swapBack.patches[1].num, den: swapBack.patches[1].den },
     { mode: 1, num: 99, den: 200 }, 'the minimum out scales with what arrived')
-  assert.ok(description.steps[1].fee, 'the swap back is fee\'d in kind')
-  assert.equal(description.steps[1].fee!.watchSlot, 1)
-  assert.equal(description.steps[1].patches[0].fromStep, 0)
-  assert.equal(description.steps[1].patches[1].fromStep, 0)
+  assert.ok(swapBack.fee, 'the swap back is fee\'d in kind')
+  assert.equal(swapBack.fee!.watchSlot, 1)
+  assert.equal(swapBack.patches[0].fromStep, 0)
+  assert.equal(swapBack.patches[1].fromStep, 0)
+})
+
+test('zap out assembly refuses a withdrawal with no venue instruction', () => {
+  const amountIn = 5_000_000n, minOut = 2_475_000n
+  assert.equal(assembleComposedZap({ direction: 'out', owner: OWNER, tokenMint: TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
+    remove: { instructions: [ix(SYSTEM, Buffer.from([5]))] }, swap: { instructions: [swapIx(amountIn, minOut)], amountIn, minOut } }), null)
 })
 
 test('zap out assembly refuses a minimum it cannot scale', () => {
   const amountIn = 1_000_000_000_000n, minOut = 1n // minOut/in = 1e-12: below 1/1024 precision
   const assembly = assembleComposedZap({ direction: 'out', owner: OWNER, tokenMint: TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
-    remove: { instructions: [ix(SYSTEM, Buffer.from([5]))] },
+    remove: { instructions: [ix(DLMM_PROGRAM, Buffer.from([5]))] },
     swap: { instructions: [swapIx(amountIn, minOut)], amountIn, minOut } })
   assert.equal(assembly, null)
 })

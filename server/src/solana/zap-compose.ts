@@ -4,8 +4,8 @@
 // swap becomes a composed step, and the deposit or the swap back is sized from
 // the real token-account delta the step before it left. Every data offset
 // that gets patched is proven from the bytes the venue builders just produced —
-// located, never guessed — and anything unprovable returns null so the caller
-// falls back to one transaction per step.
+// located, never guessed — and anything unprovable returns null, which the
+// caller refuses with its reason (never split into separate transactions).
 import { ComputeBudgetProgram, PublicKey } from '@solana/web3.js'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
@@ -127,6 +127,22 @@ export type ZapOutAssembly = { direction: 'out'; owner: string; tokenMint: strin
 export type ComposedZap = { steps: ZapComposeStep[] }
 
 const dropBudget = (instructions: RawInstruction[]) => instructions.filter(ix => ix.programId !== ComputeBudgetProgram.programId.toBase58())
+/** Account plumbing a withdrawal wraps around its venue instructions. */
+const PLUMBING = new Set([ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(), TOKEN_PROGRAM_ID.toBase58(), TOKEN_2022_PROGRAM_ID.toBase58(),
+  '11111111111111111111111111111111', 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr', 'Memo1UhkJRfHyvLMcVucJwxXeuD728EQVDDwQDxFeQ'])
+/** A withdrawal as composer steps: its venue instructions, first to last, run
+ * inside the compose call so what they credit is in the composer's view; the
+ * account setup before them and the cleanup after them (token accounts made,
+ * wrapped SOL closed) ride outside it in the same order, keeping the step
+ * count within the program's eight. Null when there is no venue instruction. */
+function removalSteps(instructions: RawInstruction[]): ZapComposeStep[] | null {
+  const removal = dropBudget(instructions)
+  const venue = removal.flatMap((ix, i) => PLUMBING.has(ix.programId) ? [] : [i])
+  if (!venue.length) return null
+  const first = venue[0], last = venue[venue.length - 1]
+  return removal.slice(first, last + 1).map((action, i, all) => ({ action,
+    ...(i === 0 ? { setup: removal.slice(0, first) } : {}), ...(i === all.length - 1 ? { cleanup: removal.slice(last + 1) } : {}) }))
+}
 const tokenAccount = (owner: string, mint: string, program: string) =>
   getAssociatedTokenAddressSync(new PublicKey(mint), new PublicKey(owner), false, new PublicKey(program), ASSOCIATED_TOKEN_PROGRAM_ID).toBase58()
 
@@ -162,10 +178,12 @@ export function assembleComposedZap(input: ZapInAssembly | ZapOutAssembly): Comp
   }
   const minimum = u32Ratio(input.swap.minOut, input.swap.amountIn)
   if (!minimum) return null
+  const removal = removalSteps(input.remove.instructions)
+  if (!removal) return null
   const tokenAta = tokenAccount(input.owner, input.tokenMint, input.tokenProgram)
   const wsolAta = tokenAccount(input.owner, WSOL_MINT, TOKEN_PROGRAM_ID.toBase58())
   return { steps: [
-    ...dropBudget(input.remove.instructions).map(action => ({ action })),
+    ...removal,
     { action: swap, setup: swapInstructions.slice(0, swapProof.index), cleanup: swapInstructions.slice(swapProof.index + 1),
       amountFrom: [
         { dataOffset: swapProof.amountInOffset, account: tokenAta, step: 0 },
@@ -177,8 +195,9 @@ export function assembleComposedZap(input: ZapInAssembly | ZapOutAssembly): Comp
 
 /** A withdrawal with nothing to swap back (the position held only SOL): its
  * instructions run as composer steps, as a withdrawal's do before its swap. */
-export function composedRemoval(instructions: RawInstruction[]): ComposedZap {
-  return { steps: dropBudget(instructions).map(action => ({ action })) }
+export function composedRemoval(instructions: RawInstruction[]): ComposedZap | null {
+  const steps = removalSteps(instructions)
+  return steps ? { steps } : null
 }
 
 /** The token program that owns a mint (fees and watch accounts need it), or

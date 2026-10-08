@@ -219,6 +219,14 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
           { programId: SYSTEM, data: Buffer.from([4]) },
         ]), lastValidBlockHeight: 999, transactionVersion: '1', expectedSigners: [OWNER] }], pool: saved.quote.pool, position: saved.quote.position, quote: saved.quote })
       }
+      if (scenario.composer && saved.quote.operation === 'remove') {
+        // A withdrawal: the venue instruction between account setup and cleanup.
+        return Response.json({ transactions: [{ transaction: venueV1([
+          { programId: SYSTEM, data: Buffer.from([1]) },
+          { programId: 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo', data: Buffer.from([3, 3]) },
+          { programId: SYSTEM, data: Buffer.from([4]) },
+        ]), lastValidBlockHeight: 999, transactionVersion: '1', expectedSigners: [OWNER] }], pool: saved.quote.pool, position: saved.quote.position, quote: saved.quote })
+      }
       return Response.json({ transactions: [{ transaction: encodedV1(), lastValidBlockHeight: 999, transactionVersion: '1', expectedSigners: [OWNER] }], pool: saved.quote.pool, position: saved.quote.position, quote: saved.quote })
     }
     return Response.json({ error: `unexpected ${url}` }, { status: 500 })

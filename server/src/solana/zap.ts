@@ -540,7 +540,9 @@ export function createSolanaZapHandler(options: Options) {
         if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
         quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
         if (!swapStep) {
-          steps = composedRemoval(removeInstructions.flat()).steps
+          const removal = composedRemoval(removeInstructions.flat())
+          if (!removal) throw unavailable('the withdrawal has no venue instruction to compose')
+          steps = removal.steps
           note = 'One signature: the withdrawal runs through the composer; the position held only SOL, so nothing is swapped back'
         } else {
         const builtSwap = await swapLeg(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, owner, version)
