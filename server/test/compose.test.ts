@@ -336,3 +336,24 @@ test('buildSwap passes composed: true and hops through only for a composed direc
     assert.ok(!JSON.stringify(built).includes('SUPERSECRET'))
   }
 })
+
+test('a composed V1 transaction can carry a new position key as a second signer, signed before the wallet', async () => {
+  const { unsignedV1 } = await import('../src/solana/self-router.ts')
+  const { signComposed } = await import('../src/solana/compose.ts')
+  const { decodeV1 } = await import('../src/solana/transaction-v1.ts')
+  const nacl = (await import('tweetnacl')).default
+  const payer = Keypair.generate(), position = Keypair.generate(), program = Keypair.generate().publicKey
+  const open = new TransactionInstruction({ programId: program, data: Buffer.from([1, 2, 3]), keys: [
+    { pubkey: payer.publicKey, isSigner: true, isWritable: true }, { pubkey: position.publicKey, isSigner: true, isWritable: true },
+    { pubkey: Keypair.generate().publicKey, isSigner: false, isWritable: false }] })
+  assert.throws(() => unsignedV1(payer.publicKey, '11111111111111111111111111111111', [open], 200_000, { allowPrograms: [program] }), /another signer/)
+  const wire = unsignedV1(payer.publicKey, '11111111111111111111111111111111', [open], 200_000, { allowPrograms: [program], signers: [position.publicKey] })
+  const bytes = Buffer.from(signComposed(wire, position), 'base64')
+  const decoded = decodeV1(bytes, { requireResources: true })
+  assert.equal(decoded.required, 2)
+  assert.equal(new PublicKey(decoded.keys[1]).toBase58(), position.publicKey.toBase58())
+  const end = bytes.length - 2 * 64
+  assert.ok(bytes.subarray(end, end + 64).every(b => b === 0), 'the wallet signs its own slot later')
+  assert.ok(nacl.sign.detached.verify(bytes.subarray(0, end), bytes.subarray(end + 64, end + 128), position.publicKey.toBytes()))
+  assert.throws(() => signComposed(wire, Keypair.generate()), /does not sign/)
+})

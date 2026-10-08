@@ -4,8 +4,9 @@
 // The byte layout mirrors lp-zap/src/layout.rs exactly; every structural
 // limit the program enforces is enforced here first so a bad description
 // never reaches a wallet.
-import { ComputeBudgetProgram, PublicKey, SystemProgram, TransactionInstruction,
-  type AccountMeta, type AddressLookupTableAccount } from '@solana/web3.js'
+import { ComputeBudgetProgram, PublicKey, SystemProgram, TransactionInstruction, VersionedTransaction,
+  type AccountMeta, type AddressLookupTableAccount, type Keypair } from '@solana/web3.js'
+import nacl from 'tweetnacl'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync } from '@solana/spl-token'
 import type { DirectLeg } from './direct-adapter.ts'
@@ -269,6 +270,23 @@ export function buildComposedTransaction({ payer, blockhash, version, programId,
     : unsignedV0(payer, blockhash, instructions, computeUnitLimit, { ...options, addressLookupTables })
 }
 
+/** Adds `keypair`'s signature to a built composed transaction: a new
+ * position account's key, signing before the wallet does. V1 keeps its
+ * signatures after the message, in signer order. */
+export function signComposed(wire: string, keypair: Keypair): string {
+  const bytes = Buffer.from(wire, 'base64')
+  if (bytes[0] !== 0x81) {
+    const transaction = VersionedTransaction.deserialize(bytes)
+    transaction.sign([keypair])
+    return Buffer.from(transaction.serialize()).toString('base64')
+  }
+  const required = bytes[1], end = bytes.length - required * 64, key = keypair.publicKey.toBuffer()
+  const slot = Array.from({ length: required }, (_, i) => i).find(i => bytes.subarray(42 + i * 32, 74 + i * 32).equals(key))
+  if (slot === undefined) bad('That key does not sign this transaction')
+  Buffer.from(nacl.sign.detached(bytes.subarray(0, end), keypair.secretKey)).copy(bytes, end + slot! * 64)
+  return bytes.toString('base64')
+}
+
 /** A built venue leg plus the mint it pays into (needed for the fee ATA). */
 export type ComposeLeg = { leg: DirectLeg; outputMint: PublicKey; outputTokenProgram?: PublicKey }
 export type ComposedRoute = { before: TransactionInstruction[]; compose: TransactionInstruction;
@@ -278,8 +296,12 @@ const sameInstruction = (a: TransactionInstruction, b: TransactionInstruction) =
   a.programId.equals(b.programId) && Buffer.from(a.data).equals(Buffer.from(b.data)) &&
   a.keys.length === b.keys.length && a.keys.every((k, i) => k.pubkey.equals(b.keys[i].pubkey) &&
     k.isSigner === b.keys[i].isSigner && k.isWritable === b.keys[i].isWritable)
+// SyncNative is never merged: two legs that each wrap SOL need a sync after
+// each transfer, or the second transfer never reaches the token balance.
+const syncNative = (ix: TransactionInstruction) => (ix.programId.equals(TOKEN_PROGRAM_ID) || ix.programId.equals(TOKEN_2022_PROGRAM_ID)) &&
+  ix.data.length === 1 && ix.data[0] === 17
 const hoist = (instructions: TransactionInstruction[]) => instructions.reduce<TransactionInstruction[]>((all, ix) =>
-  ix.programId.equals(ComputeBudgetProgram.programId) || all.some(x => sameInstruction(x, ix)) ? all : [...all, ix], [])
+  ix.programId.equals(ComputeBudgetProgram.programId) || (!syncNative(ix) && all.some(x => sameInstruction(x, ix))) ? all : [...all, ix], [])
 
 /** Chain exact-in venue legs through the composer. Each leg's setup (ATA
  * creation, wrapping) runs before the compose call and its cleanup after;

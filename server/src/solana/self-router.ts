@@ -317,20 +317,25 @@ export function unsignedV1(payer: PublicKey, blockhash: string,
   instructions: TransactionInstruction[], computeUnitLimit = 800_000, options: EmitOptions = {}): string {
   instructions = withoutBudget(instructions)
   validateInstructions(instructions, payer, options)
-  const flags = new Map<string, { key: PublicKey; writable: boolean }>()
-  flags.set(payer.toBase58(), { key: payer, writable: true })
+  const flags = new Map<string, { key: PublicKey; writable: boolean; signer: boolean }>()
+  flags.set(payer.toBase58(), { key: payer, writable: true, signer: true })
   for (const ix of instructions) {
     for (const meta of ix.keys) {
       const id = meta.pubkey.toBase58(), old = flags.get(id)
-      if (!old) flags.set(id, { key: meta.pubkey, writable: meta.isWritable })
-      else old.writable ||= meta.isWritable
+      if (!old) flags.set(id, { key: meta.pubkey, writable: meta.isWritable, signer: meta.isSigner })
+      else { old.writable ||= meta.isWritable; old.signer ||= meta.isSigner }
     }
     const id = ix.programId.toBase58()
-    if (!flags.has(id)) flags.set(id, { key: ix.programId, writable: false })
+    if (!flags.has(id)) flags.set(id, { key: ix.programId, writable: false, signer: false })
   }
+  // Payer first, then any other signer (a new position account), writable
+  // before read-only within each group, as the V1 header counts them.
   const entries = [...flags.values()].filter(x => !x.key.equals(payer))
-  const writable = entries.filter(x => x.writable), readonly = entries.filter(x => !x.writable)
-  const keys = [{ key: payer, writable: true }, ...writable, ...readonly]
+  const group = (signer: boolean, writable: boolean) => entries.filter(x => x.signer === signer && x.writable === writable)
+  const signers = [...group(true, true), ...group(true, false)], readonlySigners = group(true, false).length
+  const writable = group(false, true), readonly = group(false, false)
+  const keys = [{ key: payer, writable: true }, ...signers, ...writable, ...readonly]
+  const required = 1 + signers.length
   if (keys.length > 64) throw new DirectRouteError(422, 'Direct swap needs too many accounts for V1')
   const index = new Map(keys.map((x, i) => [x.key.toBase58(), i]))
   const headers = Buffer.alloc(instructions.length * 4)
@@ -348,12 +353,12 @@ export function unsignedV1(payer: PublicKey, blockhash: string,
   config.writeUInt32LE(computeUnitLimit, 0)
   config.writeUInt32LE(64 * 1024 * 1024, 4)
   const head = Buffer.alloc(42)
-  head[0] = 0x81; head[1] = 1; head[2] = 0; head[3] = readonly.length
+  head[0] = 0x81; head[1] = required; head[2] = readonlySigners; head[3] = readonly.length
   head.writeUInt32LE(12, 4)
   new PublicKey(blockhash).toBuffer().copy(head, 8)
   head[40] = instructions.length; head[41] = keys.length
   const wire = Buffer.concat([head, ...keys.map(x => x.key.toBuffer()), config,
-    headers, ...payload, Buffer.alloc(64)])
+    headers, ...payload, Buffer.alloc(64 * required)])
   if (wire.length > 4096) throw new DirectRouteError(422, 'Direct swap exceeds the 4096-byte V1 limit')
   decodeV1(wire, { requireResources: true })
   return wire.toString('base64')

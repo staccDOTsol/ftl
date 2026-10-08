@@ -409,14 +409,13 @@ test('composed: the composer turns both zap-in steps into one transaction, sized
   assert.deepEqual(description.steps[1].patches.map(p => p.mode), [1, 0, 1])
   assert.deepEqual({ num: description.steps[1].patches[0].num, den: description.steps[1].patches[0].den }, { num: 7, den: 1 })
 }))
-test('composed: an unprovable swap build falls back to the sequential stepper', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {
+test('composed: an unprovable build is refused with its reason, never split into steps', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {
   const plan = (await request('/api/zap/solana/plan', planIn())).data
   assert.equal(plan.mode, 'composed')
   const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
-  assert.equal(r.status, 200, r.text)
-  assert.equal(r.data.mode, 'sequential')
-  assert.equal(r.data.kind, 'swap')
-  assert.equal(r.data.transactions[0].instructions.length, 1, 'the opaque swap still rides along')
+  assert.equal(r.status, 409, r.text)
+  assert.match(r.data.error, /could not be built as one transaction: .+\. Nothing was signed\./)
+  assert.equal(r.data.transactions, undefined)
 }))
 test('composed: the withdrawal and the swap back run as one transaction', async () => withZap({ ...bordr, composer: COMPOSER, token: '4800000', positions: [
   { venue: 'meteora-dlmm', pool: DLMM, position: POSITION, mintA: MINT, mintB: SOL_MINT, liquidity: null, removalMode: 'percentage', owner: OWNER },

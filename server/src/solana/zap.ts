@@ -13,9 +13,10 @@ import { validPublicKey } from './router.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { parsePositions, type HoldingPosition } from './holdings.ts'
 import { fetchPoolStats, isPoolStatsVenue, POOL_STATS_VENUES, type PoolStats, type PoolStatsVenue } from './pool-stats.ts'
-import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT } from './compose.ts'
+import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT, signComposed } from './compose.ts'
 import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
 import { newDlmmDeposit } from './dlmm-position.ts'
+import type { VenueDepositBuilder } from './venue-deposit.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 export type PoolKind = 'constant' | 'splash' | 'concentrated'
@@ -234,6 +235,10 @@ function clientError(e: unknown): { status: number; message: string } {
   return { status: 503, message: 'Simple liquidity is temporarily unavailable; retry shortly' }
 }
 
+// Venues whose deposit opens a position account this server builds and signs for.
+const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit }
+const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why}. Nothing was signed.`)
+
 export function createSolanaZapHandler(options: Options) {
   const fetcher = options.fetch ?? fetch, now = options.now ?? Date.now
   const poolStats = options.poolStats ?? ((venue: PoolStatsVenue, pool: string) => fetchPoolStats(venue, pool, fetcher as any, { now }))
@@ -415,97 +420,95 @@ export function createSolanaZapHandler(options: Options) {
    * does, every amount offset is proven from the bytes the venue builders just
    * produced, and the second step is patched from the first's real delta.
    * Any failure returns null and the caller serves the sequential build. */
-  async function buildComposedZap(plan: ZapPlan, version: '1' | '0'): Promise<Record<string, unknown> | null> {
+  async function buildComposedZap(plan: ZapPlan, version: '1' | '0'): Promise<Record<string, unknown>> {
     const programId = options.composerProgramId
-    if (!programId || plan.steps.length !== 2) return null
+    if (!programId || plan.steps.length !== 2) throw unavailable('this plan has no composed form')
     const owner = plan.owner, payer = new PublicKey(owner)
     try {
       let steps: import('./compose.ts').ZapComposeStep[]
       let quote: any, pool: any, position: any, note: string
-      // A new position's own key, when this server built the deposit; it signs
-      // the composed transaction before the wallet does.
-      let positionKey: Keypair | null = null
+      // A new position's own keys, when this server built the deposit; they
+      // sign the composed transaction before the wallet does.
+      let positionKeys: Keypair[] = []
       if (plan.direction === 'in') {
         const [swapStep, addStep] = plan.steps as [SwapStep, AddStep]
-        if (swapStep.kind !== 'swap' || addStep.kind !== 'add') return null
+        if (swapStep.kind !== 'swap' || addStep.kind !== 'add') throw unavailable('this plan has no composed form')
         const spendable = await solBalance(owner) - SOL_RESERVE
         const lamports = spendable < BigInt(swapStep.amount) ? spendable : BigInt(swapStep.amount)
-        if (lamports <= 0n) return null
+        if (lamports <= 0n) throw unavailable('not enough SOL in the wallet (0.01 SOL stays for fees)')
         const addSol = spendable - lamports
         const solAmount = addSol < BigInt(addStep.solAmount) ? addSol : BigInt(addStep.solAmount)
-        if (solAmount <= 0n) return null
+        if (solAmount <= 0n) throw unavailable('not enough SOL left for the deposit side')
         const quoted = await swapQuote(SOL_MINT, plan.mint, lamports.toString(), plan.slippageBps, version)
         const builtSwap = await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
-        if (builtSwap.composed === true) return null // a composer-built swap cannot nest inside the composer
+        if (builtSwap.composed === true) throw unavailable('the swap route is itself composed') // the composer cannot nest
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
-        if (!swapInstructions) return null
+        if (!swapInstructions) throw unavailable('the swap transaction could not be read')
         let addInstructions: RawInstruction[], addQuote: any
-        // The liquidity service opens a DLMM position with a key it signs with
-        // itself, which a composed message cannot reuse. V1 carries one signer.
-        if (addStep.venue === 'meteora-dlmm' && version === '0' && options.rpcUrl) {
-          const deposit = await newDlmmDeposit(connection(), { pool: addStep.pool, owner, tokenMint: plan.mint,
-            tokenAmount: BigInt(builtSwap.quoteResponse.outAmount), solAmount, slippageBps: plan.slippageBps,
-            binCount: Number(addStep.parameters?.binCount ?? 60) })
+        // Venues that open a position account are built here (venue-deposit.ts).
+        const builder = DEPOSIT_BUILDERS[addStep.venue]
+        if (builder && options.rpcUrl) {
+          const deposit = await builder(connection(), { pool: addStep.pool, owner, tokenMint: plan.mint,
+            tokenAmount: BigInt(builtSwap.quoteResponse.outAmount), solAmount, slippageBps: plan.slippageBps, parameters: addStep.parameters ?? {} })
           addInstructions = deposit.instructions; addQuote = { ...deposit.quote, venue: addStep.venue, pool: addStep.pool, owner, operation: 'add' }
-          positionKey = deposit.position
-          pool = addStep.pool; position = deposit.position.publicKey.toBase58()
+          positionKeys = deposit.signers
+          pool = addStep.pool; position = deposit.position
         } else {
           const serviceQuote = await options.router.liquidityQuote({ venue: addStep.venue, operation: 'add', owner, pool: addStep.pool, mintA: addStep.mintA, mintB: addStep.mintB, amountA: builtSwap.quoteResponse.outAmount, amountB: solAmount.toString(), slippageBps: plan.slippageBps, parameters: addStep.parameters, transactionVersion: version })
           const builtAdd = await options.router.liquidityBuild({ quoteId: serviceQuote.quoteId, owner, transactionVersion: version })
           const built = builtAdd.transactions.map((tx: any) => instructionsOf(tx.transaction))
-          if (built.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+          if (built.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the deposit transaction could not be read')
           addInstructions = built.flat(); addQuote = builtAdd.quote
           pool = builtAdd.pool; position = builtAdd.position
         }
         const tokenProgram = await mintTokenProgram(rpc, plan.mint)
-        if (!tokenProgram) return null
+        if (!tokenProgram) throw unavailable('the token program is not supported')
         const assembly = assembleComposedZap({ direction: 'in', owner, tokenMint: plan.mint, tokenProgram,
           swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) },
           add: { instructions: addInstructions, quote: addQuote } })
-        if (!assembly) return null
+        if (!assembly) throw unavailable('the deposit amounts could not be proven from its bytes')
         steps = assembly.steps
         quote = addQuote
         note = 'One signature: the swap and the deposit run atomically through the composer, the deposit sized from what the swap really delivered'
       } else {
         const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep]
-        if (removeStep.kind !== 'remove' || swapStep.kind !== 'swap') return null
+        if (removeStep.kind !== 'remove' || swapStep.kind !== 'swap') throw unavailable('this plan has no composed form')
         const removeQuote = await options.router.liquidityQuote({ ...removeStep.intent, transactionVersion: version })
         const builtRemove = await options.router.liquidityBuild({ quoteId: removeQuote.quoteId, owner, transactionVersion: version })
         const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
-        if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+        if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
         const fresh = await swapQuote(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, version)
         const builtSwap = await options.router.buildSwap({ quoteResponse: fresh, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
-        if (builtSwap.composed === true) return null
+        if (builtSwap.composed === true) throw unavailable('the swap route is itself composed')
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
-        if (!swapInstructions) return null
+        if (!swapInstructions) throw unavailable('the swap transaction could not be read')
         const tokenProgram = await mintTokenProgram(rpc, plan.mint)
-        if (!tokenProgram) return null
+        if (!tokenProgram) throw unavailable('the token program is not supported')
         const assembly = assembleComposedZap({ direction: 'out', owner, tokenMint: plan.mint, tokenProgram,
           remove: { instructions: removeInstructions.flat() },
           swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) } })
-        if (!assembly) return null
+        if (!assembly) throw unavailable('the withdrawal amounts could not be proven from its bytes')
         steps = assembly.steps
         quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
         note = 'One signature: the withdrawal and the swap back run atomically through the composer, the swap spending exactly what the withdrawal delivered'
       }
-      const signers = positionKey ? [positionKey.publicKey] : []
+      const signers = positionKeys.map(key => key.publicKey)
       const composed = composeZap(steps, { programId: new PublicKey(programId), payer, signers })
       const latest = await rpc('getLatestBlockhash', [{ commitment: 'confirmed' }])
       const blockhash = latest?.value?.blockhash, height = latest?.value?.lastValidBlockHeight
-      if (typeof blockhash !== 'string' || !validPublicKey(blockhash) || !Number.isSafeInteger(height) || height < 1) return null
+      if (typeof blockhash !== 'string' || !validPublicKey(blockhash) || !Number.isSafeInteger(height) || height < 1) throw unavailable('no recent blockhash from RPC')
       let transaction = buildComposedTransaction({ payer, blockhash, version, programId: new PublicKey(programId), before: composed.before, compose: composed.compose, after: composed.after, signers })
-      if (positionKey) {
-        const signed = VersionedTransaction.deserialize(Buffer.from(transaction, 'base64'))
-        signed.sign([positionKey])
-        transaction = Buffer.from(signed.serialize()).toString('base64')
-      }
+      for (const key of positionKeys) transaction = signComposed(transaction, key)
       return { step: 0, mode: 'composed' as ZapMode, kind: plan.direction === 'in' ? 'add' : 'remove',
         transactions: [{ transaction, lastValidBlockHeight: height, transactionVersion: version, expectedSigners: [owner, ...signers.map(key => key.toBase58())] }],
         quote, pool, position, note }
     } catch (error) {
-      // The sequential stepper serves the plan; say why one transaction was not possible.
-      console.warn('[zap] composed build fell back to steps:', String(error).replace(/https?:\/\/[^\s]+/g, '[url]').slice(0, 300))
-      return null
+      if (error instanceof RequestError) throw error
+      const why = /encoding overruns|too large|exceeds the V0/i.test(String(error))
+        ? 'it is larger than a V0 transaction allows; connect a wallet that signs V1 transactions'
+        : String(error instanceof Error ? error.message : error).replace(/https?:\/\/[^\s]+/g, '[url]').slice(0, 200)
+      console.warn('[zap] composed build failed:', why)
+      throw unavailable(why)
     }
   }
   function validatePlanRequest(j: unknown) {
@@ -558,12 +561,9 @@ export function createSolanaZapHandler(options: Options) {
           await verifyConfirmed(signatures)
         }
         const version = (transactionVersion ?? plan.transactionVersion) as '1' | '0'
-        // A composed plan starts as one transaction through the lp-zap composer;
-        // unprovable builds fall through to the sequential stepper below.
-        if (plan.mode === 'composed' && j.step === 0 && signatures.length === 0) {
-          const composed = await buildComposedZap(plan, version)
-          if (composed) { reply(res, 200, composed); return true }
-        }
+        // A composed plan is one transaction through the lp-zap composer, or an
+        // error saying why not; it never falls back to separate steps.
+        if (plan.mode === 'composed' && j.step === 0 && signatures.length === 0) { reply(res, 200, await buildComposedZap(plan, version)); return true }
         reply(res, 200, await buildStep(plan, j.step, version))
       }
     } catch (e) {
