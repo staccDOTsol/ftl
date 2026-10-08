@@ -199,14 +199,15 @@ export type ComposeCheckInput = { watch: PublicKey; kind: 'min' | 'max'; bound: 
  * fee recipient, its ATA, the mint and the token/ATA/system programs are
  * appended once per fee mint; every step index is rewritten to the outer list.
  * The composer itself may never appear as a step program or account. */
-export function composeInstructions({ programId, payer, steps, checks = [] }: { programId: PublicKey;
-  payer: PublicKey; steps: ComposeStepInput[]; checks?: ComposeCheckInput[] }): TransactionInstruction {
+export function composeInstructions({ programId, payer, steps, checks = [], signers = [] }: { programId: PublicKey;
+  payer: PublicKey; steps: ComposeStepInput[]; checks?: ComposeCheckInput[]; signers?: PublicKey[] }): TransactionInstruction {
   if (!steps.length) bad('Nothing to compose')
   const keys: AccountMeta[] = [{ pubkey: payer, isSigner: true, isWritable: true }]
   const index = new Map<string, number>([[payer.toBase58(), 0]])
   const add = (pubkey: PublicKey, isSigner: boolean, isWritable: boolean): number => {
     if (pubkey.equals(programId)) bad('The composer cannot compose itself')
-    if (isSigner && !pubkey.equals(payer)) bad('Composed step unexpectedly requires another signer')
+    // Only the payer, or a key the builder itself will sign with (a new position account).
+    if (isSigner && !pubkey.equals(payer) && !signers.some(s => s.equals(pubkey))) bad('Composed step unexpectedly requires another signer')
     const id = pubkey.toBase58(), at = index.get(id)
     if (at !== undefined) { keys[at].isWritable ||= isWritable; return at }
     if (keys.length >= 256) bad('Composed instruction needs more than 256 accounts')
@@ -257,13 +258,13 @@ export function composeInstructions({ programId, payer, steps, checks = [] }: { 
  * direct router emits; the composer is the only extra outer program allowed.
  * Inner step programs travel as accounts of the compose instruction. */
 export function buildComposedTransaction({ payer, blockhash, version, programId, before = [], compose,
-  after = [], computeUnitLimit = 1_400_000, addressLookupTables }: { payer: PublicKey; blockhash: string;
+  after = [], computeUnitLimit = 1_400_000, addressLookupTables, signers = [] }: { payer: PublicKey; blockhash: string;
   version: '0' | '1'; programId: PublicKey; before?: TransactionInstruction[]; compose: TransactionInstruction;
   after?: TransactionInstruction[]; computeUnitLimit?: number;
-  addressLookupTables?: AddressLookupTableAccount[] }): string {
+  addressLookupTables?: AddressLookupTableAccount[]; signers?: PublicKey[] }): string {
   if (!compose.programId.equals(programId)) bad('Compose instruction targets a different program')
   const instructions = [...before, compose, ...after]
-  const options = { allowPrograms: [programId] }
+  const options = { allowPrograms: [programId], signers }
   return version === '1' ? unsignedV1(payer, blockhash, instructions, computeUnitLimit, options)
     : unsignedV0(payer, blockhash, instructions, computeUnitLimit, { ...options, addressLookupTables })
 }
@@ -348,9 +349,9 @@ const fromRaw = (ix: RawComposeInstruction) => new TransactionInstruction({ prog
   keys: ix.keys.map(k => ({ pubkey: new PublicKey(k.pubkey), isSigner: k.isSigner, isWritable: k.isWritable })),
   data: Buffer.from(ix.data, 'base64') })
 
-export function composeZap(steps: ZapComposeStep[], { programId, payer, checks = [] }: { programId: PublicKey;
-  payer: PublicKey; checks?: ComposeCheckInput[] }): ComposedRoute {
-  const compose = composeInstructions({ programId, payer, checks, steps: steps.map(step => ({
+export function composeZap(steps: ZapComposeStep[], { programId, payer, checks = [], signers = [] }: { programId: PublicKey;
+  payer: PublicKey; checks?: ComposeCheckInput[]; signers?: PublicKey[] }): ComposedRoute {
+  const compose = composeInstructions({ programId, payer, checks, signers, steps: steps.map(step => ({
     instruction: fromRaw(step.action),
     patches: (step.amountFrom ?? []).map(p => ({ ...p, watch: new PublicKey(p.account), fromStep: p.step })),
     fee: step.output ? { watch: new PublicKey(step.output.account), mint: new PublicKey(step.output.mint),

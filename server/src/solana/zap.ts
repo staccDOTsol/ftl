@@ -7,7 +7,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import bs58 from 'bs58'
-import { PublicKey, TransactionMessage, VersionedTransaction } from '@solana/web3.js'
+import { Connection, PublicKey, TransactionMessage, VersionedTransaction, type Keypair } from '@solana/web3.js'
 import type { PoolSummary, TokenSummary } from '../../../shared/types.ts'
 import { validPublicKey } from './router.ts'
 import { decodeV1 } from './transaction-v1.ts'
@@ -15,6 +15,7 @@ import { parsePositions, type HoldingPosition } from './holdings.ts'
 import { fetchPoolStats, isPoolStatsVenue, POOL_STATS_VENUES, type PoolStats, type PoolStatsVenue } from './pool-stats.ts'
 import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT } from './compose.ts'
 import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
+import { newDlmmDeposit } from './dlmm-position.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 export type PoolKind = 'constant' | 'splash' | 'concentrated'
@@ -245,6 +246,8 @@ export function createSolanaZapHandler(options: Options) {
     buckets.set(key, { until: time + 60_000, count: 1 })
   }
   function prune() { const time = now(); for (const [id, plan] of plans) if (plan.expiresAt <= time) plans.delete(id) }
+  let rpcConnection: Connection | null = null
+  const connection = () => (rpcConnection ??= new Connection(options.rpcUrl!, 'confirmed'))
   async function rpc(method: string, params: unknown[]): Promise<any> {
     if (!options.rpcUrl) throw new RequestError(503, 'Solana wallet RPC is not configured yet')
     let r: Response
@@ -419,6 +422,9 @@ export function createSolanaZapHandler(options: Options) {
     try {
       let steps: import('./compose.ts').ZapComposeStep[]
       let quote: any, pool: any, position: any, note: string
+      // A new position's own key, when this server built the deposit; it signs
+      // the composed transaction before the wallet does.
+      let positionKey: Keypair | null = null
       if (plan.direction === 'in') {
         const [swapStep, addStep] = plan.steps as [SwapStep, AddStep]
         if (swapStep.kind !== 'swap' || addStep.kind !== 'add') return null
@@ -433,18 +439,32 @@ export function createSolanaZapHandler(options: Options) {
         if (builtSwap.composed === true) return null // a composer-built swap cannot nest inside the composer
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) return null
-        const addQuote = await options.router.liquidityQuote({ venue: addStep.venue, operation: 'add', owner, pool: addStep.pool, mintA: addStep.mintA, mintB: addStep.mintB, amountA: builtSwap.quoteResponse.outAmount, amountB: solAmount.toString(), slippageBps: plan.slippageBps, parameters: addStep.parameters, transactionVersion: version })
-        const builtAdd = await options.router.liquidityBuild({ quoteId: addQuote.quoteId, owner, transactionVersion: version })
-        const addInstructions = builtAdd.transactions.map((tx: any) => instructionsOf(tx.transaction))
-        if (addInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+        let addInstructions: RawInstruction[], addQuote: any
+        // The liquidity service opens a DLMM position with a key it signs with
+        // itself, which a composed message cannot reuse. V1 carries one signer.
+        if (addStep.venue === 'meteora-dlmm' && version === '0' && options.rpcUrl) {
+          const deposit = await newDlmmDeposit(connection(), { pool: addStep.pool, owner, tokenMint: plan.mint,
+            tokenAmount: BigInt(builtSwap.quoteResponse.outAmount), solAmount, slippageBps: plan.slippageBps,
+            binCount: Number(addStep.parameters?.binCount ?? 60) })
+          addInstructions = deposit.instructions; addQuote = { ...deposit.quote, venue: addStep.venue, pool: addStep.pool, owner, operation: 'add' }
+          positionKey = deposit.position
+          pool = addStep.pool; position = deposit.position.publicKey.toBase58()
+        } else {
+          const serviceQuote = await options.router.liquidityQuote({ venue: addStep.venue, operation: 'add', owner, pool: addStep.pool, mintA: addStep.mintA, mintB: addStep.mintB, amountA: builtSwap.quoteResponse.outAmount, amountB: solAmount.toString(), slippageBps: plan.slippageBps, parameters: addStep.parameters, transactionVersion: version })
+          const builtAdd = await options.router.liquidityBuild({ quoteId: serviceQuote.quoteId, owner, transactionVersion: version })
+          const built = builtAdd.transactions.map((tx: any) => instructionsOf(tx.transaction))
+          if (built.some((ixs: RawInstruction[] | null) => ixs === null)) return null
+          addInstructions = built.flat(); addQuote = builtAdd.quote
+          pool = builtAdd.pool; position = builtAdd.position
+        }
         const tokenProgram = await mintTokenProgram(rpc, plan.mint)
         if (!tokenProgram) return null
         const assembly = assembleComposedZap({ direction: 'in', owner, tokenMint: plan.mint, tokenProgram,
           swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) },
-          add: { instructions: addInstructions.flat(), quote: builtAdd.quote } })
+          add: { instructions: addInstructions, quote: addQuote } })
         if (!assembly) return null
         steps = assembly.steps
-        quote = builtAdd.quote; pool = builtAdd.pool; position = builtAdd.position
+        quote = addQuote
         note = 'One signature: the swap and the deposit run atomically through the composer, the deposit sized from what the swap really delivered'
       } else {
         const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep]
@@ -468,15 +488,25 @@ export function createSolanaZapHandler(options: Options) {
         quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
         note = 'One signature: the withdrawal and the swap back run atomically through the composer, the swap spending exactly what the withdrawal delivered'
       }
-      const composed = composeZap(steps, { programId: new PublicKey(programId), payer })
+      const signers = positionKey ? [positionKey.publicKey] : []
+      const composed = composeZap(steps, { programId: new PublicKey(programId), payer, signers })
       const latest = await rpc('getLatestBlockhash', [{ commitment: 'confirmed' }])
       const blockhash = latest?.value?.blockhash, height = latest?.value?.lastValidBlockHeight
       if (typeof blockhash !== 'string' || !validPublicKey(blockhash) || !Number.isSafeInteger(height) || height < 1) return null
-      const transaction = buildComposedTransaction({ payer, blockhash, version, programId: new PublicKey(programId), before: composed.before, compose: composed.compose, after: composed.after })
+      let transaction = buildComposedTransaction({ payer, blockhash, version, programId: new PublicKey(programId), before: composed.before, compose: composed.compose, after: composed.after, signers })
+      if (positionKey) {
+        const signed = VersionedTransaction.deserialize(Buffer.from(transaction, 'base64'))
+        signed.sign([positionKey])
+        transaction = Buffer.from(signed.serialize()).toString('base64')
+      }
       return { step: 0, mode: 'composed' as ZapMode, kind: plan.direction === 'in' ? 'add' : 'remove',
-        transactions: [{ transaction, lastValidBlockHeight: height, transactionVersion: version, expectedSigners: [owner] }],
+        transactions: [{ transaction, lastValidBlockHeight: height, transactionVersion: version, expectedSigners: [owner, ...signers.map(key => key.toBase58())] }],
         quote, pool, position, note }
-    } catch { return null }
+    } catch (error) {
+      // The sequential stepper serves the plan; say why one transaction was not possible.
+      console.warn('[zap] composed build fell back to steps:', String(error).replace(/https?:\/\/[^\s]+/g, '[url]').slice(0, 300))
+      return null
+    }
   }
   function validatePlanRequest(j: unknown) {
     if (!object(j)) fail('Invalid plan request')

@@ -297,7 +297,7 @@ async function validBuybackRecipient(connection: Connection,
   return noRoute('PumpSwap buyback fee accounts are unavailable for this quote mint')
 }
 
-export type EmitOptions = { allowPrograms?: PublicKey[] }
+export type EmitOptions = { allowPrograms?: PublicKey[]; signers?: PublicKey[] }
 /** The emitter owns the compute budget (V0: one SetComputeUnitLimit, V1: the config). A venue SDK
  * that adds its own estimate (DLMM's swap() does) would duplicate it, and the runtime rejects that. */
 const withoutBudget = (instructions: TransactionInstruction[]) => instructions.filter(ix => !ix.programId.equals(COMPUTE_BUDGET))
@@ -308,7 +308,7 @@ function validateInstructions(instructions: TransactionInstruction[], payer: Pub
   for (const ix of instructions) {
     if (!ALLOWED_PROGRAMS.has(ix.programId.toBase58()) && !extra.has(ix.programId.toBase58()))
       throw new DirectRouteError(422, 'Direct pool SDK produced an unsupported program')
-    if (ix.keys.some(key => key.isSigner && !key.pubkey.equals(payer)))
+    if (ix.keys.some(key => key.isSigner && !key.pubkey.equals(payer) && !(options.signers ?? []).some(s => s.equals(key.pubkey))))
       throw new DirectRouteError(422, 'Direct swap unexpectedly requires another signer')
   }
 }
