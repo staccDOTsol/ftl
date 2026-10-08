@@ -53,6 +53,7 @@ export default function Root() {
         <Stack.Screen name="research/[chain]/[address]" options={{ title: 'Coin research' }} />
         <Stack.Screen name="programs/index" options={{ title: 'Program frontier' }} />
         <Stack.Screen name="programs/[address]" options={{ title: 'Program evidence' }} />
+        <Stack.Screen name="composer/index" options={{ title: 'Composer' }} />
         <Stack.Screen name="embedded-wallet" options={{ title: 'Embedded wallet' }} />
         <Stack.Screen name="wallet/[chain]/[address]" options={{ title: 'Wallet' }} />
         <Stack.Screen name="profile/[pubkey]" options={{ title: 'Profile' }} />

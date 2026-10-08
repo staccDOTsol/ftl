@@ -10,6 +10,9 @@ export interface WireTransaction {
   feePayer: string
   requiredSignatures: number
   signerKeys: string[]
+  /** Program id of every top-level instruction, in order. Program ids are
+   * always static keys, so this is exact even when lookup tables load accounts. */
+  programs: string[]
 }
 
 // V1 puts its version byte first and signatures last. web3.js 1.x must not
@@ -21,6 +24,7 @@ export function inspectTransaction(bytes: Uint8Array): WireTransaction {
     const tx = VersionedTransaction.deserialize(bytes)
     if (tx.signatures.length !== tx.message.header.numRequiredSignatures) return fail()
     return { version: tx.version === 'legacy' ? 'legacy' : '0', message: tx.message.serialize(), signatures: tx.signatures,
+      programs: tx.message.compiledInstructions.map(ix => tx.message.staticAccountKeys[ix.programIdIndex].toBase58()),
       feePayer: tx.message.staticAccountKeys[0].toBase58(), requiredSignatures: tx.message.header.numRequiredSignatures,
       signerKeys: tx.message.staticAccountKeys.slice(0, tx.message.header.numRequiredSignatures).map(key => key.toBase58()) }
   }
@@ -33,8 +37,8 @@ export function inspectTransaction(bytes: Uint8Array): WireTransaction {
       ![0, 3].includes(mask & 3) || (mask & 12) !== 12) return fail()
   const end = bytes.length - requiredSignatures * 64
   let offset = 42 + addressCount * 32
-  const addresses = new Set<string>()
-  for (let i = 0; i < addressCount; i++) addresses.add(bs58.encode(bytes.slice(42 + i * 32, 74 + i * 32)))
+  const keys = Array.from({ length: addressCount }, (_, i) => bs58.encode(bytes.slice(42 + i * 32, 74 + i * 32)))
+  const addresses = new Set(keys)
   if (addresses.size !== addressCount || offset + 8 > end) return fail()
   if ((mask & 3) === 3) offset += 8
   if (offset + 8 > end) return fail()
@@ -59,6 +63,7 @@ export function inspectTransaction(bytes: Uint8Array): WireTransaction {
   }
   if (offset !== end) return fail()
   return { version: '1', message: bytes.slice(0, end), feePayer: bs58.encode(bytes.slice(42, 74)), requiredSignatures,
+    programs: Array.from({ length: instructionCount }, (_, i) => keys[bytes[headers + i * 4]]),
     signerKeys: Array.from({ length: requiredSignatures }, (_, i) => bs58.encode(bytes.slice(42 + i * 32, 74 + i * 32))),
     signatures: Array.from({ length: requiredSignatures }, (_, i) => bytes.slice(end + i * 64, end + (i + 1) * 64)) }
 }

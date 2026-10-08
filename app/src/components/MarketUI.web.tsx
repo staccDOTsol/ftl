@@ -5,7 +5,7 @@ import { useLive } from '@/lib/live'
 import { useSocial } from '@/lib/social'
 import type { Chain } from '@/lib/types'
 
-export type IconName = 'discover' | 'activity' | 'swap' | 'earn' | 'wallet' | 'trophy' | 'users' | 'search' | 'arrow' | 'external' | 'chevron' | 'close' | 'plus' | 'check' | 'pause' | 'play' | 'refresh' | 'settings' | 'copy' | 'clock' | 'filter' | 'signal' | 'menu' | 'github' | 'bell'
+export type IconName = 'discover' | 'activity' | 'swap' | 'earn' | 'wallet' | 'trophy' | 'users' | 'search' | 'arrow' | 'external' | 'chevron' | 'close' | 'plus' | 'check' | 'pause' | 'play' | 'refresh' | 'settings' | 'copy' | 'clock' | 'filter' | 'signal' | 'menu' | 'github' | 'bell' | 'compose' | 'download'
 const paths: Record<IconName, ReactNode> = {
   discover: <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m8 15 2-5 6-1-2 5-6 1Z" /></>,
   activity: <path d="M2 12h5l3-8 4 16 3-8h5" />,
@@ -32,6 +32,8 @@ const paths: Record<IconName, ReactNode> = {
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   github: <><path d="M8 20c-5 1-5-3-7-3m14 5v-4c0-1-.4-2-1-2 4 0 7-2 7-6 0-2-1-3-2-4 0-1 0-3-1-4-2 0-3 1-4 2a13 13 0 0 0-5 0C8 3 7 2 5 2c-1 1-1 3-1 4-1 1-2 2-2 4 0 4 3 6 7 6-1 0-1 1-1 2v4" /></>,
   bell: <><path d="M5 9a7 7 0 0 1 14 0v6l2 3H3l2-3V9Zm5 12h4" /></>,
+  compose: <><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4M17 17h4m-2-2v4" /></>,
+  download: <path d="M12 4v11m-5-5 5 5 5-5M5 20h14" />,
 }
 
 export function Icon({ name, size = 18, className = '' }: { name: IconName; size?: number; className?: string }) {

@@ -23,3 +23,16 @@ export function useWalletSession() { return useSyncExternalStore(subscribe, getW
 export function useWalletSelection(): [string | null, (key: string | null) => void] {
   return [useWalletSession().key, selectWallet]
 }
+
+// Surfaces that need a signer (the Composer) ask the shell to open its own
+// connect dialog instead of drawing another wallet picker. Returns false when
+// no shell is listening, so the caller can explain what to do instead.
+const connectListeners = new Set<() => void>()
+export function requestWalletConnect(): boolean {
+  for (const listener of connectListeners) listener()
+  return connectListeners.size > 0
+}
+export function onWalletConnectRequest(listener: () => void) {
+  connectListeners.add(listener)
+  return () => { connectListeners.delete(listener) }
+}

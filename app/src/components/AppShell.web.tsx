@@ -6,7 +6,7 @@ import { eventLink } from '@/lib/event-context'
 import { useLive } from '@/lib/live'
 import { useSocial } from '@/lib/social'
 import { isMintLike } from '@/lib/swap-link'
-import { useWalletSession } from '@/lib/wallet-session'
+import { onWalletConnectRequest, useWalletSession } from '@/lib/wallet-session'
 import type { FlowEvent, TokenSummary, WalletSummary } from '@/lib/types'
 import { KIND } from '@/theme'
 import { AppLink, Avatar, Dialog, Icon, LiveBadge, Notice, Placeholder, ToastProvider, type IconName } from './MarketUI.web'
@@ -24,6 +24,7 @@ const NAV: { href: string; label: string; icon: IconName; section?: string }[] =
   { href: '/signals', label: 'Signals', icon: 'signal' },
   { href: '/research', label: 'Research', icon: 'search' },
   { href: '/programs', label: 'Program frontier', icon: 'activity' },
+  { href: '/composer', label: 'Composer', icon: 'compose' },
 ]
 
 function Brand() {
@@ -44,7 +45,9 @@ function Shell({ children }: { children: ReactNode }) {
   const social = useSocial()
   const session = useWalletSession()
   const [search, setSearch] = useState(false)
-  const [wallet, setWallet] = useState(false)
+  // 'browse' opens the portfolio after connecting; 'sign' keeps the person on
+  // the surface that asked for a signer (the Composer).
+  const [wallet, setWallet] = useState<false | 'browse' | 'sign'>(false)
   const [menu, setMenu] = useState(false)
   const [status, setStatus] = useState(false)
   const main = useRef<HTMLElement>(null)
@@ -68,6 +71,7 @@ function Shell({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+  useEffect(() => onWalletConnectRequest(() => setWallet('sign')), [])
   useEffect(() => {
     setMenu(false)
     setStatus(false)
@@ -105,7 +109,7 @@ function Shell({ children }: { children: ReactNode }) {
         <div className="lq-topbar-end">
           <button type="button" className="lq-connection-button" onClick={() => setStatus(value => !value)} aria-expanded={status} aria-label="Connection status"><LiveBadge />{live.status ? <span className="lq-connected-count">{live.status.clients} connected</span> : null}</button>
           <button type="button" className="lq-icon-button lq-small-search" aria-label="Search tokens and wallets" onClick={() => setSearch(true)}><Icon name="search" /></button>
-          <button type="button" className={`lq-button ${session.address ? '' : 'lq-button-primary'} lq-wallet-button`} onClick={() => session.address ? router.navigate(`/holdings?owner=${session.address}`) : setWallet(true)}><Icon name="wallet" size={16} /><span>{session.address ? short(session.address) : 'Connect wallet'}</span></button>
+          <button type="button" className={`lq-button ${session.address ? '' : 'lq-button-primary'} lq-wallet-button`} onClick={() => session.address ? router.navigate(`/holdings?owner=${session.address}`) : setWallet('browse')}><Icon name="wallet" size={16} /><span>{session.address ? short(session.address) : 'Connect wallet'}</span></button>
         </div>
       </header>
       <MarketRibbon />
@@ -122,7 +126,7 @@ function Shell({ children }: { children: ReactNode }) {
       </nav>
     </div>
     {search ? <SearchDialog onClose={() => setSearch(false)} /> : null}
-    {wallet ? <Dialog title="Your wallet. Your next move." onClose={() => setWallet(false)} className="lq-wallet-dialog"><p className="lq-dialog-copy">Connect to see your balances and positions, then trade or put your tokens to work.</p><Suspense fallback={<Placeholder title="Finding your wallets…" busy />}><HoldingsWallet onAddress={address => { setWallet(false); router.navigate(`/holdings?owner=${address}`) }} /></Suspense></Dialog> : null}
+    {wallet ? <Dialog title={wallet === 'sign' ? 'Connect a wallet to sign' : 'Your wallet. Your next move.'} onClose={() => setWallet(false)} className="lq-wallet-dialog"><p className="lq-dialog-copy">{wallet === 'sign' ? 'Transactions are built for this wallet. Nothing is signed until you approve it in your wallet.' : 'Connect to see your balances and positions, then trade or put your tokens to work.'}</p><Suspense fallback={<Placeholder title="Finding your wallets…" busy />}><HoldingsWallet onAddress={address => { setWallet(false); if (wallet === 'browse') router.navigate(`/holdings?owner=${address}`) }} /></Suspense></Dialog> : null}
     {menu ? <Dialog title="Explore liquidityxyz" onClose={() => setMenu(false)} className="lq-navigation-dialog">{nav(() => setMenu(false))}<AppLink href="/me" className="lq-nav-item" onClick={() => setMenu(false)}><Icon name="settings" />Your profile & settings</AppLink></Dialog> : null}
     {status ? <Dialog title="Connected to the action" onClose={() => setStatus(false)}><div className="lq-status-detail"><LiveBadge /><p>One shared stream delivers pool births, liquidity moves, token updates, and calls across the app.</p>{(live.status?.lanes ?? []).filter(lane => lane.enabled).map(lane => <div key={`${lane.chain}:${lane.lane}`}><span><i className={lane.connected ? 'is-up' : ''} />{lane.chain === 'solana' ? 'Solana' : 'Robinhood'}<small>{lane.lane}</small></span><b>{lane.connected ? 'Connected' : 'Reconnecting'}</b></div>)}<AppLink href="/me" className="lq-text-link" onClick={() => setStatus(false)}>Full stream diagnostics <Icon name="arrow" size={14} /></AppLink></div></Dialog> : null}
   </div>
