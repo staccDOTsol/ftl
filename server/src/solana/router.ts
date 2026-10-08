@@ -229,6 +229,8 @@ function validateLiquidityBuild(data:any, intent:Record<string,any>) {
 /** The direct router's own RPC-unavailable failure (DirectRouteError, checked
  * structurally so this module never loads the venue SDKs eagerly). */
 const directTransient = (e: unknown) => object(e) && e.transient === true && e.status === 503
+/** A failure that carries its own HTTP status and message: a RequestError or the direct router's DirectRouteError. */
+const statusError = (e: unknown): boolean => e instanceof RequestError || (object(e) && Number.isInteger(e.status) && typeof e.message === 'string')
 /** External router failures that say nothing about route existence. */
 const externalTransient = (e: unknown) => e instanceof RequestError && (e.status === 429 || e.status === 503)
 /** allSettled, except that once one source has answered the others get only
@@ -318,7 +320,9 @@ export function createSolanaRouterHandler(options: Options) {
       // pools: an external 404 proves nothing about pools only FTL knows.
       if (directEnabled && directTransient(reasons[0]))
         throw new RequestError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S)
-      throw reasons[0] instanceof RequestError ? reasons[0] : new RequestError(404, 'No executable route is available for this pair and amount')
+      // The direct router's own reason (a DirectRouteError carries its status) says why.
+      if (statusError(reasons[0])) throw reasons[0]
+      throw new RequestError(404, 'No executable route is available for this pair and amount')
     }
     return winners[0]
   }
@@ -368,7 +372,7 @@ export function createSolanaRouterHandler(options: Options) {
     // says why this pair failed; the external router's generic 503 does not.
     if (directOut === null && externalOut === null) {
       const reason = builtDirect.status === 'rejected' ? builtDirect.reason : null
-      if (reason instanceof RequestError || (object(reason) && Number.isInteger(reason.status) && typeof reason.message === 'string')) throw reason
+      if (statusError(reason)) throw reason
       if (reason) console.warn('[router] direct build failed:', String(reason?.stack ?? reason).replace(/https?:\/\/\S+/g, '[url]').slice(0, 600))
       throw external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
     }

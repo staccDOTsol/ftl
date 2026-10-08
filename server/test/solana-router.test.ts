@@ -202,6 +202,11 @@ test('when no route builds, the direct router\'s own reason is reported, not the
     fetch: async () => new Response('down', { status: 503 }) })
   await assert.rejects(handler.buildSwap({ userPublicKey: SOL, quoteResponse: q }),
     (e: any) => e.status === 404 && e.message === 'No quoted direct pool passed current on-chain simulation')
+  const quoting = createSolanaRouterHandler({ routerUrl: 'http://router.example', rpcUrl: 'https://rpc.example', externalGraceMs: 50,
+    localRouter: { ...direct, async quote() { throw Object.assign(new Error('Orca Whirlpool: tick array out of range'), { status: 404 }) } },
+    fetch: async () => new Response('down', { status: 503 }) })
+  await assert.rejects(quoting.quote(new URLSearchParams(query.split('?')[1])),
+    (e: any) => e.status === 404 && e.message === 'Orca Whirlpool: tick array out of range', 'a quote says why too')
 })
 test('V1 validates signatures at the tail over the entire message including config', () => {
   const signed = encodedV1(true, { signerCount: 2 })
