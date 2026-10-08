@@ -4,11 +4,12 @@ import type { ComponentProps } from 'react'
 import type { Tabs } from 'expo-router'
 import { C, CHAIN, F, T, WIDE } from '@/theme'
 import { useLive } from '@/lib/live'
+import { useClock } from '@/lib/clock'
 import type { Chain, LaneStatus } from '@/lib/types'
 import { Press, Spark } from './ui'
 
 const GLYPH: Record<string, string> = { index: '◉', signals: '▲', following: '♥', leaders: '★', me: '●' }
-const LANE: Record<string, string> = { preconf: 'Preconfs', deshred: 'Deshred', geyser: "Dragon's Mouth", 'geyser-drpc': 'dRPC Geyser', logs: 'dRPC logs' }
+const LANE: Record<string, string> = { preconf: 'Preconfs', deshred: 'Deshred', geyser: "Dragon's Mouth", 'geyser-primary': 'Flux Yellowstone', 'geyser-drpc': 'dRPC Geyser', 'helius-parsed': 'Helius parsed', 'helius-laserstream': 'Helius LaserStream', logs: 'dRPC logs' }
 export const laneLabel = (l: LaneStatus) => LANE[l.lane] ?? l.lane
 
 type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
@@ -64,6 +65,7 @@ export function NavBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export function Pulse({ inline }: { inline?: boolean }) {
   const l = useLive()
+  const now = useClock()
   const lanes = (l.status?.lanes ?? []).filter(x => x.enabled)
   const chains: Chain[] = ['solana', 'robinhood']
   if (inline) {
@@ -74,7 +76,7 @@ export function Pulse({ inline }: { inline?: boolean }) {
           <View key={c} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={[st.chain, { color: CHAIN[c].color }]}>{CHAIN[c].short}</Text>
             <Spark values={l.flow[c]} color={CHAIN[c].color} width={44} height={14} />
-            <Text style={st.rate}>{l.perMinute(c)}<Text style={st.unit}>/m</Text></Text>
+            <Text style={st.rate}>{l.perMinute(c) ?? '—'}<Text style={st.unit}>/m</Text></Text>
           </View>
         ))}
       </View>
@@ -91,7 +93,7 @@ export function Pulse({ inline }: { inline?: boolean }) {
           <View key={c} style={{ gap: 6 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <Text style={[st.chain, { color: CHAIN[c].color }]}>{CHAIN[c].label}</Text>
-              <Text style={st.rate}>{l.perMinute(c)}<Text style={st.unit}> /min</Text></Text>
+              <Text style={st.rate}>{l.perMinute(c) ?? '—'}<Text style={st.unit}> /min</Text></Text>
             </View>
             <Spark values={l.flow[c]} color={CHAIN[c].color} width={180} height={22} />
           </View>
@@ -99,7 +101,7 @@ export function Pulse({ inline }: { inline?: boolean }) {
       </View>
       <View style={{ gap: 6 }}>
         {lanes.map(x => {
-          const fresh = x.lastMsgTs && Date.now() - x.lastMsgTs < 15_000
+          const fresh = x.lastMsgTs && now - x.lastMsgTs < 15_000
           return (
             <View key={`${x.chain}:${x.lane}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={[st.laneDot, { backgroundColor: x.connected && fresh ? C.good : x.connected ? C.warn : C.bad }]} />

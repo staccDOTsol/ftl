@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="description" content="How liquidityxyz collects, uses, and deletes app data.">
+  <title>Privacy policy · liquidityxyz</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0e14;color:#e8edf7}
+    *{box-sizing:border-box}body{margin:0}main{max-width:760px;margin:0 auto;padding:40px 22px 80px}
+    a{color:#8aabff}a:hover{color:#b7caff}header{border-bottom:1px solid #293040;padding-bottom:24px;margin-bottom:36px}
+    .brand{font-weight:800;font-size:1.1rem;letter-spacing:-.03em;color:#fff;text-decoration:none}
+    h1{font-size:clamp(2rem,5vw,3rem);line-height:1.1;letter-spacing:-.04em;margin:28px 0 8px}
+    h2{font-size:1.35rem;line-height:1.3;margin:36px 0 10px;color:#fff}p,li{color:#c3ccdc}strong{color:#eef2fa}
+    ul{padding-left:24px}li{margin:8px 0}.date{color:#8e99ad;font-size:.92rem}.card{background:#151b27;border:1px solid #30394b;border-radius:14px;padding:18px;margin:24px 0}
+    footer{border-top:1px solid #293040;margin-top:44px;padding-top:20px;color:#8e99ad;font-size:.9rem}
+  </style>
+</head>
+<body>
+<main>
+  <header><a class="brand" href="/">liquidityxyz</a><h1>Privacy policy</h1><p class="date">Effective October 7, 2026</p></header>
+  <p>This policy explains the data processed by the liquidityxyz website and mobile app. For privacy questions, contact <a href="mailto:jarett@dcssquared.com">jarett@dcssquared.com</a>.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><strong>Public chain data:</strong> token and wallet addresses, pool activity, transactions, and related token metadata from Solana and Robinhood Chain. This data is public on the blockchains and is used to show live activity, token pages, and Research coverage.</li>
+    <li><strong>FTL social profile:</strong> the app creates a signing key on your device. The private key is stored in device secure storage on mobile or browser local storage on web; the public key identifies your profile. If you use social features, we store your public key, optional handle and bio, calls and comments, likes, and follows. Calls and comments appear publicly in the app.</li>
+    <li><strong>Alerts:</strong> if you choose push alerts on mobile, we store your Expo push token and platform so we can send the alerts you requested. Browser notifications are handled by your browser while the site is open.</li>
+    <li><strong>Wallet and quote activity:</strong> if you connect an EVM wallet, the site uses its public address to prepare quotes and transactions. Your wallet extension handles signing and broadcasting. The optional web embedded Solana wallet is provided by Helius Wallet Kit and is separate from your FTL social profile.</li>
+    <li><strong>Technical requests:</strong> our hosting and infrastructure providers may process IP addresses, device or browser details, and request logs to deliver the service, prevent abuse, and diagnose failures.</li>
+  </ul>
+
+  <h2>How we use and share data</h2>
+  <p>We use this data to display chain activity and Research coverage, operate social features, deliver requested alerts, provide quotes and wallet connections, and keep the service working. We use service providers for hosting and delivery, blockchain data and RPC access, push notifications, and the optional embedded wallet. These include Fly.io, Vercel, Expo, Helius, FluxRPC, and dRPC where the relevant feature uses them. Public social posts and public chain data can be viewed and copied by others. We do not sell your profile data or use it for third-party advertising.</p>
+
+  <h2>Storage and retention</h2>
+  <p>Your FTL profile and associated social data remain on our server until you delete them. Deletion removes the profile, authored calls and comments, likes, follows, and registered push tokens from our app database. A hash of the deleted public profile key remains for about five minutes to reject delayed signed writes, then is removed. Deletion also removes the local FTL profile key on the device where you delete the account. Uninstalling the app alone does not delete server data. Normal infrastructure and security logs may remain under our providers’ retention practices. Public blockchain records and copies made by other people or services cannot be removed by deleting an FTL profile.</p>
+
+  <h2>Your choices and deletion</h2>
+  <div class="card"><strong>Delete your FTL account in the app:</strong> open <strong>Me → Privacy and account → Delete my profile and data</strong>, review the confirmation, then select <strong>Permanently delete</strong>. The app signs the deletion request with your profile key. See <a href="/account-deletion.html">account deletion details</a>.</div>
+  <p>You can avoid creating public social content by not posting or following. You can turn off notifications in your device or browser settings. To ask about your data or request help with deletion when you cannot access the app, email <a href="mailto:jarett@dcssquared.com?subject=liquidityxyz%20privacy%20request">jarett@dcssquared.com</a> and include your public profile key if you know it. We may need to verify that a request belongs to you.</p>
+  <p>The optional Helius embedded wallet has a separate sign-out control. Deleting an FTL profile does not delete a separate wallet or reverse any blockchain transaction. Contact us for help with a wallet-related data request.</p>
+
+  <h2>Updates</h2>
+  <p>We may update this policy as the product changes. The effective date above will change when we publish a revision.</p>
+  <footer><a href="/">Back to liquidityxyz</a> · <a href="/account-deletion.html">Account deletion</a></footer>
+</main>
+</body>
+</html>

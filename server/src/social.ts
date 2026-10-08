@@ -4,7 +4,7 @@
 import crypto from 'node:crypto'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
-import { db } from './db.ts'
+import { db, tx } from './db.ts'
 import { followedWallets, tokenGraduated } from './hub.ts'
 import type { Chain, Post, Profile } from '../../shared/types.ts'
 
@@ -12,6 +12,10 @@ export class HttpError extends Error {
   status: number
   constructor(status: number, msg: string) { super(msg); this.status = status }
 }
+
+const pruneDeletionGuards = db.prepare('DELETE FROM account_deletion_guards WHERE deleted_ts < ?')
+pruneDeletionGuards.run(Date.now() - 5 * 60_000)
+setInterval(() => pruneDeletionGuards.run(Date.now() - 5 * 60_000), 60_000).unref()
 
 export function verify(method: string, path: string, body: string, h: Record<string, string | string[] | undefined>): string {
   const pubkey = String(h['x-ftl-pubkey'] ?? '')
@@ -24,6 +28,12 @@ export function verify(method: string, path: string, body: string, h: Record<str
   let ok = false
   try { ok = nacl.sign.detached.verify(msg, bs58.decode(sig), bs58.decode(pubkey)) } catch {}
   if (!ok) throw new HttpError(401, 'bad signature')
+  // Signatures remain valid for five minutes. A short digest-only guard keeps
+  // an old in-flight request from recreating an account just deleted.
+  const keyHash = crypto.createHash('sha256').update(pubkey).digest('hex')
+  const deleted = db.prepare('SELECT deleted_ts FROM account_deletion_guards WHERE key_hash = ?').get(keyHash) as { deleted_ts: number } | undefined
+  if (path !== '/api/account/delete' && deleted && Date.now() - deleted.deleted_ts < 5 * 60_000)
+    throw new HttpError(401, 'account was recently deleted')
   db.prepare('INSERT OR IGNORE INTO users (pubkey, created_ts) VALUES (?, ?)').run(pubkey, Date.now())
   return pubkey
 }
@@ -46,8 +56,13 @@ export function setProfile(pubkey: string, handle: unknown, bio: unknown): Profi
 }
 
 const CHAINS = new Set(['solana', 'robinhood'])
-function target(b: any): { kind: 'wallet' | 'token'; chain: Chain; address: string } {
-  if (b?.kind !== 'wallet' && b?.kind !== 'token') throw new HttpError(400, 'kind must be wallet or token')
+function target(b: any): { kind: 'wallet' | 'token' | 'user'; chain: Chain; address: string } {
+  if (b?.kind !== 'wallet' && b?.kind !== 'token' && b?.kind !== 'user') throw new HttpError(400, 'kind must be wallet, token or user')
+  if (b.kind === 'user') {
+    const address = String(b.address ?? '')
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) throw new HttpError(400, 'bad user address')
+    return { kind: 'user', chain: 'solana', address }
+  }
   if (!CHAINS.has(b?.chain)) throw new HttpError(400, 'unknown chain')
   const address = b.chain === 'robinhood' ? String(b.address ?? '').toLowerCase() : String(b.address ?? '')
   if (b.chain === 'robinhood' ? !/^0x[0-9a-f]{40}$/.test(address) : !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) throw new HttpError(400, 'bad address')
@@ -68,7 +83,7 @@ export function follow(user: string, body: any, on: boolean) {
 }
 
 export function follows(user: string) {
-  return db.prepare('SELECT kind, chain, address, ts FROM follows WHERE user = ? ORDER BY ts DESC').all(user) as { kind: string; chain: Chain; address: string; ts: number }[]
+  return db.prepare('SELECT kind, chain, address, ts FROM follows WHERE user = ? ORDER BY ts DESC').all(user) as { kind: 'wallet' | 'token' | 'user'; chain: Chain; address: string; ts: number }[]
 }
 
 export function loadFollowedWallets() {
@@ -82,6 +97,28 @@ export function followersOf(kind: 'wallet' | 'token', chain: Chain, address: str
 // ---- posts ------------------------------------------------------------------
 
 const lastPost = new Map<string, number>()
+
+export function deleteAccount(user: string): { deleted: true } {
+  const walletFollows = db.prepare("SELECT chain, address FROM follows WHERE user = ? AND kind = 'wallet'").all(user) as { chain: Chain; address: string }[]
+  const keyHash = crypto.createHash('sha256').update(user).digest('hex')
+  tx(() => {
+    // A user's likes on other authors' posts must no longer inflate counts.
+    db.prepare('UPDATE posts SET likes = MAX(0, likes - 1) WHERE user != ? AND id IN (SELECT post FROM likes WHERE user = ?)').run(user, user)
+    db.prepare('DELETE FROM likes WHERE user = ? OR post IN (SELECT id FROM posts WHERE user = ?)').run(user, user)
+    db.prepare('DELETE FROM posts WHERE user = ?').run(user)
+    db.prepare("DELETE FROM follows WHERE user = ? OR (kind = 'user' AND address = ?)").run(user, user)
+    db.prepare('DELETE FROM push_tokens WHERE user = ?').run(user)
+    db.prepare('DELETE FROM users WHERE pubkey = ?').run(user)
+    pruneDeletionGuards.run(Date.now() - 5 * 60_000)
+    db.prepare('INSERT INTO account_deletion_guards(key_hash, deleted_ts) VALUES(?, ?) ON CONFLICT(key_hash) DO UPDATE SET deleted_ts = excluded.deleted_ts').run(keyHash, Date.now())
+  })
+  lastPost.delete(user)
+  for (const { chain, address } of walletFollows) {
+    const still = db.prepare("SELECT 1 FROM follows WHERE kind = 'wallet' AND chain = ? AND address = ? LIMIT 1").get(chain, address)
+    if (!still) followedWallets.delete(`${chain}:${address}`)
+  }
+  return { deleted: true }
+}
 
 export function createPost(user: string, b: any): Post {
   const t = target({ kind: 'token', chain: b?.chain, address: b?.token })
@@ -114,11 +151,13 @@ export function getPost(id: number, viewer?: string | null): Post | null {
   return r ? rowToPost(r, viewer) : null
 }
 
-export function listPosts(q: { chain?: string; token?: string; user?: string; before?: number; limit?: number; viewer?: string | null }): Post[] {
+export function listPosts(q: { chain?: string; token?: string; user?: string; following?: string; kind?: 'call' | 'comment'; before?: number; limit?: number; viewer?: string | null }): Post[] {
   const where: string[] = []
   const args: any[] = []
   if (q.chain && q.token) { where.push('p.chain = ? AND p.token = ?'); args.push(q.chain, q.token) }
   if (q.user) { where.push('p.user = ?'); args.push(q.user) }
+  if (q.following) { where.push("(p.user = ? OR p.user IN (SELECT address FROM follows WHERE user = ? AND kind = 'user'))"); args.push(q.following, q.following) }
+  if (q.kind) { where.push('p.kind = ?'); args.push(q.kind) }
   if (q.before) { where.push('p.ts < ?'); args.push(q.before) }
   const sql = `${postSelect} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.ts DESC LIMIT ?`
   args.push(Math.min(q.limit ?? 50, 200))

@@ -24,7 +24,7 @@ export function fromRpc(sig: string, t: any): NTx {
     g.instructions.forEach((ix: any, j: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: ix.accounts, data: bs58.decode(ix.data), n: `${g.index}.${j}` }))
   const bal = (a: any[]) => (a ?? []).map(b => ({ idx: b.accountIndex, mint: b.mint, owner: b.owner, amount: BigInt(b.uiTokenAmount.amount), decimals: b.uiTokenAmount.decimals }))
   return {
-    sig, slot: t.slot, keys, ixs, failed: !!t.meta?.err, pre: bal(t.meta?.preTokenBalances), post: bal(t.meta?.postTokenBalances),
+    sig, slot: t.slot, keys, ixs, version: w.version, transactionConfig: w.transactionConfig, failed: !!t.meta?.err, pre: bal(t.meta?.preTokenBalances), post: bal(t.meta?.postTokenBalances),
     lamports: { pre: t.meta.preBalances.map(BigInt), post: t.meta.postBalances.map(BigInt), fee: BigInt(t.meta.fee) },
   }
 }
@@ -32,7 +32,7 @@ export function fromRpc(sig: string, t: any): NTx {
 async function batch(sigs: string[]) {
   const out: any[] = []
   for (let i = 0; i < sigs.length; i += 50) {
-    const body = sigs.slice(i, i + 50).map((s, k) => ({ jsonrpc: '2.0', id: k, method: 'getTransaction', params: [s, { encoding: 'base64', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }] }))
+    const body = sigs.slice(i, i + 50).map((s, k) => ({ jsonrpc: '2.0', id: k, method: 'getTransaction', params: [s, { encoding: 'base64', maxSupportedTransactionVersion: 1, commitment: 'confirmed' }] }))
     const r = await fetch(RPC, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     const j = await r.json() as any[]
     const by = new Map(j.map(x => [x.id, x.result]))

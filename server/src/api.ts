@@ -6,7 +6,12 @@ import { db } from './db.ts'
 import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken, rowToWallet } from './hub.ts'
 import { enrich } from './meta.ts'
 import { prices } from './prices.ts'
-import { HttpError, callers, createPost, follow, follows, getPost, like, listPosts, profile, registerPush, setProfile, verify } from './social.ts'
+import { getResearch, listResearch, startResearch } from './research.ts'
+import { blockTimeUsage } from './solana/blocktime.ts'
+import { programBackfillStatus, type ProgramBackfillStatus } from './solana/program-backfill.ts'
+import { quotePonsV2 } from './robinhood/pons-quote.ts'
+import { quoteV4 } from './robinhood/v4-quote.ts'
+import { HttpError, callers, createPost, deleteAccount, follow, follows, getPost, like, listPosts, profile, registerPush, setProfile, verify } from './social.ts'
 import { handleHeliusWaas } from './helius-waas.ts'
 import { config } from './config.ts'
 import { createSolanaRouterHandler } from './solana/router.ts'
@@ -15,7 +20,7 @@ import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../..
 const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
   rpcUrl: config.solanaRpc, selfRouter: config.solanaSelfRouter })
 const started = Date.now()
-const ROUTING_API = process.env.ROUTING_API_URL ?? 'https://xn644o3px9.execute-api.us-east-2.amazonaws.com/prod/quote'
+let programStatusCache: { at: number; value: ProgramBackfillStatus } | null = null
 
 const eventSelect = `SELECT e.*, t.symbol AS t_symbol, t.name AS t_name, t.image AS t_image, t.decimals AS t_decimals
   FROM events e LEFT JOIN tokens t ON t.chain = e.chain AND t.address = e.token`
@@ -27,7 +32,11 @@ const normAddr = (chain: Chain, a: string) => (chain === 'robinhood' ? a.toLower
 
 function status(): Status {
   const n = (db.prepare('SELECT COUNT(*) AS n FROM events').get() as any).n
-  return { startedTs: started, lanes: laneStatus(), clients: clients.size, eventsStored: n, prices }
+  const at = Date.now()
+  if (!programStatusCache || at - programStatusCache.at >= 15_000)
+    programStatusCache = { at, value: programBackfillStatus() }
+  return { startedTs: started, lanes: laneStatus(), clients: clients.size, eventsStored: n, prices,
+    researchStream: blockTimeUsage(), programBackfill: programStatusCache.value }
 }
 
 function feed(q: URLSearchParams) {
@@ -72,7 +81,7 @@ const QUOTE_LIST = `'So11111111111111111111111111111111111111112','EPjFWdd5AufqS
 function tokenPage(chain: Chain, address: string, viewer: string | null) {
   const token = getToken(chain, address)
   if (!token) throw new HttpError(404, 'token not seen yet')
-  if (!token.symbol || !token.image) enrich(chain, address, true)
+  if (!token.symbol || !token.image) enrich(chain, address)
   const pools = (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY created_ts DESC LIMIT 100').all(chain, address) as any[]).map(rowToPool)
   const events = (db.prepare(`${eventSelect} WHERE e.chain = ? AND e.token = ? ORDER BY e.ts DESC LIMIT 200`).all(chain, address) as any[]).map(rowToEvent)
   const wallets = (db.prepare(`SELECT w.*, (SELECT COUNT(*) FROM follows f WHERE f.kind = 'wallet' AND f.chain = w.chain AND f.address = w.address) AS followers
@@ -111,15 +120,13 @@ function search(qs: string) {
 }
 
 async function quote(q: URLSearchParams) {
-  const p = new URLSearchParams({
-    tokenInAddress: q.get('tokenIn') ?? '', tokenInChainId: '4663', tokenOutAddress: q.get('tokenOut') ?? '', tokenOutChainId: '4663',
-    amount: q.get('amount') ?? '', type: q.get('type') === 'exactOut' ? 'exactOut' : 'exactIn',
-  })
-  if (q.get('recipient')) { p.set('recipient', q.get('recipient')!); p.set('slippageTolerance', q.get('slippage') ?? '5'); p.set('deadline', '600') }
-  const r = await fetch(`${ROUTING_API}?${p}`, { headers: { 'x-universal-router-version': '2.0' }, signal: AbortSignal.timeout(20_000) })
-  const body = await r.text()
-  if (!r.ok) throw new HttpError(r.status === 404 ? 404 : 502, body.slice(0, 300) || 'no route')
-  return JSON.parse(body)
+  const token = q.get('tokenOut')?.toLowerCase() ?? ''
+  const known = getToken('robinhood', token)
+  const direct = await quotePonsV2(q, known?.decimals ?? 18)
+  if (direct) return direct
+  const v4 = await quoteV4(q, known?.decimals ?? 18)
+  if (v4) return v4
+  throw new HttpError(404, 'No live ETH route to this token is available yet')
 }
 
 // ---- server -----------------------------------------------------------------
@@ -173,11 +180,19 @@ export function startApi(port: number) {
           out=rowToEvent(row)
         }
         else if (b === 'tokens' && c === 'hot') out = hot(q)
+        else if (b === 'research' && !c) out = listResearch(q)
+        else if (b === 'research' && chainOf(c ?? null) && d) out = getResearch(c as Chain, normAddr(c as Chain, d))
         else if (b === 'token' && chainOf(c ?? null) && d) out = tokenPage(c as Chain, normAddr(c as Chain, d), viewer)
         else if (b === 'wallet' && chainOf(c ?? null) && d) out = walletPage(c as Chain, normAddr(c as Chain, d))
         else if (b === 'leaderboard' && c === 'wallets') out = leaderboard(q)
         else if (b === 'leaderboard' && c === 'callers') out = callers()
-        else if (b === 'posts' && !c) out = listPosts({ chain: q.get('chain') ?? undefined, token: q.get('token') ?? undefined, user: q.get('user') ?? undefined, before: Number(q.get('before') ?? 0) || undefined, viewer })
+        else if (b === 'posts' && !c) out = listPosts({
+          chain: q.get('chain') ?? undefined, token: q.get('token') ?? undefined,
+          user: q.get('user') ?? undefined, following: q.get('following') ?? undefined,
+          kind: q.get('kind') === 'call' || q.get('kind') === 'comment' ? q.get('kind')! : undefined,
+          before: Number(q.get('before') ?? 0) || undefined,
+          limit: Math.max(1, Math.min(Number(q.get('limit') ?? 50) || 50, 200)), viewer,
+        })
         else if (b === 'profile' && c) out = { profile: profile(c), follows: follows(c), posts: listPosts({ user: c, viewer }) }
         else if (b === 'search') out = search(q.get('q') ?? '')
         else if (b === 'quote' && c === 'robinhood') out = await quote(q)
@@ -194,6 +209,7 @@ export function startApi(port: number) {
         }
         else if (b === 'posts' && c && (d === 'like' || d === 'unlike')) out = like(user, Number(c), d === 'like')
         else if (b === 'push') out = registerPush(user, json())
+        else if (b === 'account' && c === 'delete' && !d) out = deleteAccount(user)
         else throw new HttpError(404, 'not found')
       } else throw new HttpError(405, 'method')
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': req.method === 'GET' && (b === 'leaderboard') ? 'public, max-age=15' : 'no-store' })
@@ -242,6 +258,25 @@ export function startApi(port: number) {
   })
   bus.on('upgrade', (u: ServerMsg) => { for (const ws of clients.keys()) send(ws, u) })
 
+  // Research invalidations are coalesced across all FTL events. At very high
+  // rates, one all=true message replaces a large address list; clients then
+  // refetch visible rows. This never makes a provider call.
+  const researchDirty = new Set<string>()
+  let researchEnrolled = false
+  let researchAll = false
+  bus.on('research', (chain: Chain, address: string, enrolled: boolean) => {
+    researchEnrolled ||= enrolled
+    if (researchAll) return
+    researchDirty.add(`${chain}:${address}`)
+    if (researchDirty.size > 2000) { researchDirty.clear(); researchAll = true }
+  })
+  setInterval(() => {
+    if (!researchDirty.size && !researchAll) return
+    const msg: ServerMsg = { t: 'research', keys: researchAll ? [] : [...researchDirty], enrolled: researchEnrolled, all: researchAll, ts: Date.now() }
+    researchDirty.clear(); researchEnrolled = false; researchAll = false
+    for (const ws of clients.keys()) send(ws, msg)
+  }, 1000).unref()
+
   // token summaries change on every event; coalesce to one push per token per second
   const dirty = new Set<string>()
   bus.on('token', (chain: Chain, address: string) => dirty.add(`${chain}|${address}`))
@@ -259,4 +294,6 @@ export function startApi(port: number) {
   setInterval(() => { const s = status(); for (const ws of clients.keys()) send(ws, { t: 'status', s }) }, 5000).unref()
 
   server.listen(port, '0.0.0.0', () => console.log(`[api] listening on :${port}`))
+  startResearch()
+  return server
 }

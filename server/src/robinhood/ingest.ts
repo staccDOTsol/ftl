@@ -8,8 +8,8 @@ import { ingest, lane, lookupPool, type RawEvent } from '../hub.ts'
 import { getCursor, setCursor } from '../db.ts'
 import type { Amount } from '../../../shared/types.ts'
 import { WebSocket } from 'ws'
-import { keccak_256 } from '@noble/hashes/sha3.js'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { keccak_256 } from '@noble/hashes-v2/sha3.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes-v2/utils.js'
 
 const keccak = (hex: string) => bytesToHex(keccak_256(hexToBytes(hex)))
 

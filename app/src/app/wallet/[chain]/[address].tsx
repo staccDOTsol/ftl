@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Linking, Pressable, ScrollView, View } from 'react-native'
+import { Linking, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { Stack, router, useLocalSearchParams } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
-import { C } from '@/theme'
+import { C, MID } from '@/theme'
 import { get } from '@/lib/api'
 import { useSocial } from '@/lib/social'
 import { useLive } from '@/lib/live'
-import { useWindowDimensions } from 'react-native'
-import { MID } from '@/theme'
 import { useNow } from '@/lib/useNow'
-import { ago, explorerAddr, pct, short } from '@/lib/format'
+import { ago, pct, short, solanaExplorerAddr } from '@/lib/format'
 import type { Chain, FlowEvent, TokenSummary, WalletSummary } from '@/lib/types'
 import { EventRow } from '@/components/rows'
 import { Button, ChainBadge, Chip, Empty, FlagChips, Loading, Screen, Section, Stat, Txt } from '@/components/ui'
@@ -59,7 +57,7 @@ export default function WalletScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Button label={following ? 'Following' : 'Follow wallet'} kind={following ? 'ghost' : 'primary'} style={{ flex: 1 }} onPress={() => social.toggle('wallet', w.chain, w.address).catch(() => {})} />
-            <Chip label="Explorer ↗" onPress={() => Linking.openURL(explorerAddr(w.chain, w.address))} />
+            {w.chain === 'solana' ? <Chip label="Solscan ↗" onPress={() => Linking.openURL(solanaExplorerAddr(w.address))} /> : null}
           </View>
         </View>
 

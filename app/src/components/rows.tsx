@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { C, CHAIN, F, FLAG, KIND, T } from '@/theme'
 import { loudness, num, pct, quoteLeg, short, usd, usdOf, venue } from '@/lib/format'
+import { useClock } from '@/lib/clock'
 import { eventLink } from '@/lib/event-context'
 import type { LiveEvent } from '@/lib/live'
 import type { TokenSummary, WalletSummary } from '@/lib/types'
@@ -11,9 +12,9 @@ import { Ago, ChainBadge, FlagChips, Press, Spark, TokenAvatar, Txt } from './ui
 
 const FRESH_MS = 1800
 
-function Flash({ color, fresh }: { color: string; fresh?: number }) {
-  const o = useSharedValue(fresh && Date.now() - fresh < FRESH_MS ? 1 : 0)
-  useEffect(() => { o.value = withTiming(0, { duration: 1600, easing: Easing.out(Easing.quad) }) }, [])
+function Flash({ color }: { color: string }) {
+  const o = useSharedValue(1)
+  useEffect(() => { o.value = withTiming(0, { duration: 1600, easing: Easing.out(Easing.quad) }) }, [o])
   const st = useAnimatedStyle(() => ({ opacity: o.value }))
   return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: color }, st]} />
 }
@@ -21,26 +22,27 @@ function Flash({ color, fresh }: { color: string; fresh?: number }) {
 // new rows slide down into place and settle; reanimated's layout presets stall on web
 function Enter({ fresh, children }: { fresh: boolean; children: ReactNode }) {
   const p = useSharedValue(fresh ? 0 : 1)
-  useEffect(() => { if (fresh) p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }) }, [])
+  useEffect(() => { if (fresh) p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }) }, [fresh, p])
   const st = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: (1 - p.value) * -8 }] }))
   return <Animated.View style={st}>{children}</Animated.View>
 }
 
 function Pending() {
   const o = useSharedValue(1)
-  useEffect(() => { o.value = withRepeat(withTiming(0.25, { duration: 520 }), -1, true) }, [])
+  useEffect(() => { o.value = withRepeat(withTiming(0.25, { duration: 520 }), -1, true) }, [o])
   const st = useAnimatedStyle(() => ({ opacity: o.value }))
   return <Animated.View style={[r.dot, { backgroundColor: C.warn }, st]} />
 }
 
 export const EventRow = memo(function EventRow({ e, prices, wide, showToken = true }: { e: LiveEvent; prices?: Record<string, number>; wide: boolean; showToken?: boolean }) {
+  const now = useClock()
   const k = KIND[e.kind]
   const label = e.tokenMeta?.symbol ? e.tokenMeta.symbol.slice(0, 16) : short(e.token)
   const name = e.tokenMeta?.name && e.tokenMeta.name !== e.tokenMeta.symbol ? e.tokenMeta.name : null
   const dollars = usdOf(e, prices)
   const loud = loudness(dollars)
   const hot = e.flags.some(f => FLAG[f].hot)
-  const fresh = e.fresh && Date.now() - e.fresh < FRESH_MS
+  const fresh = !!(e.fresh && now - e.fresh < FRESH_MS)
   const early = e.lane === 'preconf' || e.lane === 'deshred'
   const lead = early && e.confirmedTs ? e.confirmedTs - e.ts : null
   const meta = [venue(e.venue), e.feeBps !== null ? `${(e.feeBps / 100).toFixed(e.feeBps % 100 ? 2 : 0)}% fee` : null].filter(Boolean).join(' · ')
@@ -63,7 +65,7 @@ export const EventRow = memo(function EventRow({ e, prices, wide, showToken = tr
     <Enter fresh={!!fresh}>
       <Press onPress={open} accessibilityRole="link"
         style={({ hovered, pressed }) => [r.row, wide ? r.rowWide : r.rowNarrow, hot && { backgroundColor: C.heatDim }, hovered && { backgroundColor: hot ? C.heatDim : C.hover }, pressed && { opacity: 0.8 }]}>
-        {fresh ? <Flash color={hot ? C.heatDim : k.dim} fresh={e.fresh} /> : null}
+        {fresh ? <Flash color={hot ? C.heatDim : k.dim} /> : null}
         <TokenAvatar image={e.tokenMeta?.image} label={label} chain={e.chain} size={wide ? 34 : 36} />
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
           <View style={r.line}>

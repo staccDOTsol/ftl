@@ -3,7 +3,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { WS_URL, get } from './api'
-import type { Chain, ClientMsg, FlowEvent, ServerMsg, Status, TokenMeta, TokenSummary } from './types'
+import type { Chain, ClientMsg, FlowEvent, Post, ServerMsg, Status, TokenMeta, TokenSummary } from './types'
 
 type Listener = () => void
 const MAX = 300
@@ -12,6 +12,7 @@ const BINS = 30          // pulse history: 30 bins of 2 s = one minute
 const BIN_MS = 2000
 
 export type LiveEvent = FlowEvent & { fresh?: number }
+type ResearchChange = Extract<ServerMsg, { t: 'research' }>
 
 class Live {
   events: LiveEvent[] = []
@@ -19,6 +20,8 @@ class Live {
   connected = false
   tokens = new Map<string, TokenSummary>()
   tokenTick = 0
+  posts: Post[] = []
+  postTick = 0
   held: LiveEvent[] = []
   hold = false
   // per-chain arrivals, for the pulse in the header
@@ -26,6 +29,7 @@ class Live {
   // whole-chain throughput from the server's lane counters: 12 bins of one status tick (5 s)
   flow: Record<Chain, number[]> = { solana: new Array(12).fill(0), robinhood: new Array(12).fill(0) }
   private lastWins: Record<Chain, number | null> = { solana: null, robinhood: null }
+  private flowReady: Record<Chain, boolean> = { solana: false, robinhood: false }
   // per-token arrivals over the last minute, for the heat rail sparklines
   tokenRate = new Map<string, number[]>()
   private binAt = Math.floor(Date.now() / BIN_MS)
@@ -37,6 +41,7 @@ class Live {
   private inbox: LiveEvent[] = []
   private dirty = false
   private eventHooks = new Set<(e: FlowEvent) => void>()
+  private researchHooks = new Set<(change: ResearchChange) => void>()
 
   private lastMsg = 0
   private downSince = Date.now()
@@ -127,6 +132,13 @@ class Live {
         if (hit) { this.events = next; this.dirty = true }
       } else if (msg.t === 'status') this.onStatus(msg.s)
       else if (msg.t === 'token') { this.tokens.set(`${msg.s.chain}:${msg.s.address}`, msg.s); this.tokenTick++; this.dirty = true }
+      else if (msg.t === 'post') {
+        this.posts = [msg.p, ...this.posts.filter(p => p.id !== msg.p.id)].slice(0, 100)
+        this.postTick++
+        this.dirty = true
+      } else if (msg.t === 'research') {
+        for (const h of this.researchHooks) h(msg)
+      }
     }
   }
 
@@ -136,7 +148,19 @@ class Live {
       const wins = st.lanes.filter(x => x.chain === c).reduce((a, x) => a + x.firstSeenWins, 0)
       const prev = this.lastWins[c]
       this.lastWins[c] = wins
-      if (prev !== null) this.flow[c] = [...this.flow[c].slice(1), Math.max(0, wins - prev)]
+      if (prev !== null) {
+        const delta = wins - prev
+        if (delta < 0) {
+          // A server restart resets cumulative counters. Wait for a new sample.
+          this.flow[c] = new Array(12).fill(0)
+          this.flowReady[c] = false
+        } else {
+          this.flow[c] = [...this.flow[c].slice(1), delta]
+          // The first zero can only mean no arrivals since opening the page;
+          // recent confirmed feed rows may already be visible from HTTP.
+          if (delta > 0) this.flowReady[c] = true
+        }
+      }
     }
     this.dirty = true
   }
@@ -183,7 +207,7 @@ class Live {
     if (this.dirty) { this.dirty = false; this.version++; for (const l of this.listeners) l() }
   }
 
-  perMinute(chain: Chain) { return this.flow[chain].reduce((a, b) => a + b, 0) }
+  perMinute(chain: Chain): number | null { return this.flowReady[chain] ? this.flow[chain].reduce((a, b) => a + b, 0) : null }
 
   setFilter(f: ClientMsg) {
     this.filter = f
@@ -205,6 +229,7 @@ class Live {
     this.dirty = true
   }
   onEvent(h: (e: FlowEvent) => void) { this.eventHooks.add(h); return () => { this.eventHooks.delete(h) } }
+  onResearch(h: (change: ResearchChange) => void) { this.researchHooks.add(h); return () => { this.researchHooks.delete(h) } }
 
   subscribe = (l: Listener) => { this.listeners.add(l); return () => { this.listeners.delete(l) } }
   private version = 0

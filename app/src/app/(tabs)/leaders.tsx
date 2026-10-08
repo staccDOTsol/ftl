@@ -3,22 +3,30 @@ import { FlatList, Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { C } from '@/theme'
 import { get } from '@/lib/api'
-import { useNow } from '@/lib/useNow'
 import { pct, short } from '@/lib/format'
 import type { CallerSummary, Chain, WalletSummary } from '@/lib/types'
 import { WalletRow } from '@/components/rows'
 import { Empty, Loading, Screen, Seg, Txt } from '@/components/ui'
 
 export default function Leaders() {
-  const now = useNow(10_000)
   const [tab, setTab] = useState<'lps' | 'callers'>('lps')
   const [chain, setChain] = useState<'all' | Chain>('all')
-  const [wallets, setWallets] = useState<WalletSummary[] | null>(null)
+  const [walletResult, setWalletResult] = useState<{ chain: 'all' | Chain; rows: WalletSummary[] } | null>(null)
   const [callers, setCallers] = useState<CallerSummary[] | null>(null)
+  const wallets = walletResult?.chain === chain ? walletResult.rows : null
 
   useEffect(() => {
-    if (tab === 'lps') { setWallets(null); get<WalletSummary[]>('/api/leaderboard/wallets', { chain: chain === 'all' ? undefined : chain, min: 2 }).then(setWallets).catch(() => setWallets([])) }
-    else { setCallers(null); get<CallerSummary[]>('/api/leaderboard/callers').then(setCallers).catch(() => setCallers([])) }
+    let active = true
+    if (tab === 'lps') {
+      void get<WalletSummary[]>('/api/leaderboard/wallets', { chain: chain === 'all' ? undefined : chain, min: 2 })
+        .then(rows => { if (active) setWalletResult({ chain, rows }) })
+        .catch(() => { if (active) setWalletResult({ chain, rows: [] }) })
+    } else {
+      void get<CallerSummary[]>('/api/leaderboard/callers')
+        .then(rows => { if (active) setCallers(rows) })
+        .catch(() => { if (active) setCallers([]) })
+    }
+    return () => { active = false }
   }, [tab, chain])
 
   const header = (

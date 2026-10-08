@@ -1,0 +1,10 @@
+{
+  "name": "liquidityxyz",
+  "symbol": "LXYZ",
+  "description": "liquidityxyzfun is the only live SocialFi layer for Robinhood Chain and Solana that actually gives anyone any actionable alpha. Follow wallets, catch pool births and liquidity moves, call tokens before graduation, and see who spotted the action first.",
+  "image": "https://www.liquidityxyz.fun/liquidityxyz-token.png",
+  "external_url": "https://www.liquidityxyz.fun/",
+  "chain": "Robinhood Chain",
+  "chain_id": 4663,
+  "contract_address": "0xb051d6c1feb3e43b67a0a2b2aa7e0caa536614c4"
+}

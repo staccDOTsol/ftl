@@ -1,23 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Linking, Pressable, ScrollView, View } from 'react-native'
-import { Stack, router, useLocalSearchParams } from 'expo-router'
+import { Linking, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
-import { C, CHAIN, FLAG } from '@/theme'
+import { C, CHAIN, FLAG, MID } from '@/theme'
 import { get } from '@/lib/api'
 import { useSocial } from '@/lib/social'
 import { useLive } from '@/lib/live'
-import { useWindowDimensions } from 'react-native'
-import { MID } from '@/theme'
 import { useNow } from '@/lib/useNow'
 import { ago, short, venue } from '@/lib/format'
-import type { Chain, FlowEvent, PoolSummary, Post, TokenSummary, WalletSummary } from '@/lib/types'
+import type { Chain, FlowEvent, PoolSummary, Post, ResearchCoinDetail, TokenSummary, WalletSummary } from '@/lib/types'
 import { EventRow, WalletRow } from '@/components/rows'
 import { Button, ChainBadge, Chip, Empty, FlagChips, Loading, Screen, Section, Stat, TokenAvatar, Txt } from '@/components/ui'
 import { Composer, PostItem } from '@/components/Posts'
 import { Trade } from '@/components/Trade'
 import { eventContext } from '@/lib/event-context'
+import { ResearchSummary } from '@/components/Research'
 
 interface Page { token: TokenSummary; pools: PoolSummary[]; events: FlowEvent[]; wallets: WalletSummary[]; posts: Post[] }
+const OFFICIAL_RH_TOKEN = '0xb051d6c1feb3e43b67a0a2b2aa7e0caa536614c4'
 
 export default function TokenScreen() {
   const { chain, address, event: eventId, action } = useLocalSearchParams<{ chain: Chain; address: string; event?: string; action?: string }>()
@@ -29,9 +29,19 @@ export default function TokenScreen() {
   const [origin, setOrigin] = useState<FlowEvent | null>(() => eventContext(eventId, chain, address))
   const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [research, setResearch] = useState<ResearchCoinDetail | null>(null)
+  const researchAddress = chain === 'robinhood' ? address?.toLowerCase() : address
 
   const load = useCallback(() => get<Page>(`/api/token/${chain}/${address}`, { viewer: social.pubkey }).then(setPage).catch(e => setErr(e.message)), [chain, address, social.pubkey])
   useEffect(() => { void load(); const t = setInterval(load, 8000); return () => clearInterval(t) }, [load])
+  useFocusEffect(useCallback(() => {
+    if (!chain || !researchAddress) return
+    void get<ResearchCoinDetail>(`/api/research/${chain}/${encodeURIComponent(researchAddress)}`).then(setResearch).catch(() => setResearch(null))
+  }, [chain, researchAddress]))
+  useEffect(() => live.onResearch(change => {
+    if (chain && researchAddress && (change.all || change.keys.includes(`${chain}:${researchAddress}`)))
+      void get<ResearchCoinDetail>(`/api/research/${chain}/${encodeURIComponent(researchAddress)}`).then(setResearch).catch(() => {})
+  }), [chain, researchAddress, live])
 
   useEffect(() => {
     if (!eventId || eventContext(eventId, chain, address)) return
@@ -48,6 +58,12 @@ export default function TokenScreen() {
   const t = page.token
   const label = t.symbol ? '$' + t.symbol : short(t.address)
   const following = social.isFollowing('token', t.chain, t.address)
+  const visibleResearch = research?.chain === t.chain && research.address === (t.chain === 'robinhood' ? t.address.toLowerCase() : t.address) ? research : null
+  const officialToken = t.chain === 'robinhood' && t.address.toLowerCase() === OFFICIAL_RH_TOKEN
+  const missingResearch = officialToken ? [
+    !visibleResearch || visibleResearch.holderStrength.score === null ? 'holder strength' : null,
+    !visibleResearch || visibleResearch.bottoming.signs === null ? 'bottoming' : null,
+  ].filter(Boolean) : []
 
   return (
     <Screen edges={[]}>
@@ -55,7 +71,7 @@ export default function TokenScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
         <View style={{ padding: 16, gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <TokenAvatar image={t.image} label={label} size={64} chain={t.chain} />
+            <TokenAvatar image={t.image || (officialToken ? 'https://www.liquidityxyz.fun/liquidityxyz-token.png' : undefined)} label={label} size={64} chain={t.chain} />
             <View style={{ flex: 1, gap: 2 }}>
               <Txt v="title" numberOfLines={1}>{label}</Txt>
               {t.name ? <Txt v="small" numberOfLines={1}>{t.name}</Txt> : null}
@@ -65,7 +81,13 @@ export default function TokenScreen() {
               </Pressable>
             </View>
           </View>
-          {t.description ? <Txt v="small" numberOfLines={4}>{t.description}</Txt> : null}
+          {t.description ? (
+            <View style={{ gap: 4 }}>
+              <Txt v="monoSmall" color={C.faint}>ISSUER DESCRIPTION</Txt>
+              <Txt v="small" numberOfLines={4}>{t.description}</Txt>
+              {missingResearch.length ? <Txt v="small">FTL {missingResearch.join(' and ')} analytics are still being built. The Research card below shows current source coverage.</Txt> : null}
+            </View>
+          ) : null}
           {t.twitter || t.website ? (
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
               {t.twitter ? <Chip label="𝕏" onPress={() => Linking.openURL(/^https?:/.test(t.twitter!) ? t.twitter! : `https://x.com/${t.twitter!.replace(/^@/, '')}`)} /> : null}
@@ -94,10 +116,22 @@ export default function TokenScreen() {
           ) : null}
         </View>
 
+        <Section title="Call it">
+          <Composer chain={t.chain} token={t.address} graduated={!!t.graduatedTs} onPosted={p => setPage(pg => pg ? { ...pg, posts: [p, ...pg.posts] } : pg)} />
+        </Section>
+
+        <Section title="Coin research">
+          {visibleResearch ? <ResearchSummary coin={visibleResearch} token={t} onPress={() => router.push(`/research/${t.chain}/${visibleResearch.address}`)} /> : (
+            <View style={{ paddingHorizontal: 16, gap: 8 }}>
+              <Txt v="small">FTL adds research automatically as it sees this coin. Source coverage is shown in each report.</Txt>
+              <Button label="Open Research →" kind="ghost" onPress={() => router.push('/research')} />
+            </View>
+          )}
+        </Section>
+
         <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : eventId ? 'liquidity' : undefined} />
 
         <Section title={`Calls & comments · ${page.posts.length}`}>
-          <Composer chain={t.chain} token={t.address} graduated={!!t.graduatedTs} onPosted={p => setPage(pg => pg ? { ...pg, posts: [p, ...pg.posts] } : pg)} />
           {page.posts.map(p => <PostItem key={p.id} p={p} now={now} />)}
         </Section>
 

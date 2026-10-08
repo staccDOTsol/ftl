@@ -11,29 +11,32 @@ import { Ago, Press, TokenAvatar } from './ui'
 // the newest token births across both chains, scrolling in from the left: the
 // tape stays about liquidity while launches still give the page a heartbeat
 export function LaunchTicker({ chain }: { chain?: Chain }) {
-  const [items, setItems] = useState<FlowEvent[]>([])
+  const [result, setResult] = useState<{ chain?: Chain; items: { e: FlowEvent; fresh: boolean }[] } | null>(null)
   const seen = useRef(new Set<string>())
   const first = useRef(true)
   useEffect(() => {
     let alive = true
+    seen.current = new Set()
+    first.current = true
     const load = async () => {
       const evs = await get<FlowEvent[]>('/api/feed', { kinds: 'launch', chain, limit: 24 }).catch(() => null)
       if (!alive || !evs) return
-      setItems(evs)
+      const items = evs.map(e => ({ e, fresh: !first.current && !seen.current.has(e.id) }))
+      for (const e of evs) seen.current.add(e.id)
+      first.current = false
+      setResult({ chain, items })
     }
     void load()
     const t = setInterval(load, 3000)
     return () => { alive = false; clearInterval(t) }
   }, [chain])
+  const items = result && result.chain === chain ? result.items : []
   if (!items.length) return null
-  const isNew = (id: string) => { const n = !first.current && !seen.current.has(id); seen.current.add(id); return n }
-  const out = items.map(e => ({ e, fresh: isNew(e.id) }))
-  first.current = false
   return (
     <View style={st.wrap}>
       <Text style={st.label}>LAUNCHES</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }}>
-        {out.map(({ e, fresh }) => <Tick key={e.id} e={e} fresh={fresh} />)}
+        {items.map(({ e, fresh }) => <Tick key={e.id} e={e} fresh={fresh} />)}
       </ScrollView>
     </View>
   )
@@ -41,7 +44,7 @@ export function LaunchTicker({ chain }: { chain?: Chain }) {
 
 const Tick = memo(function Tick({ e, fresh }: { e: FlowEvent; fresh: boolean }) {
   const p = useSharedValue(fresh ? 0 : 1)
-  useEffect(() => { if (fresh) p.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }) }, [])
+  useEffect(() => { if (fresh) p.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }) }, [fresh, p])
   const a = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateX: (1 - p.value) * -14 }, { scale: 0.92 + 0.08 * p.value }] }))
   const sym = e.tokenMeta?.symbol ? e.tokenMeta.symbol.slice(0, 10) : short(e.token, 3)
   return (

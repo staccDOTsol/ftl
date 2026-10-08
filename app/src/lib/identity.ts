@@ -34,3 +34,12 @@ export function identity(): Promise<Identity> {
   })()
   return cached
 }
+
+export async function clearIdentity(): Promise<void> {
+  try {
+    if (Platform.OS === 'web') globalThis.localStorage?.removeItem(KEY)
+    else await SecureStore.deleteItemAsync(KEY)
+  } finally {
+    cached = null
+  }
+}

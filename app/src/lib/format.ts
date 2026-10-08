@@ -1,4 +1,4 @@
-import type { Chain, FlowEvent } from './types'
+import type { FlowEvent } from './types'
 
 const QUOTES: Record<string, string> = {
   So11111111111111111111111111111111111111112: 'SOL',
@@ -53,12 +53,7 @@ export function quoteLeg(e: FlowEvent): string | null {
   return `${num(e.quoteUi)} ${q ? QUOTES[q.mint] : quoteSymbol(e.quote) ?? ''}`.trim()
 }
 
-export function explorerTx(chain: Chain, tx: string) {
-  return chain === 'solana' ? `https://solscan.io/tx/${tx}` : `https://robinhoodchain.blockscout.com/tx/${tx}`
-}
-export function explorerAddr(chain: Chain, a: string) {
-  return chain === 'solana' ? `https://solscan.io/account/${a}` : `https://robinhoodchain.blockscout.com/address/${a}`
-}
+export const solanaExplorerAddr = (address: string) => `https://solscan.io/account/${address}`
 
 export const VENUE_LABEL: Record<string, string> = {
   orca: 'Orca', 'raydium-clmm': 'Raydium CLMM', 'raydium-cpmm': 'Raydium CPMM', 'raydium-amm': 'Raydium AMM', 'raydium-launchlab': 'LaunchLab',

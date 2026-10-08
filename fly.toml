@@ -8,6 +8,7 @@ primary_region = 'ewr'
   DATA_DIR = '/data'
   PORT = '8080'
   BACKFILL_HOURS = '24'
+  HELIUS_TARGETED_STREAM = '1'
 
 [mounts]
   source = 'ftl_data'

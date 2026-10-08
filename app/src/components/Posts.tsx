@@ -3,14 +3,17 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { C, F } from '@/theme'
 import { post as apiPost } from '@/lib/api'
+import { useSocial } from '@/lib/social'
 import { ago, short } from '@/lib/format'
 import type { Chain, Post } from '@/lib/types'
 import { Button, Seg, Txt } from './ui'
 
 export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post; now: number; showToken?: boolean }) {
+  const social = useSocial()
   const [liked, setLiked] = useState(!!p.liked)
   const [likes, setLikes] = useState(p.likes)
   const name = p.author.handle ? '@' + p.author.handle : short(p.author.pubkey)
+  const following = social.isFollowing('user', 'solana', p.author.pubkey)
   return (
     <View style={ps.item}>
       <View style={ps.head}>
@@ -22,13 +25,20 @@ export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post;
         <Txt v="monoSmall">{ago(p.ts, now)}</Txt>
       </View>
       <Txt v="body" selectable>{p.body}</Txt>
-      <Pressable hitSlop={8} onPress={async () => {
-        const on = !liked
-        setLiked(on); setLikes(n => n + (on ? 1 : -1))
-        try { const r = await apiPost<Post>(`/api/posts/${p.id}/${on ? 'like' : 'unlike'}`, {}); setLikes(r.likes) } catch { setLiked(!on); setLikes(n => n + (on ? -1 : 1)) }
-      }}>
-        <Txt v="monoSmall" color={liked ? '#FF5D8F' : C.muted}>{liked ? '♥' : '♡'} {likes}</Txt>
-      </Pressable>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Pressable hitSlop={8} onPress={async () => {
+          const on = !liked
+          setLiked(on); setLikes(n => n + (on ? 1 : -1))
+          try { const r = await apiPost<Post>(`/api/posts/${p.id}/${on ? 'like' : 'unlike'}`, {}); setLikes(r.likes) } catch { setLiked(!on); setLikes(n => n + (on ? -1 : 1)) }
+        }}>
+          <Txt v="monoSmall" color={liked ? '#FF5D8F' : C.muted}>{liked ? '♥' : '♡'} {likes}</Txt>
+        </Pressable>
+        {social.pubkey && social.pubkey !== p.author.pubkey ? (
+          <Pressable hitSlop={8} onPress={() => social.toggle('user', 'solana', p.author.pubkey).catch(() => {})}>
+            <Txt v="monoSmall" color={following ? C.faint : C.accent}>{following ? 'Following' : '+ Follow person'}</Txt>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   )
 })

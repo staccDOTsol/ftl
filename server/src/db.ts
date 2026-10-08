@@ -67,6 +67,11 @@ CREATE INDEX IF NOT EXISTS wallet_tokens_token ON wallet_tokens(chain, token);
 CREATE TABLE IF NOT EXISTS users (
   pubkey TEXT PRIMARY KEY, handle TEXT UNIQUE COLLATE NOCASE, bio TEXT, created_ts INTEGER NOT NULL
 );
+-- Brief replay guard after account deletion. Store a digest rather than the
+-- deleted profile key; stale signed writes must not recreate the account.
+CREATE TABLE IF NOT EXISTS account_deletion_guards (
+  key_hash TEXT PRIMARY KEY, deleted_ts INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS follows (
   user TEXT NOT NULL, kind TEXT NOT NULL, chain TEXT NOT NULL, address TEXT NOT NULL, ts INTEGER NOT NULL,
   PRIMARY KEY (user, kind, chain, address)
@@ -85,11 +90,95 @@ CREATE TABLE IF NOT EXISTS likes (user TEXT NOT NULL, post INTEGER NOT NULL, PRI
 CREATE TABLE IF NOT EXISTS push_tokens (token TEXT PRIMARY KEY, user TEXT NOT NULL, platform TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS push_user ON push_tokens(user);
 CREATE TABLE IF NOT EXISTS cursors (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+-- Every token with an FTL event is enrolled. The table tracks identity
+-- and first-seen time only; research never polls or stores holder snapshots.
+CREATE TABLE IF NOT EXISTS research_tokens (
+  chain TEXT NOT NULL,
+  address TEXT NOT NULL,
+  first_seen_ts INTEGER NOT NULL,
+  PRIMARY KEY (chain, address)
+);
+CREATE INDEX IF NOT EXISTS research_tokens_newest ON research_tokens(first_seen_ts DESC, chain DESC, address DESC);
+CREATE TABLE IF NOT EXISTS research_lp_events (
+  id TEXT PRIMARY KEY,
+  chain TEXT NOT NULL,
+  address TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  first_seen_ts INTEGER NOT NULL,
+  confirmed_ts INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS research_lp_events_address ON research_lp_events(chain, address, first_seen_ts);
+-- Actual executed swaps from the existing Yellowstone stream, plus event-
+-- driven OHLCV aggregates. These are trades, not periodic price snapshots.
+CREATE TABLE IF NOT EXISTS research_swaps (
+  id TEXT PRIMARY KEY,
+  chain TEXT NOT NULL,
+  token TEXT NOT NULL,
+  quote TEXT NOT NULL,
+  quote_symbol TEXT NOT NULL,
+  venue TEXT NOT NULL,
+  instruction TEXT NOT NULL,
+  slot INTEGER NOT NULL,
+  bank_id TEXT,
+  finalized INTEGER NOT NULL DEFAULT 0,
+  ts INTEGER NOT NULL,
+  token_ui REAL NOT NULL,
+  quote_ui REAL NOT NULL,
+  price_quote REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS research_swaps_token_ts ON research_swaps(chain, token, quote, ts DESC);
+-- Connectivity intervals are stream events, not periodic data snapshots.
+-- A crash leaves the previous interval ending at its last received pulse.
+CREATE TABLE IF NOT EXISTS research_stream_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lane TEXT NOT NULL,
+  token TEXT,
+  started_ts INTEGER NOT NULL,
+  last_pulse_ts INTEGER NOT NULL,
+  ended_ts INTEGER,
+  gap_reason TEXT
+);
+CREATE TABLE IF NOT EXISTS research_stream_health (
+  lane TEXT PRIMARY KEY,
+  last_pulse_ts INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS research_trade_candles (
+  chain TEXT NOT NULL,
+  token TEXT NOT NULL,
+  quote TEXT NOT NULL,
+  quote_symbol TEXT NOT NULL,
+  day_ts INTEGER NOT NULL,
+  open REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL,
+  volume_quote REAL NOT NULL, trades INTEGER NOT NULL,
+  first_trade_ts INTEGER NOT NULL, last_trade_ts INTEGER NOT NULL,
+  PRIMARY KEY (chain, token, quote, day_ts)
+);
+CREATE INDEX IF NOT EXISTS research_trade_candles_token_day ON research_trade_candles(chain, token, day_ts DESC);
+-- Slot metadata is a bounded event log from a finalized stream. It supplies
+-- canonical timestamps for streamed trades without per-transaction RPC reads.
+CREATE TABLE IF NOT EXISTS research_solana_blocktime (
+  slot INTEGER PRIMARY KEY,
+  blockhash TEXT,
+  block_ts INTEGER,
+  finalized INTEGER NOT NULL DEFAULT 0,
+  seen_ts INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS research_solana_blocktime_seen ON research_solana_blocktime(seen_ts);
 `)
 
 for (const col of ['description TEXT', 'twitter TEXT', 'website TEXT']) {
   try { db.exec(`ALTER TABLE tokens ADD COLUMN ${col}`) } catch {}
 }
+
+for (const col of ['bank_id TEXT', 'finalized INTEGER NOT NULL DEFAULT 0']) {
+  try { db.exec(`ALTER TABLE research_swaps ADD COLUMN ${col}`) } catch {}
+}
+db.exec('CREATE INDEX IF NOT EXISTS research_swaps_slot_finality ON research_swaps(slot, finalized)')
+for (const col of ['token TEXT', 'gap_reason TEXT']) {
+  try { db.exec(`ALTER TABLE research_stream_sessions ADD COLUMN ${col}`) } catch {}
+}
+db.exec('CREATE INDEX IF NOT EXISTS research_stream_sessions_window ON research_stream_sessions(token, started_ts, ended_ts)')
 
 export function tx<T>(fn: () => T): T {
   db.exec('BEGIN')

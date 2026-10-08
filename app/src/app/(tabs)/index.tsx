@@ -6,9 +6,10 @@ import { get } from '@/lib/api'
 import { live, useLive, type LiveEvent } from '@/lib/live'
 import type { Chain, FlowEvent, Kind, TokenSummary } from '@/lib/types'
 import { EVENT_ROW_H, EventRow, TokenRow } from '@/components/rows'
-import { Chip, Empty, Press, Screen, Seg, Skeleton, Txt } from '@/components/ui'
+import { Button, Chip, Empty, Press, Screen, Seg, Skeleton, Txt } from '@/components/ui'
 import { Pulse, useWide } from '@/components/NavBar'
 import { LaunchTicker } from '@/components/LaunchTicker'
+import { NowFeed } from '@/components/NowFeed'
 
 const KINDS: Kind[] = ['pool_init', 'liq_add', 'liq_remove', 'graduate', 'launch']
 const KIND_LABEL: Record<Kind, string> = { pool_init: 'New pools', liq_add: 'Adds', liq_remove: 'Pulls', graduate: 'Grads', launch: 'Launches' }
@@ -20,19 +21,23 @@ export default function LiveScreen() {
   const [chain, setChain] = useState<'all' | Chain>('all')
   const [kinds, setKinds] = useState<Kind[]>(['pool_init', 'liq_add', 'liq_remove', 'graduate'])
   const [flagged, setFlagged] = useState(false)
+  const [view, setView] = useState<'now' | 'full'>('now')
   const [loading, setLoading] = useState(true)
   const list = useRef<FlatList<LiveEvent>>(null)
   const feedWide = (wide ? width - 236 - 360 : width) >= MID
 
   useEffect(() => {
+    if (view === 'now') {
+      live.setFilter({ t: 'filter' })
+      return
+    }
     const chains = chain === 'all' ? undefined : [chain]
     live.setFilter({ t: 'filter', chains, kinds, flaggedOnly: flagged })
-    setLoading(true)
     get<FlowEvent[]>('/api/feed', { chain: chain === 'all' ? undefined : chain, kinds: kinds.join(','), flagged: flagged ? 1 : undefined, limit: 150 })
       .then(evs => live.seed(evs))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [chain, kinds.join(','), flagged])
+  }, [chain, kinds.join(','), flagged, view])
 
   const toggleKind = (k: Kind) => setKinds(ks => ks.includes(k) ? (ks.length > 1 ? ks.filter(x => x !== k) : ks) : [...ks, k])
 
@@ -48,9 +53,10 @@ export default function LiveScreen() {
     <View style={st.header}>
       <View style={st.titleRow}>
         <View style={{ gap: 2, flexShrink: 1, minWidth: 220 }}>
-          <Text style={st.title}>{wide ? 'Live liquidity' : <>liquidity<Text style={{ color: C.accent }}>xyz</Text></>}</Text>
+          <Text style={st.title}>Full feed</Text>
           <Txt v="small">Pool births, adds and pulls the moment the chain sees them</Txt>
         </View>
+        <Button label="← Now" kind="ghost" onPress={() => setView('now')} />
         {!wide ? <Pulse inline /> : null}
       </View>
       <View style={st.filters}>
@@ -92,6 +98,8 @@ export default function LiveScreen() {
       ) : null}
     </View>
   )
+
+  if (view === 'now') return <Screen><NowFeed onFullFeed={() => setView('full')} /></Screen>
 
   return (
     <Screen>

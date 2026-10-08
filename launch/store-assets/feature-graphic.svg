@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500" role="img" aria-label="liquidityxyz feature graphic">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1">
+      <stop stop-color="#0b0e14"/>
+      <stop offset="1" stop-color="#111a1d"/>
+    </linearGradient>
+    <linearGradient id="line" x2="1" y2="0">
+      <stop stop-color="#57ecc2" stop-opacity="0"/>
+      <stop offset="0.47" stop-color="#57ecc2" stop-opacity=".65"/>
+      <stop offset="1" stop-color="#57ecc2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="500" fill="url(#bg)"/>
+  <g opacity=".34" stroke="#3d8171" stroke-width="1">
+    <path d="M0 402H1024M0 352H1024M0 302H1024M0 252H1024M0 202H1024M0 152H1024M0 102H1024"/>
+    <path d="M94 0V500M194 0V500M294 0V500M394 0V500M494 0V500M594 0V500M694 0V500M794 0V500M894 0V500M994 0V500"/>
+  </g>
+  <g fill="none" transform="translate(245 250)">
+    <circle r="181" stroke="#21483f" stroke-width="24"/>
+    <circle r="131" stroke="#3c8d7a" stroke-width="24"/>
+    <circle r="82" stroke="#51cfae" stroke-width="24"/>
+    <circle r="30" fill="#57ecc2"/>
+  </g>
+  <path d="M428 250H572" stroke="url(#line)" stroke-width="3"/>
+  <circle cx="572" cy="250" r="4" fill="#57ecc2"/>
+  <g font-family="Inter, Arial, sans-serif" fill="#f5f7f4">
+    <text x="590" y="243" font-weight="800" font-size="67" letter-spacing="-3">liquidityxyz</text>
+    <text x="594" y="291" font-weight="600" font-size="24" fill="#9db7af">Follow the liquidity.</text>
+  </g>
+</svg>

@@ -3,15 +3,17 @@ import { FlatList, View } from 'react-native'
 import { Stack, useLocalSearchParams } from 'expo-router'
 import { C } from '@/theme'
 import { get } from '@/lib/api'
+import { useSocial } from '@/lib/social'
 import { useNow } from '@/lib/useNow'
 import { short } from '@/lib/format'
 import type { Post, Profile } from '@/lib/types'
-import { Empty, Loading, Screen, Stat, Txt } from '@/components/ui'
+import { Button, Empty, Loading, Screen, Stat, Txt } from '@/components/ui'
 import { PostItem } from '@/components/Posts'
 
 export default function ProfileScreen() {
   const { pubkey } = useLocalSearchParams<{ pubkey: string }>()
   const now = useNow(10_000)
+  const social = useSocial()
   const [data, setData] = useState<{ profile: Profile; follows: any[]; posts: Post[] } | null>(null)
   useEffect(() => { get<any>(`/api/profile/${pubkey}`).then(setData).catch(() => {}) }, [pubkey])
   if (!data) return <Screen edges={[]}><Loading /></Screen>
@@ -30,6 +32,7 @@ export default function ProfileScreen() {
             <Txt v="title">{name}</Txt>
             {data.profile.bio ? <Txt v="body">{data.profile.bio}</Txt> : null}
             <Txt v="monoSmall" selectable>{data.profile.pubkey}</Txt>
+            {social.pubkey && social.pubkey !== data.profile.pubkey ? <Button label={social.isFollowing('user', 'solana', data.profile.pubkey) ? 'Following' : 'Follow person'} kind={social.isFollowing('user', 'solana', data.profile.pubkey) ? 'ghost' : 'primary'} onPress={() => social.toggle('user', 'solana', data.profile.pubkey).catch(() => {})} /> : null}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Stat label="calls" value={calls.length} />
               <Stat label="hits" value={hits} color={hits ? C.good : undefined} />

@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from 'react'
 import { get, post } from './api'
-import { identity } from './identity'
+import { clearIdentity, identity } from './identity'
 import { live } from './live'
 import type { Chain, Profile } from './types'
 
-export interface FollowRow { kind: 'wallet' | 'token'; chain: Chain; address: string; ts: number }
+export interface FollowRow { kind: 'wallet' | 'token' | 'user'; chain: Chain; address: string; ts: number }
 
 class Social {
   pubkey: string | null = null
@@ -26,24 +26,40 @@ class Social {
     this.emit()
   }
 
-  isFollowing(kind: 'wallet' | 'token', chain: Chain, address: string) {
+  isFollowing(kind: 'wallet' | 'token' | 'user', chain: Chain, address: string) {
     return this.follows.some(f => f.kind === kind && f.chain === chain && f.address === address)
   }
 
-  async toggle(kind: 'wallet' | 'token', chain: Chain, address: string) {
+  async toggle(kind: 'wallet' | 'token' | 'user', chain: Chain, address: string) {
     const on = !this.isFollowing(kind, chain, address)
     const prev = this.follows
     this.follows = on ? [{ kind, chain, address, ts: Date.now() }, ...prev] : prev.filter(f => !(f.kind === kind && f.chain === chain && f.address === address))
     this.emit()
     try {
       this.follows = await post<FollowRow[]>(on ? '/api/follow' : '/api/unfollow', { kind, chain, address })
+      this.pubkey = (await identity()).pubkey
       this.emit()
     } catch (e) { this.follows = prev; this.emit(); throw e }
   }
 
   async setHandle(handle: string, bio?: string) {
     this.profile = await post<Profile>('/api/me', { handle, bio })
+    this.pubkey = this.profile.pubkey
     this.emit()
+  }
+
+  async deleteAccount() {
+    const result = await post<{ deleted: boolean }>('/api/account/delete', {})
+    if (!result.deleted) throw new Error('Account deletion was not confirmed')
+    this.pubkey = null
+    this.profile = null
+    this.follows = []
+    this.emit()
+    try {
+      await clearIdentity()
+    } catch {
+      throw new Error('Your server profile was deleted, but this device could not clear its local key. Clear this app’s storage before using profile features again.')
+    }
   }
 
   // a websocket filter for the Following tab

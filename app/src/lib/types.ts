@@ -17,7 +17,7 @@ export type Kind = 'launch' | 'pool_init' | 'liq_add' | 'liq_remove' | 'graduate
 //   geyser-drpc — the same Yellowstone Subscribe served by dRPC
 // Robinhood events arrive executed (dRPC log subscription), so they start confirmed.
 export type Stage = 'pending' | 'confirmed' | 'failed'
-export type Lane = 'preconf' | 'deshred' | 'geyser' | 'geyser-drpc' | 'logs'
+export type Lane = 'preconf' | 'deshred' | 'geyser' | 'geyser-primary' | 'geyser-drpc' | 'helius-parsed' | 'helius-laserstream' | 'logs'
 
 export type Flag =
   | 'pounce'        // a pool on a launchpad token before it graduates (the book's crew shape)
@@ -125,6 +125,99 @@ export interface Post {
 
 export interface CallerSummary { profile: Profile; calls: number; hits: number; hitRate: number }
 
+// Research covers FTL-seen coins on both chains. Outputs stay null when a source is
+// unavailable or its coverage is insufficient. One output can be ready alone.
+export interface ResearchCoin {
+  chain: Chain
+  address: string
+  symbol?: string
+  name?: string
+  image?: string
+  status: 'queued' | 'collecting' | 'ready' | 'insufficient_data' | 'source_unavailable' | 'error'
+  statusReason: string | null
+  firstSeenTs: number
+  updatedTs: number | null
+  nextRefreshTs: number | null
+  priceQuote: 'USDC' | 'SOL' | 'USDT' | 'USDG' | 'WETH' | 'ETH' | null
+  holderStrength: {
+    score: number | null
+    reason: string | null
+    retentionPct: number | null
+    top20SharePct: number | null
+    top20ShareChangePct: number | null
+    baselineTs: number | null
+    observedTs: number | null
+  }
+  bottoming: {
+    signs: number | null
+    reason: string | null
+    drawdownPct: number | null
+    sellersCapitulated: boolean | null
+    lowHolding: boolean | null
+    demandReturning: boolean | null
+    observedTs: number | null
+  }
+  coverage: {
+    holderBootstrapAttempts: number
+    holderState: 'unconfigured' | 'pending' | 'fetching' | 'live' | 'stale' | 'unavailable'
+    holderAccounts: number | null
+    holderOwners: number | null
+    holderLastSlot: number | null
+    holderCoveredThroughSlot: number | null
+    holderBootstrapResponseBytes: number | null
+    holderBootstrapPageAccounts: number | null
+    holderBootstrapDbGrowthBytes: number | null
+    priceCandles: number
+    priceTrades: number
+    holderWindowDays: number | null
+    priceWindowDays: number | null
+    priceStreamState: 'unconfigured' | 'observing' | 'subscribed_unverified' | 'stale' | 'gap'
+    priceStreamLastTs: number | null
+    priceStreamLagMs: number | null
+    priceStreamReason: string | null
+  }
+  liveLiquidity: {
+    poolInits: number
+    adds: number
+    removes: number
+    observationStartTs: number | null
+    lastEventTs: number | null
+  }
+  methodology: {
+    holderStrength: string
+    bottoming: string
+    holderSource: string
+    priceSource: string
+  }
+  provisional?: {
+    state: 'unconfigured' | 'catching_up' | 'live' | 'stale'
+    reason: string | null
+    finality: 'provisional'
+    finalizedThroughBlock: number | null
+    observedFromBlock: number | null
+    observedThroughBlock: number | null
+    observedAt: number | null
+    finalityLagMs: number | null
+    holderTransferEvents: number | null
+    touchedWallets: number | null
+    knownV4SwapEvents: number | null
+    rollbackCount: number
+  }
+}
+
+export interface ResearchCoinDetail extends ResearchCoin {
+  priceHistory: { ts: number; open: number; high: number; low: number; close: number; volumeQuote: number; trades: number }[]
+  holderHistory: { ts: number; top20SharePct: number | null; trackedOwners: number }[]
+}
+
+export interface ResearchList {
+  items: ResearchCoin[]
+  total: number
+  backlog: number
+  nextCursor: string | null
+  coverageNote: string
+}
+
 export interface LaneStatus {
   lane: Lane
   chain: Chain
@@ -137,15 +230,43 @@ export interface LaneStatus {
   firstSeenWins: number      // events this lane saw before any other lane
   p50LeadMs?: number         // median lead over the confirmed copy
   lagMs?: number             // how far behind the source's own timestamp the lane is running
+  configuredStreams?: number // subscriptions enabled on this lane
+  activeStreams?: number     // subscriptions currently connected
+  filterPrograms?: number    // DEX program filters actually covering FTL events
+  estimatedPayloadBytes?: number // sampled protobuf estimate, not billed traffic
+  payloadSamples?: number
+  budgetLimitBytes?: number
+  budgetWindowMs?: number
+  estimatedWindowPayloadBytes?: number
+  budgetPayloadSamples?: number
+  circuitOpenUntil?: number
 }
 
-export interface Status { startedTs: number; lanes: LaneStatus[]; clients: number; eventsStored: number; prices?: Record<string, number> }
+export interface Status {
+  startedTs: number
+  lanes: LaneStatus[]
+  clients: number
+  eventsStored: number
+  prices?: Record<string, number>
+  researchStream?: {
+    connected: boolean
+    trackedMints: number
+    activeFallbackPrograms?: number
+    latestFinalizedSlot: number | null
+    estimatedWindowPayloadBytes: number
+    budgetPayloadSamples: number
+    budgetLimitBytes: number
+    budgetWindowMs: number
+    circuitOpenUntil?: number
+  }
+}
 
 export type ServerMsg =
   | { t: 'event'; e: FlowEvent }
   | { t: 'upgrade'; id: string; stage: Stage; confirmedTs?: number; amounts?: Amount[]; quoteUi?: number | null; flags?: Flag[] }
   | { t: 'token'; s: TokenSummary }
   | { t: 'post'; p: Post }
+  | { t: 'research'; keys: string[]; enrolled: boolean; all: boolean; ts: number }
   | { t: 'status'; s: Status }
   | { t: 'meta'; chain: Chain; address: string; m: TokenMeta }
   | { t: 'hello'; serverTs: number }

@@ -1,5 +1,5 @@
 // Token name / symbol / image / description.
-//  Solana:    DAS getAssetBatch on the Triton RPC (100 mints a call), falling back to the
+//  Solana:    Helius DAS getAssetBatch (20 mints a call), falling back to the
 //             Token-2022 metadata extension / Metaplex PDA for anything DAS has not indexed.
 //             Launches are named from their own instruction args before either answers.
 //  Robinhood: name/symbol/decimals plus Pons getTokenInfo() (logo, description, socials), batched.
@@ -7,10 +7,11 @@
 import crypto from 'node:crypto'
 import bs58 from 'bs58'
 import { ed25519 } from '@noble/curves/ed25519.js'
-import { keccak_256 } from '@noble/hashes/sha3.js'
+import { keccak_256 } from '@noble/hashes-v2/sha3.js'
 import { config } from './config.ts'
-import { db } from './db.ts'
+import { db, getCursor, setCursor } from './db.ts'
 import { QUOTES, bus, setTokenMeta } from './hub.ts'
+import { recordKnownTokenProgram } from './solana/holders.ts'
 import type { Chain, TokenMeta } from '../../shared/types.ts'
 
 const METAPLEX = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
@@ -50,8 +51,23 @@ async function offchain(uri: string): Promise<{ image?: string; description?: st
 
 // ---- Solana ---------------------------------------------------------------
 
+function metadataRpcBudget() {
+  const day = new Date().toISOString().slice(0, 10)
+  const budgetKey = `meta:rpc:${day}`
+  const used = Number(getCursor(budgetKey) ?? 0)
+  // Zero records usage without stopping metadata for newly seen tokens.
+  const limit = Math.max(0, Number(process.env.META_RPC_DAILY_LIMIT ?? 0))
+  return { budgetKey, used, limit }
+}
+
 async function solRpc(method: string, params: unknown): Promise<any> {
-  const r = await fetch(config.solanaRpc!, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10_000) })
+  const { budgetKey, used, limit } = metadataRpcBudget()
+  if (limit > 0 && used >= limit) throw new Error('metadata RPC daily budget exhausted')
+  setCursor(budgetKey, String(used + 1))
+  const url = method === 'getAssetBatch' ? config.solanaDasRpc : config.solanaRpc
+  if (!url) throw new Error(`no Solana RPC endpoint for ${method}`)
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10_000) })
+  if (!r.ok) throw new Error(`Solana RPC HTTP ${r.status}`)
   const j = await r.json() as any
   if (j.error) throw new Error(j.error.message)
   return j.result
@@ -59,9 +75,11 @@ async function solRpc(method: string, params: unknown): Promise<any> {
 
 async function dasBatch(mints: string[]): Promise<Map<string, TokenMeta>> {
   const out = new Map<string, TokenMeta>()
-  const res = await solRpc('getAssetBatch', { ids: mints })
+  const res = await solRpc('getAssetBatch', { ids: mints, displayOptions: { showFungible: true } })
   for (const a of res ?? []) {
     if (!a?.id) continue
+    if (typeof a.token_info?.token_program === 'string')
+      recordKnownTokenProgram(a.id, a.token_info.token_program, 'das-getAssetBatch')
     const md = a.content?.metadata ?? {}
     const image = httpImage(a.content?.links?.image ?? a.content?.files?.find((f: any) => /^image\//.test(f?.mime ?? ''))?.uri ?? a.content?.files?.[0]?.uri)
     out.set(a.id, {
@@ -87,9 +105,7 @@ function pda(seeds: Uint8Array[], program: string): string {
 const clean = (s: string) => s.replace(/\0/g, '').trim()
 function borshStr(b: Buffer, o: { i: number }): string { const n = b.readUInt32LE(o.i); o.i += 4; const s = b.subarray(o.i, o.i + n).toString('utf8'); o.i += n; return clean(s) }
 
-async function onchainSolana(mint: string): Promise<TokenMeta | null> {
-  const r = await solRpc('getMultipleAccounts', [[mint, pda([Buffer.from('metadata'), bs58.decode(METAPLEX), bs58.decode(mint)], METAPLEX)], { encoding: 'base64' }])
-  const [mintAcct, mdAcct] = r?.value ?? []
+async function parseOnchainSolana(mintAcct: any, mdAcct: any): Promise<TokenMeta | null> {
   if (!mintAcct) return null
   const m = Buffer.from(mintAcct.data[0], 'base64')
   const decimals = m.length >= 45 ? m[44] : undefined
@@ -105,6 +121,24 @@ async function onchainSolana(mint: string): Promise<TokenMeta | null> {
   }
   if (!name && mdAcct) { const d = Buffer.from(mdAcct.data[0], 'base64'); const p = { i: 65 }; name = borshStr(d, p); symbol = borshStr(d, p); uri = borshStr(d, p) }
   return { name, symbol, decimals, ...(uri ? await offchain(uri) : {}) }
+}
+
+// One account read covers up to 20 mints and their Metaplex PDAs. This is the
+// fallback for assets that DAS has not indexed yet, not one RPC per mint.
+async function onchainSolanaBatch(mints: string[]): Promise<Map<string, TokenMeta>> {
+  const accounts = mints.flatMap(mint => [mint, pda([Buffer.from('metadata'), bs58.decode(METAPLEX), bs58.decode(mint)], METAPLEX)])
+  const r = await solRpc('getMultipleAccounts', [accounts, { encoding: 'base64' }])
+  const values: any[] = r?.value ?? []
+  const out = new Map<string, TokenMeta>()
+  for (let i = 0; i < mints.length; i += 4) {
+    await Promise.all(mints.slice(i, i + 4).map(async (mint, offset) => {
+      const mintAccount = values[(i + offset) * 2]
+      if (typeof mintAccount?.owner === 'string') recordKnownTokenProgram(mint, mintAccount.owner, 'mint-account-owner')
+      const meta = await parseOnchainSolana(mintAccount, values[(i + offset) * 2 + 1])
+      if (meta) out.set(mint, meta)
+    }))
+  }
+  return out
 }
 
 // ---- Robinhood ------------------------------------------------------------
@@ -160,11 +194,14 @@ async function robinhoodMeta(tokens: string[]): Promise<Map<string, TokenMeta>> 
 
 const pending = { solana: new Set<string>(), robinhood: new Set<string>() }
 const attempts = new Map<string, number>()
+const inflight = new Set<string>()
+const retryAt = new Map<string, number>()
 const RETRY_MS = [4_000, 20_000, 90_000, 5 * 60_000, 20 * 60_000]
 let flushing = false
 
 export function enrich(chain: Chain, address: string, force = false) {
-  if (QUOTES[chain][address] || pending[chain].has(address)) return
+  const key = `${chain}:${address}`
+  if (QUOTES[chain][address] || pending[chain].has(address) || inflight.has(key) || (retryAt.get(key) ?? 0) > Date.now()) return
   if (!force) {
     const row = db.prepare('SELECT meta_ts FROM tokens WHERE chain = ? AND address = ?').get(chain, address) as any
     if (row?.meta_ts) return
@@ -180,9 +217,16 @@ function settle(chain: Chain, address: string, m: TokenMeta | null | undefined) 
   const last = n >= RETRY_MS.length
   if (m && (m.name || m.symbol || m.image || m.description)) setTokenMeta(chain, address, m, complete || last)
   else if (last) setTokenMeta(chain, address, {}, true)
-  if (complete || last) { attempts.delete(key); return }
+  inflight.delete(key)
+  if (complete || last) { attempts.delete(key); retryAt.delete(key); return }
   attempts.set(key, n + 1)
-  setTimeout(() => pending[chain].add(address), RETRY_MS[n])
+  const at = Date.now() + RETRY_MS[n]
+  retryAt.set(key, at)
+  setTimeout(() => {
+    if (retryAt.get(key) !== at) return
+    retryAt.delete(key)
+    enrich(chain, address)
+  }, RETRY_MS[n]).unref()
   if (attempts.size > 100_000) attempts.clear()
 }
 
@@ -190,17 +234,33 @@ async function flush() {
   if (flushing) return
   flushing = true
   try {
-    if (pending.solana.size && config.solanaRpc) {
-      const batch = [...pending.solana].slice(0, 100)
-      for (const m of batch) pending.solana.delete(m)
+    const budget = metadataRpcBudget()
+    if (pending.solana.size && config.solanaRpc && (budget.limit === 0 || budget.used < budget.limit)) {
+      const batch = [...pending.solana].slice(0, 20)
+      for (const m of batch) { pending.solana.delete(m); inflight.add(`solana:${m}`) }
       let got = new Map<string, TokenMeta>()
-      try { got = await dasBatch(batch) } catch (e) { console.error('[meta] das', String(e).slice(0, 120)) }
+      if (config.solanaDasRpc) {
+        try { got = await dasBatch(batch) } catch (e) { console.error('[meta] das', String(e).slice(0, 120)) }
+      }
+      const fallback = batch.filter(mint => !got.get(mint)?.symbol || !got.get(mint)?.image)
+      let onchain = new Map<string, TokenMeta>()
+      if (fallback.length) {
+        try { onchain = await onchainSolanaBatch(fallback) }
+        catch (e) { console.error('[meta] accounts', String(e).slice(0, 120)) }
+      }
+      const currentBudget = metadataRpcBudget()
+      const budgetExhausted = currentBudget.limit > 0 && currentBudget.used >= currentBudget.limit
       for (const mint of batch) {
         const m = got.get(mint)
-        if (m?.symbol && m?.image) { settle('solana', mint, m); continue }
-        // DAS had nothing (or no image yet): read the chain directly, merge, and keep retrying
-        onchainSolana(mint).then(x => settle('solana', mint, { ...x, ...Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== undefined)) }))
-          .catch(() => settle('solana', mint, m))
+        const x = onchain.get(mint)
+        // A daily budget boundary is not a metadata miss. Keep incomplete
+        // mints pending for the next UTC day instead of marking them done.
+        if (budgetExhausted && (!m?.symbol || !m?.image) && !x?.image) {
+          inflight.delete(`solana:${mint}`)
+          pending.solana.add(mint)
+          continue
+        }
+        settle('solana', mint, { ...x, ...Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== undefined)) })
       }
     }
     if (pending.robinhood.size && config.rhHttp) {
@@ -211,7 +271,7 @@ async function flush() {
     }
   } finally { flushing = false }
 }
-setInterval(() => void flush(), 250).unref()
+setInterval(() => void flush(), 1000).unref()
 
 // launches name themselves from their args; their image comes from the metadata uri
 const uriQueue: { chain: Chain; token: string; uri: string }[] = []

@@ -3,9 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressablePro
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { C, CHAIN, F, FLAG, MAX_W, T } from '@/theme'
-import { img } from '@/lib/format'
+import { ago, img } from '@/lib/format'
 import { useClock } from '@/lib/clock'
-import { ago } from '@/lib/format'
 import type { Chain, Flag } from '@/lib/types'
 
 type TxtVariant = 'title' | 'h1' | 'h2' | 'body' | 'small' | 'label' | 'mono' | 'monoSmall' | 'num'

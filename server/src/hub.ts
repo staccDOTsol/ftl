@@ -2,7 +2,7 @@
 // young-liquidity rule, computes the book's flags, persists and fans out.
 
 import { EventEmitter } from 'node:events'
-import { db, tx } from './db.ts'
+import { db, getCursor, setCursor, tx } from './db.ts'
 import { config } from './config.ts'
 import type { Amount, Chain, Flag, FlowEvent, Kind, Lane, LaneStatus, PoolSummary, Stage, TokenMeta, TokenSummary, WalletSummary } from '../../shared/types.ts'
 
@@ -53,7 +53,9 @@ export function lane(chain: Chain, l: Lane, enabled: boolean, reason?: string) {
   let s = lanes.get(key)
   if (!s) { s = { lane: l, chain, enabled, connected: false, lastMsgTs: null, msgs: 0, events: 0, firstSeenWins: 0, leads: [] }; lanes.set(key, s) }
   s.enabled = enabled
-  s.reason = reason
+  // Event ingestion calls lane(chain, name, true) with no reason. Preserve the
+  // provider's connection/fallback reason until its status callback changes it.
+  if (arguments.length >= 4) s.reason = reason
   return s
 }
 export function laneStatus(): LaneStatus[] {
@@ -91,7 +93,7 @@ interface TokenState {
   wallets: Set<string>
   flags: Set<Flag>
   events: number; last: number
-  meta: { symbol?: string; name?: string; image?: string; decimals?: number }
+  meta: TokenMeta
 }
 const tokens = new Map<string, TokenState>()
 const lastLiq = new Map<string, { slot: number; ts: number }>()   // `${wallet}|${pool}` -> last add
@@ -267,6 +269,30 @@ const upPool = db.prepare(`INSERT INTO pools (chain, address, venue, token, quot
     fee_bps = COALESCE(pools.fee_bps, excluded.fee_bps), created_ts = COALESCE(pools.created_ts, excluded.created_ts),
     creator = COALESCE(pools.creator, excluded.creator), init_tx = COALESCE(pools.init_tx, excluded.init_tx)`)
 const bumpPool = db.prepare('UPDATE pools SET liq_events = liq_events + 1, funded = MAX(funded, ?) WHERE chain = ? AND address = ?')
+const fundPool = db.prepare('UPDATE pools SET funded = 1 WHERE chain = ? AND address = ?')
+
+// Earlier pool_init handling counted initial liquidity in the token summary but
+// left pools.funded at zero. Repair only confirmed, non-ladder inits; a pending
+// or failed init is not evidence that its pool was funded on chain.
+if (getCursor('pool:initial-funding:v1') !== 'done') tx(() => {
+  const repairedTokens = db.prepare(`SELECT DISTINCT p.chain, p.token FROM pools p
+    WHERE p.funded = 0 AND p.token IS NOT NULL AND EXISTS (
+      SELECT 1 FROM events e WHERE e.chain = p.chain AND e.pool = p.address
+        AND e.kind = 'pool_init' AND e.stage = 'confirmed'
+        AND e.flags NOT LIKE '%"ladder"%'
+    )`).all() as { chain: Chain; token: string }[]
+  db.prepare(`UPDATE pools SET funded = 1 WHERE funded = 0 AND EXISTS (
+    SELECT 1 FROM events e WHERE e.chain = pools.chain AND e.pool = pools.address
+      AND e.kind = 'pool_init' AND e.stage = 'confirmed'
+      AND e.flags NOT LIKE '%"ladder"%'
+  )`).run()
+  const reconcile = db.prepare(`UPDATE tokens SET
+    score = score + 2 * MAX(0, (SELECT COUNT(*) FROM pools p WHERE p.chain = tokens.chain AND p.token = tokens.address AND p.funded = 1) - funded_pools),
+    funded_pools = MAX(funded_pools, (SELECT COUNT(*) FROM pools p WHERE p.chain = tokens.chain AND p.token = tokens.address AND p.funded = 1))
+    WHERE chain = ? AND address = ?`)
+  for (const { chain, token } of repairedTokens) reconcile.run(chain, token)
+  setCursor('pool:initial-funding:v1', 'done')
+})
 const upWallet = db.prepare(`INSERT INTO wallets (chain, address, inits, adds, removes, first_ts, last_ts) VALUES (?,?,?,?,?,?,?)
   ON CONFLICT(chain, address) DO UPDATE SET inits = inits + excluded.inits, adds = adds + excluded.adds, removes = removes + excluded.removes, last_ts = excluded.last_ts`)
 const insWalletToken = db.prepare('INSERT OR IGNORE INTO wallet_tokens (chain, wallet, token, first_ts) VALUES (?,?,?,?)')
@@ -313,6 +339,7 @@ function applyState(e: FlowEvent, r: RawEvent, mints: string[]) {
     if (r.pool) {
       upPool.run(e.chain, r.pool, e.venue, e.token, e.quote, mints[0] ?? null, mints[1] ?? null, e.feeBps,
         poolBorn ? now : null, poolBorn ? e.wallet : null, poolBorn ? e.tx : null)
+      if (r.kind === 'pool_init' && !r.noLiquidity) fundPool.run(e.chain, r.pool)
       if (r.kind === 'liq_add' || r.kind === 'liq_remove') bumpPool.run(r.kind === 'liq_add' ? 1 : 0, e.chain, r.pool)
     }
     upWallet.run(e.chain, e.wallet, r.kind === 'pool_init' ? 1 : 0, r.kind === 'liq_add' ? 1 : 0, r.kind === 'liq_remove' ? 1 : 0, now, now)
@@ -466,7 +493,7 @@ setInterval(() => {
 // pre-execution copies that never landed: once an executed lane is up and a
 // pending copy is 45 s old with no executed copy, it was dropped or failed
 export function sweepPending() {
-  const executed = [...lanes.values()].some(l => l.chain === 'solana' && (l.lane === 'geyser' || l.lane === 'geyser-drpc') && l.connected)
+  const executed = [...lanes.values()].some(l => l.chain === 'solana' && (l.lane === 'geyser' || l.lane === 'geyser-primary' || l.lane === 'geyser-drpc' || l.lane === 'helius-parsed' || (l.lane === 'helius-laserstream' && (l.filterPrograms ?? 0) > 0)) && l.connected)
   if (!executed) return
   const cutoff = Date.now() - 90_000
   for (const e of recent.values()) {

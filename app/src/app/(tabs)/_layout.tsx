@@ -11,7 +11,7 @@ export default function TabsLayout() {
       sceneStyle: { backgroundColor: C.bg },
       animation: 'fade',
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Live' }} />
+      <Tabs.Screen name="index" options={{ title: 'Now' }} />
       <Tabs.Screen name="signals" options={{ title: 'Signals' }} />
       <Tabs.Screen name="following" options={{ title: 'Following' }} />
       <Tabs.Screen name="leaders" options={{ title: 'Leaders' }} />
