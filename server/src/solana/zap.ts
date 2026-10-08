@@ -14,7 +14,7 @@ import { decodeV1 } from './transaction-v1.ts'
 import { parsePositions, type HoldingPosition } from './holdings.ts'
 import { fetchPoolStats, isPoolStatsVenue, POOL_STATS_VENUES, type PoolStats, type PoolStatsVenue } from './pool-stats.ts'
 import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT, signComposed } from './compose.ts'
-import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
+import { assembleComposedZap, composedRemoval, mintTokenProgram } from './zap-compose.ts'
 import { newDlmmDeposit } from './dlmm-position.ts'
 import { newOrcaDeposit } from './orca-position.ts'
 import { newDammV2Deposit } from './damm-v2-position.ts'
@@ -242,7 +242,7 @@ function clientError(e: unknown): { status: number; message: string } {
 
 // Venues whose deposit opens a position account this server builds and signs for.
 const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit, 'meteora-damm-v2': newDammV2Deposit, orca: newOrcaDeposit, 'raydium-clmm': newClmmDeposit }
-const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why.replace(/\.+$/, '')}. Nothing was signed.`)
+const unavailable = (why: string) => new RequestError(409, `This could not be built as one transaction: ${why.replace(/\.+$/, '')}. Nothing was signed.`)
 
 export function createSolanaZapHandler(options: Options) {
   const fetcher = options.fetch ?? fetch, now = options.now ?? Date.now
@@ -382,7 +382,8 @@ export function createSolanaZapHandler(options: Options) {
       receive += BigInt(quote.outAmount)
     }
     const kind = classifyPool(venue, venue === 'orca' ? await poolStats('orca', position.pool).catch(() => null) : null)
-    const composed = !!options.composerProgramId && steps.length === 2
+    // Through the composer whenever it is configured, a withdrawal with nothing to swap back included.
+    const composed = !!options.composerProgramId
     return {
       planId: randomUUID(), owner, direction: 'out', mint, transactionVersion, slippageBps,
       mode: composed ? 'composed' : 'sequential', ...(composed ? { composerProgramId: options.composerProgramId } : {}),
@@ -474,7 +475,7 @@ export function createSolanaZapHandler(options: Options) {
    * Any failure throws its reason: nothing falls back to separate steps. */
   async function buildComposedZap(plan: ZapPlan, version: '1' | '0'): Promise<Record<string, unknown>> {
     const programId = options.composerProgramId
-    if (!programId || plan.steps.length !== 2) throw unavailable('this plan has no composed form')
+    if (!programId || plan.steps.length < 1 || plan.steps.length > 2) throw unavailable('this plan has no composed form')
     const owner = plan.owner, payer = new PublicKey(owner)
     try {
       let steps: import('./compose.ts').ZapComposeStep[]
@@ -484,7 +485,7 @@ export function createSolanaZapHandler(options: Options) {
       let positionKeys: Keypair[] = []
       if (plan.direction === 'in') {
         const [swapStep, addStep] = plan.steps as [SwapStep, AddStep]
-        if (swapStep.kind !== 'swap' || addStep.kind !== 'add') throw unavailable('this plan has no composed form')
+        if (plan.steps.length !== 2 || swapStep.kind !== 'swap' || addStep.kind !== 'add') throw unavailable('this plan has no composed form')
         const spendable = await solBalance(owner) - SOL_RESERVE
         const lamports = spendable < BigInt(swapStep.amount) ? spendable : BigInt(swapStep.amount)
         if (lamports <= 0n) throw unavailable('not enough SOL in the wallet (0.01 SOL stays for fees)')
@@ -531,12 +532,17 @@ export function createSolanaZapHandler(options: Options) {
         quote = addQuote
         note = 'One signature: the swap and the deposit run atomically through the composer, the deposit sized from what the swap really delivered'
       } else {
-        const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep]
-        if (removeStep.kind !== 'remove' || swapStep.kind !== 'swap') throw unavailable('this plan has no composed form')
+        const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep | undefined]
+        if (removeStep.kind !== 'remove' || (swapStep && swapStep.kind !== 'swap')) throw unavailable('this plan has no composed form')
         const removeQuote = await options.router.liquidityQuote({ ...removeStep.intent, transactionVersion: version })
         const builtRemove = await options.router.liquidityBuild({ quoteId: removeQuote.quoteId, owner, transactionVersion: version })
         const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
         if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
+        quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
+        if (!swapStep) {
+          steps = composedRemoval(removeInstructions.flat()).steps
+          note = 'One signature: the withdrawal runs through the composer; the position held only SOL, so nothing is swapped back'
+        } else {
         const builtSwap = await swapLeg(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, owner, version)
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed')
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
@@ -548,8 +554,8 @@ export function createSolanaZapHandler(options: Options) {
           swap: { instructions: swapInstructions, amountIn: BigInt(builtSwap.quoteResponse.inAmount), minOut: BigInt(builtSwap.quoteResponse.otherAmountThreshold) } })
         if (!assembly) throw unavailable('the withdrawal amounts could not be proven from its bytes')
         steps = assembly.steps
-        quote = builtRemove.quote; pool = builtRemove.pool; position = builtRemove.position
         note = 'One signature: the withdrawal and the swap back run atomically through the composer, the swap spending exactly what the withdrawal delivered'
+        }
       }
       const signers = positionKeys.map(key => key.publicKey)
       const composed = composeZap(steps, { programId: new PublicKey(programId), payer, signers })

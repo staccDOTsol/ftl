@@ -620,7 +620,9 @@ export class DirectSolanaRouter {
         const swapTransaction = intent.transactionVersion === '1'
           ? unsignedV1(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
           : unsignedV0(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
-        if (!await this.simulate(swapTransaction)) continue
+        // A zap leg never ships alone: its input may only exist inside the
+        // composed transaction (a withdrawal's tokens), so it is not simulated here.
+        if (!intent.legOnly && !await this.simulate(swapTransaction)) continue
         return { transactionVersion: intent.transactionVersion, swapTransaction,
           lastValidBlockHeight: latest.lastValidBlockHeight,
           prioritizationFeeLamports: 0,

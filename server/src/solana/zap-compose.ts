@@ -175,6 +175,12 @@ export function assembleComposedZap(input: ZapInAssembly | ZapOutAssembly): Comp
   ] }
 }
 
+/** A withdrawal with nothing to swap back (the position held only SOL): its
+ * instructions run as composer steps, as a withdrawal's do before its swap. */
+export function composedRemoval(instructions: RawInstruction[]): ComposedZap {
+  return { steps: dropBudget(instructions).map(action => ({ action })) }
+}
+
 /** The token program that owns a mint (fees and watch accounts need it), or
  * null. `owner` here is the RPC account owner, not a wallet. */
 export async function mintTokenProgram(read: (method: string, params: unknown[]) => Promise<any>, mint: string): Promise<string | null> {

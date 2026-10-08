@@ -146,6 +146,8 @@ type Scenario = {
   swapWrites?: { pool: string; data: Buffer }
   /** Output multipliers for the next swap quotes, one per quote (then 1x): a moving market. */
   quoteMoves?: bigint[]
+  /** Withdrawals credit only SOL: nothing to swap back. */
+  solOnly?: boolean
 }
 async function withZap(scenario: Scenario, run: (request: (path: string, body: unknown) => Promise<{ status: number; data: any; text: string }>, calls: { url: string; body: any }[], clock: { now: number }) => Promise<void>) {
   const calls: { url: string; body: any }[] = []
@@ -197,7 +199,7 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
       const amounts = body.operation === 'add'
         // A pool at the swap's 2:1 price takes SOL for the token at that price; an off-market one takes 10% less SOL.
         ? [{ mint: body.mintA, decimals: 6, expectedRaw: body.amountA, limitRaw: body.amountA, direction: 'debit' }, { mint: body.mintB, decimals: 9, expectedRaw: (scenario.offMarket?.includes(body.pool) ? BigInt(body.amountB) * 9n / 10n : BigInt(body.amountA) / 2n).toString(), limitRaw: body.amountB, direction: 'debit' }]
-        : [{ mint: MINT, decimals: 6, expectedRaw: '5000000', limitRaw: '4950000', direction: 'credit' }, { mint: SOL_MINT, decimals: 9, expectedRaw: '30000000', limitRaw: '29700000', direction: 'credit' }]
+        : [{ mint: MINT, decimals: 6, expectedRaw: scenario.solOnly ? '0' : '5000000', limitRaw: scenario.solOnly ? '0' : '4950000', direction: 'credit' }, { mint: SOL_MINT, decimals: 9, expectedRaw: '30000000', limitRaw: '29700000', direction: 'credit' }]
       const quote = { quoteId, expiresAt: clock.now + 60_000, owner: body.owner, venue: body.venue, operation: body.operation, pool: body.pool, mintA: body.mintA ?? MINT, mintB: body.mintB ?? SOL_MINT, position: body.position ?? POSITION, slot: 1, transactionVersion: body.transactionVersion, amounts,
         details: { ...(body.venue === 'meteora-dlmm' ? { inferredRange: true, priceLower: '1', priceUpper: '2', binCount: body.parameters?.binCount } : {}),
           ...(scenario.composer && body.operation === 'add' ? { liquidity: (BigInt(body.amountA) * 7n).toString() } : {}) } }
@@ -505,6 +507,23 @@ test('composed: an unprovable build is refused with its reason, never split into
   assert.equal(r.status, 409, r.text)
   assert.match(r.data.error, /could not be built as one transaction: .+\. Nothing was signed\./)
   assert.equal(r.data.transactions, undefined)
+}))
+test('composed: a withdrawal with nothing to swap back still runs through the composer', async () => withZap({ ...bordr, composer: COMPOSER, solOnly: true, positions: [
+  { venue: 'meteora-dlmm', pool: DLMM, position: POSITION, mintA: MINT, mintB: SOL_MINT, liquidity: null, removalMode: 'percentage', owner: OWNER },
+] }, async (request, calls) => {
+  const plan = (await request('/api/zap/solana/plan', { owner: OWNER, mint: MINT, direction: 'out', position: { venue: 'meteora-dlmm', pool: DLMM } })).data
+  assert.deepEqual(plan.steps.map((s: any) => s.kind), ['remove'])
+  assert.equal(plan.mode, 'composed')
+  const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+  assert.equal(r.status, 200, r.text)
+  assert.equal(r.data.mode, 'composed')
+  assert.equal(r.data.transactions.length, 1)
+  assert.ok(!calls.some(c => c.url.includes('/swap')), 'nothing is swapped')
+  const decoded = decodeV1(Buffer.from(r.data.transactions[0].transaction, 'base64'))
+  const programs = decoded.ixs.map(ix => bs58.encode(decoded.keys[ix.prog]))
+  assert.equal(programs.filter(p => p === COMPOSER).length, 1, 'one compose call carries the withdrawal')
+  const description = decodeCompose(decoded.ixs[programs.indexOf(COMPOSER)].data)
+  assert.ok(description.steps.length >= 1 && description.steps.every((s: any) => s.fee === null), 'a withdrawal pays no composer fee')
 }))
 test('composed: the withdrawal and the swap back run as one transaction', async () => withZap({ ...bordr, composer: COMPOSER, token: '4800000', positions: [
   { venue: 'meteora-dlmm', pool: DLMM, position: POSITION, mintA: MINT, mintB: SOL_MINT, liquidity: null, removalMode: 'percentage', owner: OWNER },
