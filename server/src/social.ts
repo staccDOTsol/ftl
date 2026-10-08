@@ -6,7 +6,7 @@ import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 import { db, tx } from './db.ts'
 import { followedWallets, tokenGraduated } from './hub.ts'
-import type { Chain, Post, Profile } from '../../shared/types.ts'
+import type { Chain, Move, MoveAmount, Post, Profile } from '../../shared/types.ts'
 
 export class HttpError extends Error {
   status: number
@@ -120,16 +120,61 @@ export function deleteAccount(user: string): { deleted: true } {
   return { deleted: true }
 }
 
+// ---- moves: the swap or liquidity operation a post was written about -------
+
+const MOVE_VENUES = new Set(['raydium-cpmm', 'raydium-clmm', 'raydium-amm-v4', 'orca', 'meteora-dlmm', 'meteora-damm', 'meteora-damm-v2', 'pumpswap', 'swap'])
+const MOVE_OPERATIONS = new Set(['swap', 'add', 'remove', 'initialize'])
+const B58_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+const B58_SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{80,90}$/
+const DECIMAL = /^(0|[1-9][0-9]*)(\.[0-9]{1,30})?$/
+
+export function parseTx(v: unknown): string | undefined {
+  if (v === undefined || v === null || v === '') return undefined
+  if (typeof v !== 'string' || !B58_SIGNATURE.test(v)) throw new HttpError(400, 'tx: expected a base58 Solana signature')
+  return v
+}
+
+export function parseMove(v: unknown): Move | undefined {
+  if (v === undefined || v === null) return undefined
+  if (typeof v !== 'object' || Array.isArray(v)) throw new HttpError(400, 'move: expected an object')
+  const m = v as Record<string, unknown>
+  if (typeof m.venue !== 'string' || !MOVE_VENUES.has(m.venue)) throw new HttpError(400, 'move.venue: unknown venue')
+  if (typeof m.operation !== 'string' || !MOVE_OPERATIONS.has(m.operation)) throw new HttpError(400, 'move.operation: swap, add, remove or initialize')
+  const out: Move = { venue: m.venue as Move['venue'], operation: m.operation as Move['operation'] }
+  if (m.pool !== undefined && m.pool !== null) {
+    if (typeof m.pool !== 'string' || !B58_ADDRESS.test(m.pool)) throw new HttpError(400, 'move.pool: bad address')
+    out.pool = m.pool
+  }
+  if (m.amounts !== undefined && m.amounts !== null) {
+    if (!Array.isArray(m.amounts) || m.amounts.length > 4) throw new HttpError(400, 'move.amounts: up to 4 entries')
+    out.amounts = m.amounts.map((a: any): MoveAmount => {
+      if (!a || typeof a !== 'object') throw new HttpError(400, 'move.amounts: bad entry')
+      if (typeof a.mint !== 'string' || !B58_ADDRESS.test(a.mint)) throw new HttpError(400, 'move.amounts: bad mint')
+      if (typeof a.amount !== 'string' || !DECIMAL.test(a.amount)) throw new HttpError(400, 'move.amounts: amount must be a decimal string')
+      const amt: MoveAmount = { mint: a.mint, amount: a.amount }
+      if (a.symbol !== undefined && a.symbol !== null) {
+        if (typeof a.symbol !== 'string' || !/^[\x21-\x7e]{1,16}$/.test(a.symbol)) throw new HttpError(400, 'move.amounts: symbol is 1-16 printable characters')
+        amt.symbol = a.symbol
+      }
+      return amt
+    })
+  }
+  return out
+}
+
 export function createPost(user: string, b: any): Post {
   const t = target({ kind: 'token', chain: b?.chain, address: b?.token })
   const kind = b?.kind === 'call' ? 'call' : 'comment'
   const body = String(b?.body ?? '').trim()
   if (!body || body.length > 500) throw new HttpError(400, 'body: 1-500 characters')
+  const txSig = parseTx(b?.tx)
+  const move = parseMove(b?.move)
   const now = Date.now()
   if (now - (lastPost.get(user) ?? 0) < 5000) throw new HttpError(429, 'slow down')
   lastPost.set(user, now)
   const preGrad = kind === 'call' && !tokenGraduated(t.chain, t.address) ? 1 : 0
-  const r = db.prepare('INSERT INTO posts (user, chain, token, kind, body, ts, pre_grad) VALUES (?,?,?,?,?,?,?)').run(user, t.chain, t.address, kind, body, now, preGrad)
+  const r = db.prepare('INSERT INTO posts (user, chain, token, kind, body, ts, pre_grad, tx, move) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(user, t.chain, t.address, kind, body, now, preGrad, txSig ?? null, move ? JSON.stringify(move) : null)
   return getPost(Number(r.lastInsertRowid), user)!
 }
 
@@ -143,6 +188,8 @@ function rowToPost(r: any, viewer?: string | null): Post {
     liked: viewer ? !!db.prepare('SELECT 1 FROM likes WHERE user = ? AND post = ?').get(viewer, r.id) : undefined,
     tokenMeta: r.t_symbol || r.t_name ? { symbol: r.t_symbol ?? undefined, name: r.t_name ?? undefined, image: r.t_image ?? undefined } : undefined,
     hit: r.kind === 'call' && r.pre_grad ? r.hit === 1 : undefined,
+    tx: r.tx ?? undefined,
+    move: r.move ? (JSON.parse(r.move) as Move) : undefined,
   }
 }
 

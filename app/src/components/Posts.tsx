@@ -1,12 +1,13 @@
 import { memo, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { router } from 'expo-router'
 import { C, F } from '@/theme'
 import { post as apiPost } from '@/lib/api'
 import { useSocial } from '@/lib/social'
 import { ago, short } from '@/lib/format'
-import type { Chain, Post } from '@/lib/types'
-import { Button, Seg, Txt } from './ui'
+import { moveAmounts, moveTag, txUrl } from '@/lib/move-text'
+import type { Chain, Move, Post } from '@/lib/types'
+import { Button, Chip, Seg, Txt } from './ui'
 
 export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post; now: number; showToken?: boolean }) {
   const social = useSocial()
@@ -25,6 +26,7 @@ export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post;
         <Txt v="monoSmall">{ago(p.ts, now)}</Txt>
       </View>
       <Txt v="body" selectable>{p.body}</Txt>
+      {p.move ? <MoveCard move={p.move} tx={p.tx} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Pressable hitSlop={8} onPress={async () => {
           const on = !liked
@@ -42,6 +44,22 @@ export const PostItem = memo(function PostItem({ p, now, showToken }: { p: Post;
     </View>
   )
 })
+
+// the on-chain move a post carries: what was done, where, how much, and the receipt
+function MoveCard({ move, tx }: { move: Move; tx?: string }) {
+  const out = move.operation === 'remove'
+  const amounts = moveAmounts(move)
+  return (
+    <View style={ps.move}>
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <Text style={[ps.tag, { alignSelf: 'flex-start', color: out ? C.out : C.accent, borderColor: (out ? C.out : C.accent) + '66' }]}>{moveTag(move)}</Text>
+        {amounts ? <Txt v="mono" numberOfLines={1}>{amounts}</Txt> : null}
+        {move.pool ? <Txt v="monoSmall" numberOfLines={1}>pool {short(move.pool)}</Txt> : null}
+      </View>
+      {tx ? <Chip label="View tx ↗" onPress={() => Linking.openURL(txUrl(tx))} /> : null}
+    </View>
+  )
+}
 
 export function Composer({ chain, token, graduated, onPosted }: { chain: Chain; token: string; graduated: boolean; onPosted: (p: Post) => void }) {
   const [body, setBody] = useState('')
@@ -76,6 +94,7 @@ const ps = StyleSheet.create({
   author: { fontFamily: F.display, fontSize: 14, color: C.text },
   token: { fontFamily: F.monoBold, fontSize: 12, color: C.accent },
   tag: { fontFamily: F.monoBold, fontSize: 9, letterSpacing: 0.6, borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  move: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
   composer: { marginHorizontal: 16, padding: 12, gap: 10, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.line },
   input: { minHeight: 64, color: C.text, fontFamily: F.body, fontSize: 15, textAlignVertical: 'top', padding: 0 },
 })

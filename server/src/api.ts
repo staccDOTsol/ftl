@@ -13,6 +13,7 @@ import { quotePonsV2 } from './robinhood/pons-quote.ts'
 import { quoteV4 } from './robinhood/v4-quote.ts'
 import { HttpError, callers, createPost, deleteAccount, follow, follows, getPost, like, listPosts, profile, registerPush, setProfile, verify } from './social.ts'
 import { handleHeliusWaas } from './helius-waas.ts'
+import { poolWallets } from './pool-crowd.ts'
 import { config } from './config.ts'
 import { createSolanaRouterHandler } from './solana/router.ts'
 import { createSolanaHoldingsHandler } from './solana/holdings.ts'
@@ -193,6 +194,7 @@ export function startApi(port: number) {
         else if (b === 'research' && chainOf(c ?? null) && d) out = getResearch(c as Chain, normAddr(c as Chain, d))
         else if (b === 'token' && chainOf(c ?? null) && d) out = tokenPage(c as Chain, normAddr(c as Chain, d), viewer)
         else if (b === 'wallet' && chainOf(c ?? null) && d) out = walletPage(c as Chain, normAddr(c as Chain, d))
+        else if (b === 'pool' && chainOf(c ?? null) && d && parts[4] === 'wallets' && !parts[5]) out = poolWallets(c as Chain, normAddr(c as Chain, d), viewer)
         else if (b === 'leaderboard' && c === 'wallets') out = leaderboard(q)
         else if (b === 'leaderboard' && c === 'callers') out = callers()
         else if (b === 'posts' && !c) out = listPosts({

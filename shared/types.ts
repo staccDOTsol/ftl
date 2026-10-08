@@ -108,6 +108,13 @@ export interface PoolSummary {
 
 export interface Profile { pubkey: string; handle: string | null; bio: string | null; createdTs: number }
 
+// A move is the swap or liquidity operation a post was written about. The app
+// attaches it right after the wallet signs; the server validates and stores it.
+export type MoveVenue = 'raydium-cpmm' | 'raydium-clmm' | 'raydium-amm-v4' | 'orca' | 'meteora-dlmm' | 'meteora-damm' | 'meteora-damm-v2' | 'pumpswap' | 'swap'
+export type MoveOperation = 'swap' | 'add' | 'remove' | 'initialize'
+export interface MoveAmount { mint: string; amount: string; symbol?: string }   // amount: decimal string in UI units
+export interface Move { venue: MoveVenue; operation: MoveOperation; pool?: string; amounts?: MoveAmount[] }
+
 export interface Post {
   id: number
   author: Profile
@@ -121,6 +128,9 @@ export interface Post {
   tokenMeta?: TokenMeta
   // a call is scored once the token graduates after it was posted
   hit?: boolean
+  // the on-chain move this post carries, when it was written from a trade or liquidity flow
+  tx?: string
+  move?: Move
 }
 
 export interface CallerSummary { profile: Profile; calls: number; hits: number; hitRate: number }

@@ -179,6 +179,11 @@ for (const col of ['token TEXT', 'gap_reason TEXT']) {
   try { db.exec(`ALTER TABLE research_stream_sessions ADD COLUMN ${col}`) } catch {}
 }
 db.exec('CREATE INDEX IF NOT EXISTS research_stream_sessions_window ON research_stream_sessions(token, started_ts, ended_ts)')
+// A post can carry the move that prompted it: the Solana signature and a JSON
+// summary of the swap or liquidity operation (see Move in shared/types.ts).
+for (const col of ['tx TEXT', 'move TEXT']) {
+  try { db.exec(`ALTER TABLE posts ADD COLUMN ${col}`) } catch {}
+}
 
 export function tx<T>(fn: () => T): T {
   db.exec('BEGIN')
