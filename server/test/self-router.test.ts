@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
-import { DirectSolanaRouter, rankDirectCandidates, unsignedV1 } from '../src/solana/self-router.ts'
+import { ComputeBudgetProgram, PublicKey, SystemProgram, TransactionInstruction, VersionedTransaction } from '@solana/web3.js'
+import { DirectSolanaRouter, rankDirectCandidates, unsignedV0, unsignedV1 } from '../src/solana/self-router.ts'
 import { decodeV1 } from '../src/solana/transaction-v1.ts'
 import { transactionVersion } from '../src/solana/router.ts'
 
@@ -22,6 +22,18 @@ test('direct V1 swap assembly keeps only the wallet signer and explicit resource
   assert.ok(decoded.signatures[0].every(byte => byte === 0))
 })
 
+test('a venue SDK compute budget is dropped: the emitter sets the only one', () => {
+  // Meteora DLMM's swap() prepends its own SetComputeUnitLimit; two make the transaction invalid.
+  const sdk = [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), SystemProgram.transfer({ fromPubkey: payer, toPubkey: recipient, lamports: 123 })]
+  const v0 = VersionedTransaction.deserialize(Buffer.from(unsignedV0(payer, hash, sdk, 600_000), 'base64')).message
+  const budgets = v0.compiledInstructions.filter(ix => v0.staticAccountKeys[ix.programIdIndex].equals(ComputeBudgetProgram.programId))
+  assert.equal(budgets.length, 1)
+  assert.equal(Buffer.from(budgets[0].data).readUInt32LE(1), 600_000)
+  assert.equal(v0.compiledInstructions.length, 2)
+  const v1 = decodeV1(Buffer.from(unsignedV1(payer, hash, sdk, 600_000), 'base64'), { requireResources: true })
+  assert.equal(v1.ixs.length, 1)
+  assert.equal(v1.config.computeUnitLimit, 600_000)
+})
 test('direct V1 swap rejects unsupported programs and a second signer', () => {
   const unsupported = new TransactionInstruction({ programId: recipient, keys: [], data: Buffer.of(1) })
   assert.throws(() => unsignedV1(payer, hash, [unsupported]), /unsupported program/i)

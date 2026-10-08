@@ -298,6 +298,9 @@ async function validBuybackRecipient(connection: Connection,
 }
 
 export type EmitOptions = { allowPrograms?: PublicKey[] }
+/** The emitter owns the compute budget (V0: one SetComputeUnitLimit, V1: the config). A venue SDK
+ * that adds its own estimate (DLMM's swap() does) would duplicate it, and the runtime rejects that. */
+const withoutBudget = (instructions: TransactionInstruction[]) => instructions.filter(ix => !ix.programId.equals(COMPUTE_BUDGET))
 function validateInstructions(instructions: TransactionInstruction[], payer: PublicKey,
   options: EmitOptions = {}): void {
   if (!instructions.length || instructions.length > 64) throw new DirectRouteError(422, 'Unsupported transaction instruction count')
@@ -312,6 +315,7 @@ function validateInstructions(instructions: TransactionInstruction[], payer: Pub
 
 export function unsignedV1(payer: PublicKey, blockhash: string,
   instructions: TransactionInstruction[], computeUnitLimit = 800_000, options: EmitOptions = {}): string {
+  instructions = withoutBudget(instructions)
   validateInstructions(instructions, payer, options)
   const flags = new Map<string, { key: PublicKey; writable: boolean }>()
   flags.set(payer.toBase58(), { key: payer, writable: true })
@@ -357,6 +361,7 @@ export function unsignedV1(payer: PublicKey, blockhash: string,
 
 export function unsignedV0(payer: PublicKey, blockhash: string, instructions: TransactionInstruction[],
   computeUnitLimit = 800_000, options: EmitOptions & { addressLookupTables?: AddressLookupTableAccount[] } = {}): string {
+  instructions = withoutBudget(instructions)
   validateInstructions(instructions, payer, options)
   const message = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash,
     instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnitLimit }), ...instructions] })
