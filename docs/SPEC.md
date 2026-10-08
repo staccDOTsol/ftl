@@ -19,8 +19,9 @@ Every requirement the owner gave on 2026-10-07/08, with its current status. Upda
 | 14 | Publish the Sanctum fork and LST engine, open-source FTL | Done | github.com/staccDOTsol/permissionless-lst (embedding commit 5c5f850), github.com/staccDOTsol/permissionless-lst-engine (new, public), github.com/staccDOTsol/ftl now public |
 | 15 | GitHub links in site footer | Done, live | Rail footer links to ftl, autobahn, permissionless-lst-engine; Me tab link |
 | 16 | Jupiter-Terminal-style /swap page for the router | Done, live | /swap: token search and any pasted mint, HALF/MAX, flip, 15 s requote, route legs, slippage settings, shared wallet session; liquidity mode and arbitrary-mint metadata being added |
-| 17 | Token metadata for any mint (symbol, name, image) across swap, holdings, liquidity | In progress | GET /api/meta/solana/:mint via FTL index then DAS |
-| 18 | Liquidity operations inside the swap terminal | In progress | Swap / Liquidity seg in /swap, deep link /swap?mode=liquidity&out=<mint>&pool=<address> |
+| 17 | Token metadata for any mint (symbol, name, image) across swap, holdings, liquidity | Done, live | GET /api/meta/solana/:mint (FTL row → DAS getAsset → chain decimals), batch form, /api/search falls through to it; app caches and labels everywhere |
+| 18 | Liquidity operations inside the swap terminal | Done, live | Swap / Liquidity seg in /swap; /swap?mode=liquidity&out=<mint>[&pool=<address>][&action=exit]; holdings routes unseen tokens here |
+| 19 | Design pass ("make it beautiful") | Done, live | Web shell with transitions, focus-visible and invalid-input rings, reduced-motion; button weight ladder; chip count badges; Trade card first on token pages; percent chips; redesigned liquidity card |
 | 13 | Feed → router loop: event → token → route → sign → confirm → back to feed | Done for swaps and LP | Feed events deep-link into the trade card with the originating pool; confirmed moves re-enter the feed through on-chain detection |
 
 Incident log: 2026-10-08 04:49–05:00 UTC the router crash-looped after a deploy from the repo root picked the wrong Fly config; rolled back to the previous image, then rebuilt with `fly deploy -c deploy/fly.toml` from the root.
