@@ -296,12 +296,14 @@ const sameInstruction = (a: TransactionInstruction, b: TransactionInstruction) =
   a.programId.equals(b.programId) && Buffer.from(a.data).equals(Buffer.from(b.data)) &&
   a.keys.length === b.keys.length && a.keys.every((k, i) => k.pubkey.equals(b.keys[i].pubkey) &&
     k.isSigner === b.keys[i].isSigner && k.isWritable === b.keys[i].isWritable)
-// SyncNative is never merged: two legs that each wrap SOL need a sync after
-// each transfer, or the second transfer never reaches the token balance.
-const syncNative = (ix: TransactionInstruction) => (ix.programId.equals(TOKEN_PROGRAM_ID) || ix.programId.equals(TOKEN_2022_PROGRAM_ID)) &&
-  ix.data.length === 1 && ix.data[0] === 17
+// Only repeats that are idempotent or would fail are merged: creating the
+// same token account, or closing it twice. Everything else runs as often as
+// the legs ask: two legs that each wrap the same amount of SOL need both
+// transfers and both syncs, even when their bytes are identical.
+const mergeable = (ix: TransactionInstruction) => (ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID) && ix.data.length === 1 && ix.data[0] === 1) ||
+  ((ix.programId.equals(TOKEN_PROGRAM_ID) || ix.programId.equals(TOKEN_2022_PROGRAM_ID)) && ix.data.length === 1 && ix.data[0] === 9)
 const hoist = (instructions: TransactionInstruction[]) => instructions.reduce<TransactionInstruction[]>((all, ix) =>
-  ix.programId.equals(ComputeBudgetProgram.programId) || (!syncNative(ix) && all.some(x => sameInstruction(x, ix))) ? all : [...all, ix], [])
+  ix.programId.equals(ComputeBudgetProgram.programId) || (mergeable(ix) && all.some(x => sameInstruction(x, ix))) ? all : [...all, ix], [])
 
 /** Chain exact-in venue legs through the composer. Each leg's setup (ATA
  * creation, wrapping) runs before the compose call and its cleanup after;

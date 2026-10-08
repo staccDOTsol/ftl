@@ -357,3 +357,18 @@ test('a composed V1 transaction can carry a new position key as a second signer,
   assert.ok(nacl.sign.detached.verify(bytes.subarray(0, end), bytes.subarray(end + 64, end + 128), position.publicKey.toBytes()))
   assert.throws(() => signComposed(wire, Keypair.generate()), /does not sign/)
 })
+
+test('composer setup keeps every value-moving instruction, even byte-identical ones from two legs', async () => {
+  const { composeZap } = await import('../src/solana/compose.ts')
+  const { SystemProgram } = await import('@solana/web3.js')
+  const { createSyncNativeInstruction, createCloseAccountInstruction, createAssociatedTokenAccountIdempotentInstruction, NATIVE_MINT } = await import('@solana/spl-token')
+  const owner = Keypair.generate().publicKey, wsol = Keypair.generate().publicKey, program = Keypair.generate().publicKey
+  const raw = (ix: TransactionInstruction) => ({ programId: ix.programId.toBase58(), data: Buffer.from(ix.data).toString('base64'), keys: ix.keys.map(k => ({ pubkey: k.pubkey.toBase58(), isSigner: k.isSigner, isWritable: k.isWritable })) })
+  const wrap = [createAssociatedTokenAccountIdempotentInstruction(owner, wsol, owner, NATIVE_MINT), SystemProgram.transfer({ fromPubkey: owner, toPubkey: wsol, lamports: 9_950_000 }), createSyncNativeInstruction(wsol)].map(raw)
+  const close = [createCloseAccountInstruction(wsol, owner, owner)].map(raw)
+  const action = raw(new TransactionInstruction({ programId: program, data: Buffer.from([7]), keys: [{ pubkey: owner, isSigner: true, isWritable: true }] }))
+  const built = composeZap([{ action, setup: wrap, cleanup: close }, { action, setup: wrap, cleanup: close }], { programId: Keypair.generate().publicKey, payer: owner })
+  const kinds = built.before.map(ix => ix.programId.equals(SystemProgram.programId) ? 'transfer' : ix.data[0] === 17 ? 'sync' : 'create')
+  assert.deepEqual(kinds, ['create', 'transfer', 'sync', 'transfer', 'sync'], 'one create, both wraps')
+  assert.equal(built.after.length, 1, 'the account closes once')
+})
