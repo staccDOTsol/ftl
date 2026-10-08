@@ -1,7 +1,7 @@
 import { request, solanaRpc, decodeTransaction, encodeTransaction } from './solana'
 import { inspectTransaction, type TransactionVersion } from './solana-wire'
 
-import type { LiquidityIntent, LiquidityQuote, LiquidityVenue, LiquidityPosition, LiquidityBuild, LiquidityTransaction } from './solana-liquidity-model'
+import type { LiquidityIntent, LiquidityQuote, LiquidityVenue, LiquidityPosition, LiquidityBuild, LiquidityTransaction, PoolStatsResult } from './solana-liquidity-model'
 export * from './solana-liquidity-model'
 
 const endpoint = '/api/liquidity/solana'
@@ -24,3 +24,6 @@ export async function simulateLiquidity(transaction: LiquidityTransaction, owner
   if (fee.value === null || !Number.isSafeInteger(fee.value) || fee.value < 0) throw new Error('Could not verify the transaction network fee.')
   return fee.value
 }
+
+/** Venue-published TVL, 24h volume/fees and fee APR for up to 20 pools in one call. */
+export const poolStats = (entries: { venue: string; pool: string }[]) => request<{ results: PoolStatsResult[] }>(`/api/pool-stats/solana?${new URLSearchParams({ pools: entries.slice(0, 20).map(e => `${e.venue}:${e.pool}`).join(',') })}`)

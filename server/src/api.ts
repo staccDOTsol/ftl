@@ -17,6 +17,7 @@ import { poolWallets } from './pool-crowd.ts'
 import { config } from './config.ts'
 import { createSolanaRouterHandler } from './solana/router.ts'
 import { createSolanaHoldingsHandler } from './solana/holdings.ts'
+import { createPoolStatsHandler } from './solana/pool-stats.ts'
 import { createSolanaWrapHandler } from './solana/wrap.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
@@ -24,6 +25,8 @@ const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaR
   rpcUrl: config.solanaRpc, selfRouter: config.solanaSelfRouter })
 // Wallet holdings read the same server-side RPC and FTL's own token and pool
 // rows; the hot() ranking below feeds the buy suggestions.
+// Venue-published pool yield (TVL, volume, fee APR) over the same bounded transport.
+const handlePoolStats = createPoolStatsHandler()
 const handleSolanaHoldings = createSolanaHoldingsHandler({ rpcUrl: config.solanaRpc, positions: handleSolanaRouter.positions, catalog: {
   token: mint => getToken('solana', mint),
   pools: (mint, limit) => (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY funded DESC, created_ts DESC LIMIT ?').all('solana', mint, limit) as any[]).map(rowToPool),
@@ -174,6 +177,7 @@ export function startApi(port: number) {
     try {
       if (await handleSolanaRouter(req, res, url, body)) return
       if (await handleSolanaHoldings(req, res, url)) return
+      if (await handlePoolStats(req, res, url)) return
       if (await handleSolanaWrap(req, res, url, body)) return
       if (await handleHeliusWaas(req, res, url, body)) return
       let out: unknown

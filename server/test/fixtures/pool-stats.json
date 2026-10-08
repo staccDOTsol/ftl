@@ -1,0 +1,398 @@
+{
+ "recordedAt": "2026-10-08",
+ "raydium": {
+  "url": "https://api-v3.raydium.io/pools/info/ids?ids=2JtkunkYCRbe5YZuGU6kLFmNwN22Ba1pCicHoqW5Eqja,fAjTnZ9QqJkUmrr8cXutkYhpVge2qqtSZNt9qKn7YC2,S2MiN5qmiRS8HBQMXcdJUhLwrBgX9P3naDuo4GkQ63t",
+  "body": {
+   "id": "a0a8ffeb-8b40-47ac-be42-dbf022ea07b2",
+   "success": true,
+   "data": [
+    {
+     "type": "Concentrated",
+     "programId": "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK",
+     "id": "2JtkunkYCRbe5YZuGU6kLFmNwN22Ba1pCicHoqW5Eqja",
+     "feeRate": 0.04,
+     "tvl": 1728.52,
+     "day": {
+      "volume": 8.051010986200211,
+      "volumeQuote": 8.123793434513887,
+      "volumeFee": 0.3220438528739525,
+      "apr": 6.8,
+      "feeApr": 6.8,
+      "priceMin": 103.56390456801036,
+      "priceMax": 125.45447108881636,
+      "rewardApr": []
+     },
+     "mintA": {
+      "address": "So11111111111111111111111111111111111111112",
+      "symbol": "WSOL"
+     },
+     "mintB": {
+      "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC"
+     },
+     "week": {
+      "apr": 1.18
+     },
+     "rewardDefaultInfos": []
+    },
+    {
+     "type": "Standard",
+     "programId": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+     "id": "S2MiN5qmiRS8HBQMXcdJUhLwrBgX9P3naDuo4GkQ63t",
+     "feeRate": 0.0025,
+     "tvl": 9.48,
+     "day": {
+      "volume": 0.7769736303706479,
+      "volumeQuote": 0.7834623495486112,
+      "volumeFee": 0.0019424340759266199,
+      "apr": 7.48,
+      "feeApr": 7.48,
+      "priceMin": 114.83870967741936,
+      "priceMax": 126.3157894736842,
+      "rewardApr": []
+     },
+     "mintA": {
+      "address": "So11111111111111111111111111111111111111112",
+      "symbol": "WSOL"
+     },
+     "mintB": {
+      "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC"
+     },
+     "week": {
+      "apr": 2.72
+     },
+     "rewardDefaultInfos": []
+    },
+    {
+     "type": "Standard",
+     "programId": "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+     "id": "fAjTnZ9QqJkUmrr8cXutkYhpVge2qqtSZNt9qKn7YC2",
+     "feeRate": 0.00005,
+     "tvl": 59.68,
+     "day": {
+      "volume": 282.1257171819502,
+      "volumeQuote": 282.83736543766184,
+      "volumeFee": 0.014106285859097522,
+      "apr": 8.63,
+      "feeApr": 8.63,
+      "priceMin": 113.605,
+      "priceMax": 121.38737040527803,
+      "rewardApr": []
+     },
+     "mintA": {
+      "address": "So11111111111111111111111111111111111111112",
+      "symbol": "WSOL"
+     },
+     "mintB": {
+      "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "symbol": "USDC"
+     },
+     "week": {
+      "apr": 6.84
+     },
+     "rewardDefaultInfos": []
+    }
+   ]
+  }
+ },
+ "orca": {
+  "url": "https://api.orca.so/v2/solana/pools/21gTfxAnhUDjJGZJDkTXctGFKT8TeiXx6pN1CEg9K1uW",
+  "body": {
+   "data": {
+    "address": "21gTfxAnhUDjJGZJDkTXctGFKT8TeiXx6pN1CEg9K1uW",
+    "feeRate": 1600,
+    "protocolFeeRate": 1300,
+    "tokenMintA": "So11111111111111111111111111111111111111112",
+    "tokenMintB": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "poolType": "whirlpool",
+    "price": "115.29199871624922289000",
+    "tvlUsdc": "3456.6701275480299074",
+    "yieldOverTvl": "0.00022451924861112800",
+    "stats": {
+     "24h": {
+      "volume": "485.055612333510",
+      "fees": "0.774207466305375881674000",
+      "rewards": "0",
+      "yieldOverTvl": "0.00022446340673600300",
+      "volumeDelta": "0.4738170695093970",
+      "feesDelta": "0.470122474228564973141000",
+      "rewardsDelta": null,
+      "yieldOverTvlDelta": "0.500451993738262373849784084043777232",
+      "tvlDelta": "-0.01807675049523154443",
+      "priceDelta": "-0.024724437585935906332171564015943000"
+     },
+     "7d": {
+      "volume": "2179.907070262960",
+      "fees": "3.486286400384091986108000",
+      "rewards": "0",
+      "yieldOverTvl": "0.0010087696233534",
+      "volumeDelta": "-0.4124705935011560",
+      "feesDelta": "-0.412665998592643752742000",
+      "rewardsDelta": null,
+      "yieldOverTvlDelta": "-0.412548504001682704223000",
+      "tvlDelta": null,
+      "priceDelta": null
+     }
+    },
+    "rewards": [
+     {
+      "mint": "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+      "active": false,
+      "emissionsPerSecond": "0"
+     }
+    ]
+   }
+  }
+ },
+ "meteora-dlmm": {
+  "url": "https://dlmm.datapi.meteora.ag/pools/5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6",
+  "body": {
+   "address": "5rCf1DM8LjKTw4YqhnoLcngyZYeNnQqztScTogYHAS6",
+   "name": "SOL-USDC",
+   "pool_config": {
+    "bin_step": 4,
+    "base_fee_pct": 0.04,
+    "max_fee_pct": 0,
+    "protocol_fee_pct": 5,
+    "collect_fee_mode": 0
+   },
+   "dynamic_fee_pct": 3e-7,
+   "tvl": 4574416.897879948,
+   "current_price": 115.46725737713008,
+   "apr": 0.1764143169261375,
+   "apy": 90.28351290795192,
+   "has_farm": false,
+   "farm_apr": 0,
+   "farm_apy": 0,
+   "volume": {
+    "30m": 813125.2901011911,
+    "1h": 1021557.9747073244,
+    "2h": 1912748.404937865,
+    "4h": 3365072.2438521464,
+    "12h": 8580144.73125166,
+    "24h": 21403331.54144714
+   },
+   "fees": {
+    "30m": 364.2172493531033,
+    "1h": 439.87801069103097,
+    "2h": 765.0386861492593,
+    "4h": 1295.87315379635,
+    "12h": 3217.314729246181,
+    "24h": 8069.926323748718
+   },
+   "fee_tvl_ratio": {
+    "30m": 0.007962047567678031,
+    "1h": 0.009616045509426482,
+    "2h": 0.016724288652042688,
+    "4h": 0.02832870686528229,
+    "12h": 0.07033278341414996,
+    "24h": 0.17641431692613746
+   },
+   "token_x": {
+    "address": "So11111111111111111111111111111111111111112",
+    "symbol": "SOL",
+    "decimals": 9
+   },
+   "token_y": {
+    "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "symbol": "USDC",
+    "decimals": 6
+   }
+  },
+  "targetPool": {
+   "url": "https://dlmm.datapi.meteora.ag/pools/GNY3YbGqdhZv8R3kD2NRJQ4NLD6tb3PPthJ2mpUR89Lc",
+   "body": {
+    "address": "GNY3YbGqdhZv8R3kD2NRJQ4NLD6tb3PPthJ2mpUR89Lc",
+    "name": "SOL-USDC",
+    "pool_config": {
+     "bin_step": 2,
+     "base_fee_pct": 0.04,
+     "max_fee_pct": 0,
+     "protocol_fee_pct": 20,
+     "collect_fee_mode": 0
+    },
+    "dynamic_fee_pct": 0,
+    "tvl": 3.6737959769112583,
+    "current_price": 85.16593978642717,
+    "apr": 0,
+    "apy": 0,
+    "has_farm": false,
+    "farm_apr": 0,
+    "farm_apy": 0,
+    "volume": {
+     "30m": 0,
+     "1h": 0,
+     "2h": 0,
+     "4h": 0,
+     "12h": 0,
+     "24h": 0
+    },
+    "fees": {
+     "30m": 0,
+     "1h": 0,
+     "2h": 0,
+     "4h": 0,
+     "12h": 0,
+     "24h": 0
+    },
+    "fee_tvl_ratio": {
+     "30m": 0,
+     "1h": 0,
+     "2h": 0,
+     "4h": 0,
+     "12h": 0,
+     "24h": 0
+    },
+    "token_x": {
+     "address": "So11111111111111111111111111111111111111112",
+     "symbol": "SOL",
+     "decimals": 9
+    },
+    "token_y": {
+     "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+     "symbol": "USDC",
+     "decimals": 6
+    }
+   }
+  }
+ },
+ "meteora-damm-v2": {
+  "url": "https://damm-v2.datapi.meteora.ag/pools/4xp7kN4nVt19caq4kM629vL8vJEqpSFVdZAh27wvYPh8",
+  "body": {
+   "address": "4xp7kN4nVt19caq4kM629vL8vJEqpSFVdZAh27wvYPh8",
+   "name": "BORDR-SOL",
+   "pool_config": {
+    "collect_fee_mode": 1,
+    "base_fee_mode": 0,
+    "base_fee_pct": 2.5,
+    "protocol_fee_pct": 20,
+    "partner_fee_pct": 0,
+    "referral_fee_pct": 20,
+    "dynamic_fee_initialized": false,
+    "compounding_fee_pct": 0,
+    "pool_type": 1,
+    "concentrated_liquidity": false,
+    "min_price": 5.421214630269582e-23,
+    "max_price": 18446050713735950,
+    "activation_type": 1,
+    "activation_point": 1791422366,
+    "has_fee_scheduler": false,
+    "is_fee_scheduler_active": false
+   },
+   "tvl": 104813.26147584456,
+   "current_price": 0.000010430194843533137,
+   "has_farm": false,
+   "farm_apr": 0,
+   "farm_apy": 0,
+   "volume": {
+    "30m": 141068.33449911463,
+    "1h": 420137.44587362075,
+    "2h": 1503842.132545157,
+    "4h": 4144770.425747157,
+    "12h": 4144770.425747157,
+    "24h": 4144770.425747157
+   },
+   "fees": {
+    "30m": 2855.4939413326124,
+    "1h": 8507.409410490614,
+    "2h": 30456.058273381004,
+    "4h": 83920.81759238162,
+    "12h": 83920.81759238162,
+    "24h": 83920.81759238162
+   },
+   "fee_tvl_ratio": {
+    "30m": 2.7243632161858584,
+    "1h": 8.116729973574238,
+    "2h": 29.057447354025864,
+    "4h": 80.06698428301665,
+    "12h": 80.06698428301665,
+    "24h": 80.06698428301665
+   },
+   "token_x": {
+    "address": "6Mix12LiHrQFojaQEnfPUC65Qkwd6X4Y5Qg93oFbordr",
+    "symbol": "BORDR",
+    "decimals": 6
+   },
+   "token_y": {
+    "address": "So11111111111111111111111111111111111111112",
+    "symbol": "SOL",
+    "decimals": 9
+   }
+  }
+ },
+ "meteora-damm": {
+  "url": "https://damm-api.meteora.ag/pools?address=E5H5BXLranyJFHEzvR3R2j6kGDQ3Fnx8sPKSsgYqyya8",
+  "body": [
+   {
+    "pool_address": "E5H5BXLranyJFHEzvR3R2j6kGDQ3Fnx8sPKSsgYqyya8",
+    "pool_token_mints": [
+     "DBRiDgJAMsM95moTzJs7M9LnkGErpbv9v6CUR1DXnUu5",
+     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    ],
+    "pool_tvl": "5783528.718230854",
+    "pool_name": "DBR-USDC",
+    "trading_volume": 403388.8484941744,
+    "fee_volume": 1210.1665454825225,
+    "trade_apy": "7.935748",
+    "apr": 7.930069513624118,
+    "farming_apy": "0",
+    "total_fee_pct": "0.3",
+    "pool_type": "volatile"
+   }
+  ]
+ },
+ "pumpswap": {
+  "pool": {
+   "url": "https://swap-api.pump.fun/v1/pools/7GZHLdhvZN1NSutNt1BJs5S9ArBobAdCvyGzwPo22LHA",
+   "body": {
+    "address": "7GZHLdhvZN1NSutNt1BJs5S9ArBobAdCvyGzwPo22LHA",
+    "baseMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "quoteMint": "So11111111111111111111111111111111111111112",
+    "baseMintDecimals": 6,
+    "quoteMintDecimals": 9,
+    "creator": "331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPnUPd76Mth",
+    "poolIndex": 17417,
+    "baseReserves": "35",
+    "quoteReserves": "292",
+    "lpSupply": "2915",
+    "liquidityUSD": "0.000067702191672432"
+   }
+  },
+  "pair": {
+   "url": "https://swap-api.pump.fun/v1/pools/pair?mintA=So11111111111111111111111111111111111111112&mintB=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&sort=liquidity&include_vol=true",
+   "body": [
+    {
+     "address": "Gf7sXMoP8iRw4iiXmJ1nq4vxcRycbGXy5RL8a8LnTd3v",
+     "baseMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+     "quoteMint": "So11111111111111111111111111111111111111112",
+     "baseMintDecimals": 6,
+     "quoteMintDecimals": 9,
+     "creator": "CbAF99HGQnAtnvw67nHesZH7ZwaQZeboYceCH5xNhr4s",
+     "poolIndex": 0,
+     "isCanonical": false,
+     "baseReserves": "3972996163172",
+     "quoteReserves": "34438007303606",
+     "lpSupply": "408656334",
+     "liquidityUSD": "7946190.906583959140966144000000000000001",
+     "volumeUSD": "2873168.2296297345"
+    },
+    {
+     "address": "7GZHLdhvZN1NSutNt1BJs5S9ArBobAdCvyGzwPo22LHA",
+     "baseMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+     "quoteMint": "So11111111111111111111111111111111111111112",
+     "baseMintDecimals": 6,
+     "quoteMintDecimals": 9,
+     "creator": "331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPnUPd76Mth",
+     "poolIndex": 17417,
+     "isCanonical": false,
+     "baseReserves": "35",
+     "quoteReserves": "292",
+     "lpSupply": "2915",
+     "liquidityUSD": "0.000067702191672432",
+     "volumeUSD": "0"
+    }
+   ]
+  }
+ }
+}

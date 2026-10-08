@@ -1,144 +1,40 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, StyleSheet, TextInput, View } from 'react-native'
-import { VersionedTransaction } from '@solana/web3.js'
-import { getWallets } from '@wallet-standard/app'
-import type { Wallet, WalletAccount } from '@wallet-standard/base'
-import { StandardConnect, StandardDisconnect, StandardEvents, type StandardConnectFeature, type StandardDisconnectFeature, type StandardEventsFeature } from '@wallet-standard/features'
-import { SolanaSignTransaction, type SolanaSignTransactionFeature } from '@solana/wallet-standard-features'
+import { router } from 'expo-router'
 import bs58 from 'bs58'
 import { C, F } from '@/theme'
 import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
 import { balancePercent, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
-import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint, type Confirmation } from '@/lib/solana'
-import { inspectTransaction, preferredTransactionVersion, type TransactionVersion } from '@/lib/solana-wire'
+import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
+import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
+import { swapLink } from '@/lib/swap-link'
+import { inspectTransaction } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
 import SolanaLiquidity from './SolanaLiquidity.web'
+import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
 import type { TradeAction } from './Trade'
 
-type Props = { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: TradeAction }
-export interface SolanaSigner { address: string | null; transactionVersion: TransactionVersion | null; connect: () => Promise<void>; disconnect: () => Promise<void>; sign: (bytes: Uint8Array) => Promise<Uint8Array> }
-export type StandardSolanaWallet = Wallet & { features: StandardConnectFeature & SolanaSignTransactionFeature & Partial<StandardDisconnectFeature & StandardEventsFeature> }
-export function isStandardSolana(wallet: Wallet): wallet is StandardSolanaWallet {
-  return wallet.chains.includes('solana:mainnet') && StandardConnect in wallet.features && SolanaSignTransaction in wallet.features
-}
-export const signingAccount = (accounts: readonly WalletAccount[]) => accounts.find(account => account.chains.includes('solana:mainnet') && account.features.includes(SolanaSignTransaction)) ?? null
-export interface InjectedWallet {
-  publicKey?: { toBase58(): string }
-  connect(): Promise<unknown>
-  disconnect(): Promise<void>
-  signTransaction(tx: VersionedTransaction): Promise<VersionedTransaction>
-  on?(event: string, callback: () => void): void
-  removeListener?(event: string, callback: () => void): void
-}
-const EmbeddedWallet = lazy(() => import('./SolanaTradeEmbedded.web'))
-const messageOf = (error: unknown) => error instanceof Error ? error.message : 'The operation could not finish. Please try again.'
-interface PendingSwap { signature: string; lastValidBlockHeight: number; state: Confirmation }
-const PENDING_KEY = 'liquidityxyz.solana.pending.v1'
-function readPending(): PendingSwap | null {
-  try {
-    const value = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null')
-    return value?.state === 'pending' && /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(value.signature) && Number.isSafeInteger(value.lastValidBlockHeight) ? value : null
-  } catch { return null }
-}
+// Wallet discovery and signer adapters live in SolanaWallet.web.tsx; these
+// re-exports keep the historical import path working for other components.
+export { injectedWallets, isStandardSolana, signingAccount, type InjectedWallet, type SolanaSigner, type StandardSolanaWallet } from './SolanaWallet.web'
 
-export function injectedWallets(): { name: string; provider: InjectedWallet }[] {
-  if (typeof window === 'undefined') return []
-  const browser = window as unknown as { phantom?: { solana?: InjectedWallet }; solflare?: InjectedWallet; solana?: InjectedWallet }
-  const candidates = [
-    { name: 'Phantom', provider: browser.phantom?.solana },
-    { name: 'Solflare', provider: browser.solflare },
-    { name: 'Browser wallet', provider: browser.solana },
-  ]
-  const seen = new Set<InjectedWallet>()
-  return candidates.filter((entry): entry is { name: string; provider: InjectedWallet } => {
-    if (!entry.provider?.signTransaction || seen.has(entry.provider)) return false
-    seen.add(entry.provider)
-    return true
-  })
-}
+type Props = { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: TradeAction }
+const messageOf = (error: unknown) => error instanceof Error ? error.message : 'The operation could not finish. Please try again.'
 
 export default function SolanaTradeWeb(props: Props) {
-  const [wallets, setWallets] = useState<ReturnType<typeof injectedWallets>>([])
-  const [standardWallets, setStandardWallets] = useState<StandardSolanaWallet[]>([])
-  const [selected, setSelected] = useState<string | null>(null)
-  useEffect(() => {
-    const registry = getWallets()
-    const scan = () => { setWallets(injectedWallets()); setStandardWallets(registry.get().filter(isStandardSolana)) }
-    const timer = setTimeout(scan, 0)
-    const offRegister = registry.on('register', scan), offUnregister = registry.on('unregister', scan)
-    return () => { clearTimeout(timer); offRegister(); offUnregister() }
-  }, [])
-  const external = wallets.find(wallet => wallet.name === selected)
-  const standard = standardWallets.find(wallet => `standard:${wallet.name}` === selected)
-  const switchWallet = () => { setSelected(null); setWallets(injectedWallets()) }
-  if (selected === 'embedded') return <Suspense fallback={<Txt v="small">Loading embedded wallet…</Txt>}>
-    <EmbeddedWallet onBack={switchWallet}>{signer => <WalletActions {...props} signer={signer} onBack={switchWallet} />}</EmbeddedWallet>
-  </Suspense>
-  if (standard) return <StandardTrade {...props} wallet={standard} onBack={switchWallet} />
-  if (external) return <InjectedTrade {...props} provider={external.provider} name={external.name} onBack={switchWallet} />
+  const wallets = useSolanaWallets()
+  const [selected, setSelected] = useState<WalletKey | null>(null)
+  const switchWallet = () => { setSelected(null); wallets.rescan() }
+  if (selected && walletName(selected, wallets)) return <WalletSession selected={selected} wallets={wallets} onBack={switchWallet}>
+    {(signer, name) => <View style={st.stack}><Txt v="h2">Trade here · {name}</Txt><WalletActions {...props} signer={signer} onBack={switchWallet} /></View>}
+  </WalletSession>
   return <View style={st.stack}>
     <View style={st.heading}><Txt v="h2">Trade here</Txt><Txt v="label" color={C.accent}>Solana · direct routes</Txt></View>
     <Txt v="small">Buy or sell through available pools, including supported bonding curves. Connect a trading wallet to see your balance.</Txt>
     <WalletActions {...props} signer={null} />
-    <View style={st.wrap}>
-      {standardWallets.map(wallet => <Button key={wallet.name} label={`${wallet.name}${preferredTransactionVersion(wallet.features[SolanaSignTransaction].supportedTransactionVersions) === '1' ? ' · V1' : ''}`} kind="ghost" onPress={() => setSelected(`standard:${wallet.name}`)} />)}
-      {wallets.filter(wallet => !standardWallets.some(standard => standard.name === wallet.name)).map(wallet => <Button key={wallet.name} label={wallet.name} kind="ghost" onPress={() => setSelected(wallet.name)} />)}
-      <Button label="Embedded wallet" onPress={() => setSelected('embedded')} />
-    </View>
+    <WalletPicker wallets={wallets} onSelect={setSelected} />
     <Txt v="small">Your trading wallet is separate from your profile key.</Txt>
   </View>
-}
-
-function StandardTrade({ wallet, onBack, ...props }: Props & { wallet: StandardSolanaWallet; onBack: () => void }) {
-  const [account, setAccount] = useState<WalletAccount | null>(() => signingAccount(wallet.accounts))
-  const [, updateCapabilities] = useState(0)
-  useEffect(() => wallet.features[StandardEvents]?.on('change', () => {
-    setAccount(signingAccount(wallet.accounts)); updateCapabilities(value => value + 1)
-  }), [wallet])
-  const signer: SolanaSigner = {
-    address: account?.address ?? null,
-    transactionVersion: preferredTransactionVersion(wallet.features[SolanaSignTransaction].supportedTransactionVersions),
-    connect: async () => {
-      const result = await wallet.features[StandardConnect].connect()
-      const selected = signingAccount(result.accounts)
-      if (!selected) throw new Error('Choose a Solana mainnet account with transaction signing enabled.')
-      setAccount(selected)
-    },
-    disconnect: async () => { await wallet.features[StandardDisconnect]?.disconnect(); setAccount(null) },
-    sign: async bytes => {
-      const current = wallet.accounts.find(candidate => candidate.address === account?.address)
-      if (!current || !current.chains.includes('solana:mainnet') || !current.features.includes(SolanaSignTransaction)) throw new Error('Wallet account changed. Connect again.')
-      const version = inspectTransaction(bytes).version
-      if (version === 'legacy' || !wallet.features[SolanaSignTransaction].supportedTransactionVersions.includes(Number(version) as 0 | 1)) throw new Error('Wallet transaction support changed. Reconnect and request a fresh quote.')
-      const results = await wallet.features[SolanaSignTransaction].signTransaction({ account: current, transaction: bytes, chain: 'solana:mainnet', options: { preflightCommitment: 'confirmed' } })
-      if (results.length !== 1) throw new Error('Wallet did not return the requested transaction.')
-      return results[0].signedTransaction
-    },
-  }
-  return <View style={st.stack}><Txt v="h2">Trade here · {wallet.name}</Txt><WalletActions {...props} signer={signer} onBack={onBack} /></View>
-}
-
-function InjectedTrade({ provider, name, onBack, ...props }: Props & { provider: InjectedWallet; name: string; onBack: () => void }) {
-  const [address, setAddress] = useState<string | null>(provider.publicKey?.toBase58() ?? null)
-  useEffect(() => {
-    const update = () => setAddress(provider.publicKey?.toBase58() ?? null)
-    provider.on?.('accountChanged', update)
-    provider.on?.('disconnect', update)
-    return () => { provider.removeListener?.('accountChanged', update); provider.removeListener?.('disconnect', update) }
-  }, [provider])
-  const signer: SolanaSigner = {
-    address,
-    transactionVersion: '0',
-    connect: async () => { await provider.connect(); setAddress(provider.publicKey?.toBase58() ?? null) },
-    disconnect: async () => { await provider.disconnect(); setAddress(null) },
-    sign: async bytes => {
-      if (!address || provider.publicKey?.toBase58() !== address) throw new Error('Wallet changed. Connect again and request a fresh quote.')
-      const signed = await provider.signTransaction(VersionedTransaction.deserialize(bytes))
-      if (provider.publicKey?.toBase58() !== address) throw new Error('Wallet changed before signing completed.')
-      return signed.serialize()
-    },
-  }
-  return <View style={st.stack}><Txt v="h2">Trade here · {name}</Txt><WalletActions {...props} signer={signer} onBack={onBack} /></View>
 }
 
 function WalletActions(props: Props & { signer: SolanaSigner | null; onBack?: () => void }) {
@@ -211,12 +107,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
     return () => { clearTimeout(timer); window.removeEventListener('storage', restore) }
   }, [])
   function savePending(value: PendingSwap) {
-    try {
-      if (value.state === 'pending') localStorage.setItem(PENDING_KEY, JSON.stringify(value))
-      else localStorage.removeItem(PENDING_KEY)
-    } catch {
-      if (value.state === 'pending') throw new Error('Could not save transaction recovery state. Nothing was submitted. Enable local storage and try again.')
-    }
+    writePending(value)
     if (mounted.current) setPending(value)
   }
 
@@ -280,7 +171,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
   }
 
   async function trade() {
-    if (localStorage.getItem(PENDING_KEY)) throw new Error('Resolve the pending wallet transaction before starting another trade.')
+    if (hasPending()) throw new Error('Resolve the pending wallet transaction before starting another trade.')
     const selected = currentSigner.current
     if (!selected?.address || !quote || !isQuoteFresh(quote.at) || quote.wallet !== selected.address) throw new Error('Connect your wallet and request a fresh quote.')
     const owner = selected.address
@@ -340,6 +231,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
       }} style={{ flex: 1 }} />)}</View>
       {inputMint === SOL_MINT && address ? <Txt v="monoSmall">Shortcuts leave 0.01 SOL for network fees and account rent.</Txt> : null}
     </View>
+    <View style={st.wrap}><Chip label="Open in swap terminal ↗" onPress={() => router.push(swapLink(SOL_MINT, t.address) as never)} /></View>
     <View style={st.heading}><Txt v="small">Slippage tolerance</Txt><View style={st.wrap}>{[50, 100, 300].map(bps => <Chip key={bps} label={`${bps / 100}%`} active={slippageBps === bps} onPress={() => { if (!locked) { setSlippageBps(bps); editAmount(amount) } }} />)}</View></View>
     {quote ? <View style={st.quote}>
       <View style={st.heading}><Txt v="label">You receive · estimated</Txt><Txt v="monoSmall" color={fresh ? C.accent : C.warn}>{fresh ? `${Math.max(0, 30 - Math.floor((now - quote.at) / 1000))}s to refresh` : 'Refresh quote'}</Txt></View>
