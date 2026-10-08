@@ -364,6 +364,8 @@ export function createSolanaRouterHandler(options: Options) {
     ], externalGraceMs)
     const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
     const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
+    if (directOut === null && externalOut === null && builtDirect.status === 'rejected' && !(builtDirect.reason instanceof RequestError))
+      console.warn('[router] direct build failed:', String(builtDirect.reason?.stack ?? builtDirect.reason).replace(/https?:\/\/\S+/g, '[url]').slice(0, 600))
     if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
     if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
       data = (builtDirect as PromiseFulfilledResult<any>).value
