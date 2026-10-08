@@ -362,7 +362,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
         <Txt v="num" style={[st.estimate, !estimated && { color: C.faint }]} numberOfLines={1}>{estimated ?? (quoting ? '…' : '0.00')}</Txt>
       </View>
       {quote ? <View style={st.between}>
-        <Txt v="monoSmall" color={fresh ? C.accent : C.warn}>{fresh ? `Refreshes in ${countdown}s` : 'Refreshing…'}</Txt>
+        <Txt v="monoSmall" color={fresh ? C.accent : C.warn}>{quoting || !fresh ? 'Refreshing…' : `Refreshes in ${countdown}s`}</Txt>
         <Txt v="monoSmall">Valid {QUOTE_TTL_MS / 1000}s per quote</Txt>
       </View> : null}
     </View>
