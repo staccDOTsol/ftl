@@ -17,6 +17,8 @@ import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT, signCompo
 import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
 import { newDlmmDeposit } from './dlmm-position.ts'
 import { newOrcaDeposit } from './orca-position.ts'
+import { newDammV2Deposit } from './damm-v2-position.ts'
+import { newClmmDeposit } from './clmm-position.ts'
 import type { VenueDepositBuilder } from './venue-deposit.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
@@ -215,6 +217,8 @@ type Options = {
   poolStats?: (venue: PoolStatsVenue, pool: string) => Promise<PoolStats>
   /** lp-zap composer program id; plans it can compose say mode 'composed'. */
   composerProgramId?: string
+  /** Venues whose deposits this server builds and signs for (tests replace them). */
+  depositBuilders?: Partial<Record<string, VenueDepositBuilder>>
   fetch?: typeof fetch; now?: () => number
 }
 /** One transaction when both steps run through the composer; a step each otherwise. */
@@ -237,7 +241,7 @@ function clientError(e: unknown): { status: number; message: string } {
 }
 
 // Venues whose deposit opens a position account this server builds and signs for.
-const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit, orca: newOrcaDeposit }
+const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit, 'meteora-damm-v2': newDammV2Deposit, orca: newOrcaDeposit, 'raydium-clmm': newClmmDeposit }
 const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why}. Nothing was signed.`)
 
 export function createSolanaZapHandler(options: Options) {
@@ -448,7 +452,7 @@ export function createSolanaZapHandler(options: Options) {
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')
         let addInstructions: RawInstruction[], addQuote: any
         // Venues that open a position account are built here (venue-deposit.ts).
-        const builder = DEPOSIT_BUILDERS[addStep.venue]
+        const builder = (options.depositBuilders ?? DEPOSIT_BUILDERS)[addStep.venue]
         if (builder && options.rpcUrl) {
           // The composer sizes the SOL side as (quoted SOL / quoted tokens) x tokens
           // actually delivered; quoting the tokens at the swap's output plus slippage

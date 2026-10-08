@@ -3,7 +3,7 @@ import http from 'node:http'
 import { test } from 'node:test'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
-import { PublicKey } from '@solana/web3.js'
+import { Keypair, PublicKey } from '@solana/web3.js'
 import { createSolanaRouterHandler } from '../src/solana/router.ts'
 import { addParameters, classifyPool, createSolanaZapHandler, eligiblePools, instructionsOf, PLAN_TTL, rankCandidates, removeIntent, resolvePosition, SOL_MINT, splitDeposit, type ZapCandidate } from '../src/solana/zap.ts'
 import { decodeV1 } from '../src/solana/transaction-v1.ts'
@@ -135,7 +135,7 @@ test('position resolution: exactly one active position or the named one; remove 
 type Scenario = {
   pools?: PoolSummary[]; stats?: Record<string, PoolStats | Error>
   sol?: number; token?: string; statuses?: Record<string, { err: unknown; confirmationStatus: string } | null>
-  positions?: unknown[]; failQuote?: boolean; failAdd?: string[]; offMarket?: string[]
+  positions?: unknown[]; failQuote?: boolean; failAdd?: string[]; offMarket?: string[]; depositBuilders?: Record<string, any>
   /** lp-zap program id: plans compose and the fakes build provable instructions. */
   composer?: string
   /** With a composer: the swap build stays opaque, so composing must fall back. */
@@ -208,7 +208,7 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
     return Response.json({ error: `unexpected ${url}` }, { status: 500 })
   }
   const router = createSolanaRouterHandler({ routerUrl: ROUTER, rpcUrl: RPC, fetch: fetcher, now: () => clock.now })
-  const handler = createSolanaZapHandler({ rpcUrl: RPC, router, ...(scenario.composer ? { composerProgramId: scenario.composer } : {}), fetch: fetcher, now: () => clock.now,
+  const handler = createSolanaZapHandler({ rpcUrl: RPC, router, ...(scenario.composer ? { composerProgramId: scenario.composer } : {}), depositBuilders: scenario.depositBuilders ?? {}, fetch: fetcher, now: () => clock.now,
     poolStats: async (_venue, p) => { const s = scenario.stats?.[p]; if (!s) throw new Error(`no stats https://api.orca.so/${p}`); if (s instanceof Error) throw s; return s },
     catalog: { token: mint => mint === MINT ? { chain: 'solana', address: MINT, symbol: 'BORDR', decimals: 6, launchedTs: null, launchVenue: null, graduatedTs: null, firstPoolTs: 1, pools: 1, fundedPools: 1, lpWallets: 1, events: 1, lastTs: 1, score: 1, flags: [] } : null, pools: () => scenario.pools ?? [] } })
   const server = http.createServer(async (req, res) => {
@@ -409,6 +409,34 @@ test('composed: the composer turns both zap-in steps into one transaction, sized
   assert.deepEqual(description.steps[1].patches.map(p => p.mode), [1, 0, 1])
   assert.deepEqual({ num: description.steps[1].patches[0].num, den: description.steps[1].patches[0].den }, { num: 7, den: 1 })
 }))
+test('composed: a deposit this server builds is signed by its new position key before the wallet', async () => {
+  const position = Keypair.generate(), seen: any[] = [], DAMM_V2_PROGRAM = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG'
+  // A stand-in for an in-house venue builder: it opens a position (signed by
+  // the new key) and deposits the quoted amounts, in a shape the composer proves.
+  const builder = async (_connection: unknown, input: any) => {
+    seen.push(input)
+    const data = Buffer.alloc(24); data.writeBigUInt64LE(input.tokenAmount, 8); data.writeBigUInt64LE(input.solAmount, 16)
+    const key = (pubkey: string, isSigner = false, isWritable = true) => ({ pubkey, isSigner, isWritable })
+    return { signers: [position], position: position.publicKey.toBase58(),
+      instructions: [{ programId: DAMM_V2_PROGRAM, data: Buffer.from([1]).toString('base64'), keys: [key(OWNER, true), key(position.publicKey.toBase58(), true)] },
+        { programId: DAMM_V2_PROGRAM, data: data.toString('base64'), keys: [key(OWNER, true), key(position.publicKey.toBase58())] }],
+      quote: { amounts: [{ mint: MINT, direction: 'debit', expectedRaw: String(input.tokenAmount), limitRaw: String(input.tokenAmount) },
+        { mint: SOL_MINT, direction: 'debit', expectedRaw: String(input.solAmount), limitRaw: String(input.solAmount) }], details: {} } }
+  }
+  await withZap({ ...bordr, composer: COMPOSER, depositBuilders: { 'meteora-damm-v2': builder } }, async request => {
+    const plan = (await request('/api/zap/solana/plan', planIn())).data
+    const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+    assert.equal(r.status, 200, r.text)
+    assert.equal(r.data.mode, 'composed')
+    assert.deepEqual(r.data.transactions[0].expectedSigners, [OWNER, position.publicKey.toBase58()])
+    assert.equal(r.data.position, position.publicKey.toBase58())
+    assert.equal(seen[0].tokenAmount, 995_000_000n * 10_100n / 10_000n, 'quoted at the swap output plus slippage headroom')
+    const bytes = Buffer.from(r.data.transactions[0].transaction, 'base64')
+    const end = bytes.length - 2 * 64
+    assert.ok(bytes.subarray(end, end + 64).every(b => b === 0), 'the wallet signs its own slot')
+    assert.ok(nacl.sign.detached.verify(bytes.subarray(0, end), bytes.subarray(end + 64), position.publicKey.toBytes()), 'the position key already signed')
+  })
+})
 test('composed: an unprovable build is refused with its reason, never split into steps', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {
   const plan = (await request('/api/zap/solana/plan', planIn())).data
   assert.equal(plan.mode, 'composed')
