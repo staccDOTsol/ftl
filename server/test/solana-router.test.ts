@@ -161,6 +161,38 @@ test('enabled direct router uses only its local quote/build path and ignores cli
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
+test('a slow external router does not hold back a direct quote or build', async () => {
+  const direct = {
+    async quote(intent: any) {
+      return { quote: { ...q, inputMint: intent.inputMint, outputMint: intent.outputMint, inAmount: intent.amount,
+        slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion }, priced: {} as any }
+    },
+    async swap() { return { swapTransaction: encodedV1(), transactionVersion: '1', lastValidBlockHeight: 999, quoteResponse: { ...q, transactionVersion: '1' } } },
+  }
+  // The external quote would win on output, but only after 5 s.
+  const handler = createSolanaRouterHandler({ routerUrl: 'http://router.example', rpcUrl: 'https://rpc.example', localRouter: direct, externalGraceMs: 50,
+    fetch: (_input, init) => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(Response.json({ ...q, outAmount: (BigInt(q.outAmount) * 2n).toString() })), 5_000)
+      init?.signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')) })
+    }) })
+  const server = http.createServer(async (req, res) => {
+    let body = ''; for await (const chunk of req) body += chunk
+    if (!await handler(req, res, new URL(req.url ?? '/', 'http://localhost'), body)) res.writeHead(404).end()
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as { port: number }).port
+  try {
+    let started = Date.now()
+    const quote = await fetch(`http://127.0.0.1:${port}${query}`).then(r => r.json())
+    assert.equal(quote.outAmount, q.outAmount)
+    assert.ok(Date.now() - started < 2_000, 'answered without waiting for the external router')
+    started = Date.now()
+    const r = await fetch(`http://127.0.0.1:${port}/api/swap/solana`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userPublicKey: SOL, quoteResponse: q }) })
+    assert.equal(r.status, 200, await r.clone().text())
+    assert.ok(Date.now() - started < 2_000, 'built without waiting for the external router')
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
+})
 test('V1 validates signatures at the tail over the entire message including config', () => {
   const signed = encodedV1(true, { signerCount: 2 })
   assert.equal(transaction(signed, true), signed)

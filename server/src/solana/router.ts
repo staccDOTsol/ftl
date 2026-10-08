@@ -17,6 +17,8 @@ type Options = { routerUrl?: string; rpcUrl?: string; selfRouter?: boolean;
   quoteRpcUrl?: string;
   /** lp-zap composer program id; enables composed multi-hop direct routes. */
   composerProgramId?: string;
+  /** How long the other quote source may still answer once one has (default 1.5 s). */
+  externalGraceMs?: number;
   localRouter?: Pick<DirectSolanaRouter, 'quote' | 'swap'>; fetch?: typeof fetch; now?: () => number }
 class RequestError extends Error {
   status: number; retryAfter: number | undefined
@@ -229,12 +231,27 @@ function validateLiquidityBuild(data:any, intent:Record<string,any>) {
 const directTransient = (e: unknown) => object(e) && e.transient === true && e.status === 503
 /** External router failures that say nothing about route existence. */
 const externalTransient = (e: unknown) => e instanceof RequestError && (e.status === 429 || e.status === 503)
+/** allSettled, except that once one source has answered the others get only
+ * `graceMs` more: a slow external router (~12 s per quote) must not hold a
+ * direct quote back. A source cut off this way settles as rejected. */
+async function settleWithGrace<T>(attempts: Promise<T>[], graceMs: number): Promise<PromiseSettledResult<T>[]> {
+  const results: (PromiseSettledResult<T> | undefined)[] = attempts.map(() => undefined)
+  let answered!: () => void
+  const first = new Promise<void>(resolve => { answered = resolve })
+  const all = Promise.all(attempts.map((attempt, i) => attempt.then(value => { results[i] = { status: 'fulfilled', value }; answered() },
+    reason => { results[i] = { status: 'rejected', reason } })))
+  let timer: NodeJS.Timeout | undefined
+  await Promise.race([all, first.then(() => Promise.race([all, new Promise<void>(resolve => { timer = setTimeout(resolve, graceMs) })]))])
+  clearTimeout(timer)
+  return results.map(r => r ?? { status: 'rejected', reason: new RequestError(504, 'Quote source answered too slowly') })
+}
 function reply(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }).end(JSON.stringify(data))
 }
 export function createSolanaRouterHandler(options: Options) {
   const fetcher = options.fetch ?? fetch, now = options.now ?? Date.now
   const quoteRpcUrl = options.quoteRpcUrl ?? options.rpcUrl
+  const externalGraceMs = options.externalGraceMs ?? 1_500
   const directEnabled = !!options.localRouter || (!!options.selfRouter && !!quoteRpcUrl)
   let directPromise: Promise<Pick<DirectSolanaRouter, 'quote' | 'swap'>> | null = null
   async function direct() {
@@ -289,7 +306,7 @@ export function createSolanaRouterHandler(options: Options) {
     if (directEnabled) attempts.push(direct().then(async r => ({ quote: publicQuote((await r.quote(localIntent(q))).quote, q), source: 'direct' as const })))
     if (externalEnabled) attempts.push(upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })))
     if (!attempts.length) throw new RequestError(503, 'Solana trading is not configured yet')
-    const settled = await Promise.allSettled(attempts)
+    const settled = await settleWithGrace(attempts, externalGraceMs)
     const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
     if (!winners.length) {
       const reasons = settled.map(r => (r as PromiseRejectedResult).reason)
@@ -337,10 +354,10 @@ export function createSolanaRouterHandler(options: Options) {
     let fresh: any, data: any, fromDirect = false
     // Build on the direct router and quote the external router in parallel;
     // the external route wins only when it returns strictly more output.
-    const [builtDirect, external] = await Promise.allSettled([
+    const [builtDirect, external] = await settleWithGrace([
       directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
       externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
-    ])
+    ], externalGraceMs)
     const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
     const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
     if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
