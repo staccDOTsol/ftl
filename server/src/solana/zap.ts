@@ -324,7 +324,11 @@ export function createSolanaZapHandler(options: Options) {
       let candidateQuote: any
       try {
         candidateQuote = await options.router.liquidityQuote({ venue: candidate.venue, operation: 'add', owner, pool: candidate.pool, mintA: mint, mintB: SOL_MINT, amountA: quote.otherAmountThreshold, amountB: keep.toString(), slippageBps, parameters: addParameters(candidate.venue), transactionVersion })
-      } catch (e) { lastError = e; continue }
+      } catch (e) {
+        // Your pick is not silently swapped for another pool.
+        if (input.pool === candidate.pool) throw e
+        lastError = e; continue
+      }
       const tokenDebit = debitOf(candidateQuote, mint), solDebit = debitOf(candidateQuote, SOL_MINT)
       const price = candidate.kind === 'constant' && tokenDebit && solDebit && integer(quote.outAmount)
         ? poolPriceBps(BigInt(tokenDebit.expectedRaw), BigInt(solDebit.expectedRaw), BigInt(quote.outAmount), swap) : null

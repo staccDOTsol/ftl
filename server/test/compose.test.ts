@@ -367,8 +367,10 @@ test('composer setup keeps every value-moving instruction, even byte-identical o
   const wrap = [createAssociatedTokenAccountIdempotentInstruction(owner, wsol, owner, NATIVE_MINT), SystemProgram.transfer({ fromPubkey: owner, toPubkey: wsol, lamports: 9_950_000 }), createSyncNativeInstruction(wsol)].map(raw)
   const close = [createCloseAccountInstruction(wsol, owner, owner)].map(raw)
   const action = raw(new TransactionInstruction({ programId: program, data: Buffer.from([7]), keys: [{ pubkey: owner, isSigner: true, isWritable: true }] }))
-  const built = composeZap([{ action, setup: wrap, cleanup: close }, { action, setup: wrap, cleanup: close }], { programId: Keypair.generate().publicKey, payer: owner })
+  // The same close decoded from a compiled leg: the message made the wallet a writable signer.
+  const compiledClose = close.map(ix => ({ ...ix, keys: ix.keys.map(k => k.pubkey === owner.toBase58() ? { ...k, isSigner: true, isWritable: true } : k) }))
+  const built = composeZap([{ action, setup: wrap, cleanup: compiledClose }, { action, setup: wrap, cleanup: close }], { programId: Keypair.generate().publicKey, payer: owner })
   const kinds = built.before.map(ix => ix.programId.equals(SystemProgram.programId) ? 'transfer' : ix.data[0] === 17 ? 'sync' : 'create')
   assert.deepEqual(kinds, ['create', 'transfer', 'sync', 'transfer', 'sync'], 'one create, both wraps')
-  assert.equal(built.after.length, 1, 'the account closes once')
+  assert.equal(built.after.length, 1, 'the account closes once, whatever flags each leg gave its keys')
 })

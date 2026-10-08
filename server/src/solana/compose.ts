@@ -292,10 +292,13 @@ export type ComposeLeg = { leg: DirectLeg; outputMint: PublicKey; outputTokenPro
 export type ComposedRoute = { before: TransactionInstruction[]; compose: TransactionInstruction;
   after: TransactionInstruction[]; hops: number }
 
+// Same program, data and accounts in order. Signer and writable flags are
+// not compared: a message grants each key its widest use, so an SDK's close
+// (authority a read-only signer) and the same close decoded from a compiled
+// leg (the wallet a writable signer) are one instruction on chain.
 const sameInstruction = (a: TransactionInstruction, b: TransactionInstruction) =>
   a.programId.equals(b.programId) && Buffer.from(a.data).equals(Buffer.from(b.data)) &&
-  a.keys.length === b.keys.length && a.keys.every((k, i) => k.pubkey.equals(b.keys[i].pubkey) &&
-    k.isSigner === b.keys[i].isSigner && k.isWritable === b.keys[i].isWritable)
+  a.keys.length === b.keys.length && a.keys.every((k, i) => k.pubkey.equals(b.keys[i].pubkey))
 // Only repeats that are idempotent or would fail are merged: creating the
 // same token account, or closing it twice. Everything else runs as often as
 // the legs ask: two legs that each wrap the same amount of SOL need both

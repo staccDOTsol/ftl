@@ -297,6 +297,9 @@ test('plan in: falls through to the next candidate when a venue cannot quote; 40
     const r = await request('/api/zap/solana/plan', planIn())
     assert.equal(r.status, 200, r.text)
     assert.deepEqual([r.data.pool.venue, r.data.pool.pool], ['orca', SPLASH])
+    const picked = await request('/api/zap/solana/plan', planIn({ pool: DAMM }))
+    assert.equal(picked.status, 409, 'a pool you picked is refused with its reason, not swapped for another')
+    assert.equal(picked.data.error, 'Pool is frozen; see [provider]')
   })
   await withZap({ ...bordr, failAdd: [DAMM, SPLASH, DLMM] }, async (request) => {
     const r = await request('/api/zap/solana/plan', planIn())
