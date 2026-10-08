@@ -130,18 +130,26 @@ const dropBudget = (instructions: RawInstruction[]) => instructions.filter(ix =>
 /** Account plumbing a withdrawal wraps around its venue instructions. */
 const PLUMBING = new Set([ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(), TOKEN_PROGRAM_ID.toBase58(), TOKEN_2022_PROGRAM_ID.toBase58(),
   '11111111111111111111111111111111', 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr', 'Memo1UhkJRfHyvLMcVucJwxXeuD728EQVDDwQDxFeQ'])
-/** A withdrawal as composer steps: its venue instructions, first to last, run
- * inside the compose call so what they credit is in the composer's view; the
- * account setup before them and the cleanup after them (token accounts made,
- * wrapped SOL closed) ride outside it in the same order, keeping the step
- * count within the program's eight. Null when there is no venue instruction. */
-function removalSteps(instructions: RawInstruction[]): ZapComposeStep[] | null {
+/** A withdrawal as composer steps: its venue instructions run inside the
+ * compose call so what they credit is in the composer's view; the account
+ * plumbing around them rides outside it, keeping the count within the
+ * program's eight. A withdrawal split into chunks repeats that plumbing per
+ * chunk: the repeated token-account creations are idempotent and join the
+ * setup, and the wallet's wrapped-SOL closes (they only unwrap early) join
+ * the cleanup, where repeats merge. Anything else between venue instructions
+ * stays a step, in order. Null when there is no venue instruction. */
+function removalSteps(instructions: RawInstruction[], owner: string): ZapComposeStep[] | null {
   const removal = dropBudget(instructions)
   const venue = removal.flatMap((ix, i) => PLUMBING.has(ix.programId) ? [] : [i])
   if (!venue.length) return null
-  const first = venue[0], last = venue[venue.length - 1]
-  return removal.slice(first, last + 1).map((action, i, all) => ({ action,
-    ...(i === 0 ? { setup: removal.slice(0, first) } : {}), ...(i === all.length - 1 ? { cleanup: removal.slice(last + 1) } : {}) }))
+  const first = venue[0], last = venue[venue.length - 1], wsol = tokenAccount(owner, WSOL_MINT, TOKEN_PROGRAM_ID.toBase58())
+  const ataCreate = (ix: RawInstruction) => ix.programId === ASSOCIATED_TOKEN_PROGRAM_ID.toBase58() && Buffer.from(ix.data, 'base64').equals(Buffer.from([1]))
+  const wsolClose = (ix: RawInstruction) => ix.programId === TOKEN_PROGRAM_ID.toBase58() && Buffer.from(ix.data, 'base64').equals(Buffer.from([9])) && ix.keys[0]?.pubkey === wsol
+  const inner = removal.slice(first, last + 1)
+  const setup = [...removal.slice(0, first), ...inner.filter(ataCreate)]
+  const cleanup = [...inner.filter(wsolClose), ...removal.slice(last + 1)]
+  return inner.filter(ix => !ataCreate(ix) && !wsolClose(ix)).map((action, i, all) => ({ action,
+    ...(i === 0 ? { setup } : {}), ...(i === all.length - 1 ? { cleanup } : {}) }))
 }
 const tokenAccount = (owner: string, mint: string, program: string) =>
   getAssociatedTokenAddressSync(new PublicKey(mint), new PublicKey(owner), false, new PublicKey(program), ASSOCIATED_TOKEN_PROGRAM_ID).toBase58()
@@ -178,7 +186,7 @@ export function assembleComposedZap(input: ZapInAssembly | ZapOutAssembly): Comp
   }
   const minimum = u32Ratio(input.swap.minOut, input.swap.amountIn)
   if (!minimum) return null
-  const removal = removalSteps(input.remove.instructions)
+  const removal = removalSteps(input.remove.instructions, input.owner)
   if (!removal) return null
   const tokenAta = tokenAccount(input.owner, input.tokenMint, input.tokenProgram)
   const wsolAta = tokenAccount(input.owner, WSOL_MINT, TOKEN_PROGRAM_ID.toBase58())
@@ -195,8 +203,8 @@ export function assembleComposedZap(input: ZapInAssembly | ZapOutAssembly): Comp
 
 /** A withdrawal with nothing to swap back (the position held only SOL): its
  * instructions run as composer steps, as a withdrawal's do before its swap. */
-export function composedRemoval(instructions: RawInstruction[]): ComposedZap | null {
-  const steps = removalSteps(instructions)
+export function composedRemoval(instructions: RawInstruction[], owner: string): ComposedZap | null {
+  const steps = removalSteps(instructions, owner)
   return steps ? { steps } : null
 }
 

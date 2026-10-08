@@ -543,7 +543,7 @@ export function createSolanaZapHandler(options: Options) {
         const credit = creditOf(builtRemove.quote, plan.mint)
         const tokensBack = credit && BigInt(credit.expectedRaw) > 0n ? credit.expectedRaw : null
         if (!swapStep || !tokensBack) {
-          const removal = composedRemoval(removeInstructions.flat())
+          const removal = composedRemoval(removeInstructions.flat(), owner)
           if (!removal) throw unavailable('the withdrawal has no venue instruction to compose')
           steps = removal.steps
           note = 'One signature: the withdrawal runs through the composer; the position held only SOL, so nothing is swapped back'

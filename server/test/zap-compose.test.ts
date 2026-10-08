@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { PublicKey } from '@solana/web3.js'
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { composeZap, decodeCompose, FEE_RECIPIENT, type ZapComposeStep } from '../src/solana/compose.ts'
 import { assembleComposedZap, proveVenueAdd, proveVenueSwap, u32Ratio, WSOL_MINT } from '../src/solana/zap-compose.ts'
 import type { RawInstruction } from '../src/solana/zap.ts'
@@ -135,6 +135,23 @@ test('zap out assembly: the withdrawal\'s venue instructions are steps, and the 
   assert.equal(swapBack.fee!.watchSlot, 1)
   assert.equal(swapBack.patches[0].fromStep, 0)
   assert.equal(swapBack.patches[1].fromStep, 0)
+})
+
+test('zap out assembly: a withdrawal built in chunks composes its venue instructions only, plumbing once outside', () => {
+  const amountIn = 5_000_000n, minOut = 2_475_000n
+  const wsol = getAssociatedTokenAddressSync(new PublicKey(WSOL_MINT), new PublicKey(OWNER)).toBase58()
+  const key = (pubkey: string) => ({ pubkey, isSigner: false, isWritable: true })
+  const createAta = (mint: string) => ({ ...ix(ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(), Buffer.from([1])), keys: [key(OWNER), key(mint)] })
+  const closeWsol = { ...ix(TOKEN_PROGRAM_ID.toBase58(), Buffer.from([9])), keys: [key(wsol), key(OWNER), key(OWNER)] }
+  const chunk = (n: number) => [createAta(TOKEN_MINT), createAta(WSOL_MINT), ix(DLMM_PROGRAM, Buffer.from([4, n])), closeWsol]
+  const assembly = assembleComposedZap({ direction: 'out', owner: OWNER, tokenMint: TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID.toBase58(),
+    remove: { instructions: [...chunk(1), ...chunk(2), ...chunk(3)] }, swap: { instructions: [swapIx(amountIn, minOut)], amountIn, minOut } })
+  assert.ok(assembly)
+  assert.deepEqual(assembly!.steps.map(s => s.action.data), [...[1, 2, 3].map(n => Buffer.from([4, n]).toString('base64')), swapIx(amountIn, minOut).data],
+    'the three chunks and the swap back are the only steps')
+  const composed = composeZap(assembly!.steps, { programId: new PublicKey(COMPOSER), payer: new PublicKey(OWNER) })
+  assert.equal(composed.before.length, 2, 'each token account is made once, before the compose call')
+  assert.equal(composed.after.length, 1, 'wrapped SOL closes once, after it')
 })
 
 test('zap out assembly refuses a withdrawal with no venue instruction', () => {
