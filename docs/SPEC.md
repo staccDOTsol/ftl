@@ -18,7 +18,11 @@ Every requirement the owner gave on 2026-10-07/08, with its current status. Upda
 | 12 | Router treats wrap/unwrap, LP deposits, withdrawals, multi-step as executable ops | Done for wrap/unwrap/LP/swap, live | POST /api/wrap/solana + WrapSol card inside the liquidity flow; LST conversions still not exposed in FTL |
 | 14 | Publish the Sanctum fork and LST engine, open-source FTL | Done | github.com/staccDOTsol/permissionless-lst (embedding commit 5c5f850), github.com/staccDOTsol/permissionless-lst-engine (new, public), github.com/staccDOTsol/ftl now public |
 | 15 | GitHub links in site footer | Done, live | Rail footer links to ftl, autobahn, permissionless-lst-engine; Me tab link |
-| 16 | Jupiter-Terminal-style /swap page for the router | In progress | SwapTerminal.web.tsx at /swap |
+| 16 | Jupiter-Terminal-style /swap page for the router | Done, live | /swap: token search and any pasted mint, HALF/MAX, flip, 15 s requote, route legs, slippage settings, shared wallet session; liquidity mode and arbitrary-mint metadata being added |
+| 17 | Token metadata for any mint (symbol, name, image) across swap, holdings, liquidity | In progress | GET /api/meta/solana/:mint via FTL index then DAS |
+| 18 | Liquidity operations inside the swap terminal | In progress | Swap / Liquidity seg in /swap, deep link /swap?mode=liquidity&out=<mint>&pool=<address> |
 | 13 | Feed → router loop: event → token → route → sign → confirm → back to feed | Done for swaps and LP | Feed events deep-link into the trade card with the originating pool; confirmed moves re-enter the feed through on-chain detection |
+
+Incident log: 2026-10-08 04:49–05:00 UTC the router crash-looped after a deploy from the repo root picked the wrong Fly config; rolled back to the previous image, then rebuilt with `fly deploy -c deploy/fly.toml` from the root.
 
 Still outside the product: LST mint/redeem through FTL (the LST router exists in aggregator-lst-deploy and simulated on mainnet but is not deployed behind api.liquidityxyz.fun).
