@@ -8,6 +8,8 @@ import { DatabaseSync } from 'node:sqlite'
 import bs58 from 'bs58'
 import { extractSwap, type SwapObservation } from './swaps.ts'
 import type { NIx, NTx, TokenBal } from './decode.ts'
+import { ingestProgramObservations } from './program-service.ts'
+import { observePrograms } from './program-observation.ts'
 
 const PAGE_SIZE = 100 // Helius documented full-detail default; larger pages risk huge payloads
 const CREDIT_PER_REQUEST = 100 // Helius published gTFA rate, not a bill amount
@@ -242,6 +244,8 @@ export class SolanaPriceArchive {
         if (ts < job.start_ms || ts >= job.end_ms)
           throw new ArchiveShapeError('Archival record falls outside the fixed time window')
         if (tx.slot > job.anchor_slot) continue // same blockTime second can include newer slots
+        const discovery = observePrograms(tx, 'price-archive', Date.now(), true, true)
+        if (discovery) ingestProgramObservations([discovery])
         const swap = extractSwap(tx, ts)
         if (swap?.token === job.token) swaps.push({ ...swap, finalized: true })
       }

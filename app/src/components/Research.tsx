@@ -3,6 +3,7 @@ import { C, CHAIN, F } from '@/theme'
 import { short } from '@/lib/format'
 import type { ResearchCoin, ResearchCoinDetail, TokenSummary } from '@/lib/types'
 import { Press, TokenAvatar, Txt } from './ui'
+import { webData } from '@/lib/web-props'
 
 const OFFICIAL_RH_TOKEN = '0xb051d6c1feb3e43b67a0a2b2aa7e0caa536614c4'
 
@@ -136,7 +137,7 @@ export function ResearchRow({ coin, mode, onPress }: { coin: ResearchCoin; mode:
   const secondary = mode === 'holders' ? coin.bottoming.signs : coin.holderStrength.score
   const official = coin.chain === 'robinhood' && coin.address.toLowerCase() === OFFICIAL_RH_TOKEN
   return (
-    <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open research for ${researchName(coin)}`}
+    <Press onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open research for ${researchName(coin)}`} {...webData({ 'research-row': true })}
       style={({ pressed, hovered }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.72 }]}>
       <TokenAvatar image={coin.image} label={researchName(coin)} size={42} chain={coin.chain} />
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>

@@ -4,14 +4,15 @@ import { router } from 'expo-router'
 import bs58 from 'bs58'
 import { C, F } from '@/theme'
 import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
-import { balancePercent, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
+import { balancePercent, composerFeeLabel, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { swapLink } from '@/lib/swap-link'
 import { inspectTransaction } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
 import ZapLiquidity from './ZapLiquidity.web'
-import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
+import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner } from './SolanaWallet.web'
+import { useWalletSelection } from '@/lib/wallet-session'
 import type { TradeAction } from './Trade'
 
 // Wallet discovery and signer adapters live in SolanaWallet.web.tsx; these
@@ -23,7 +24,7 @@ const messageOf = (error: unknown) => error instanceof Error ? error.message : '
 
 export default function SolanaTradeWeb(props: Props) {
   const wallets = useSolanaWallets()
-  const [selected, setSelected] = useState<WalletKey | null>(null)
+  const [selected, setSelected] = useWalletSelection()
   const switchWallet = () => { setSelected(null); wallets.rescan() }
   if (selected && walletName(selected, wallets)) return <WalletSession selected={selected} wallets={wallets} onBack={switchWallet}>
     {(signer, name) => <View style={st.stack}><Txt v="h2">Trade here · {name}</Txt><WalletActions {...props} signer={signer} onBack={switchWallet} /></View>}
@@ -239,6 +240,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
       <Txt v="small">Minimum received: {fromAtomic(quote.response.otherAmountThreshold, decimals[outputMint])} {label(outputMint)}</Txt>
       <Txt v="small">Price impact: {quote.response.priceImpactPct === null || !Number.isFinite(Number(quote.response.priceImpactPct)) ? 'unavailable' : `${Number(quote.response.priceImpactPct).toFixed(2)}%`}</Txt>
       {quote.response.platformFee ? <Txt v="small">Platform fee: {quote.response.platformFee.feeBps / 100}%</Txt> : null}
+      {composerFeeLabel(quote.response) ? <Txt v="small">Composer: {composerFeeLabel(quote.response)}. Atomic route; expected output is net of these fees.</Txt> : null}
       {quote.response.routePlan.map((leg, i) => leg.swapInfo ? <View key={`${i}-${leg.swapInfo.ammKey}`} style={{ gap: 3 }}>
         <Txt v="small">{i + 1}. {leg.swapInfo.label || 'Pool'} · {label(leg.swapInfo.inputMint)} → {label(leg.swapInfo.outputMint)}</Txt>
         <Txt v="monoSmall">Pool fee: {decimals[leg.swapInfo.feeMint] !== undefined ? fromAtomic(leg.swapInfo.feeAmount, decimals[leg.swapInfo.feeMint]) : `${leg.swapInfo.feeAmount} atomic units`} {label(leg.swapInfo.feeMint)}</Txt>

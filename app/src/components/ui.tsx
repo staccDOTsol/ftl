@@ -2,18 +2,19 @@ import { memo, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
-import { C, CHAIN, F, FLAG, MAX_W, T } from '@/theme'
+import { C, CHAIN, F, FLAG, MAX_W, T, isWeb } from '@/theme'
 import { ago, img } from '@/lib/format'
 import { useClock } from '@/lib/clock'
 import type { Chain, Flag } from '@/lib/types'
+import { webData } from '@/lib/web-props'
 
 type TxtVariant = 'title' | 'h1' | 'h2' | 'body' | 'small' | 'label' | 'mono' | 'monoSmall' | 'num'
 export function Txt({ v = 'body', color, style, children, numberOfLines, selectable }: { v?: TxtVariant; color?: string; style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number; selectable?: boolean }) {
-  return <Text selectable={selectable} numberOfLines={numberOfLines} style={[t[v], color ? { color } : null, style]}>{children}</Text>
+  return <Text selectable={selectable} numberOfLines={numberOfLines} {...webData({ type: v })} style={[t[v], color ? { color } : null, style]}>{children}</Text>
 }
 
 export const t = StyleSheet.create({
-  title: { fontFamily: F.displayBold, fontSize: T.xxl, color: C.text, letterSpacing: -0.8, lineHeight: 32 },
+  title: { fontFamily: F.displayBold, fontSize: 32, color: C.text, letterSpacing: -1.2, lineHeight: 39 },
   h1: { fontFamily: F.displayBold, fontSize: T.xl, color: C.text, letterSpacing: -0.5 },
   h2: { fontFamily: F.display, fontSize: T.md, color: C.text, letterSpacing: -0.2 },
   body: { fontFamily: F.body, fontSize: T.md, color: C.text, lineHeight: 22 },
@@ -27,8 +28,20 @@ export const t = StyleSheet.create({
 // every press target in the app: hover, focus ring, pressed, disabled
 type PressState = { pressed: boolean; hovered?: boolean; focused?: boolean }
 export function Press({ style, children, disabled, ...rest }: Omit<PressableProps, 'style' | 'children'> & { style?: (s: PressState) => StyleProp<ViewStyle>; children: ReactNode | ((s: PressState) => ReactNode) }) {
+  const role = rest.accessibilityRole ?? (rest.onPress ? 'button' : undefined)
+  const state = rest.accessibilityState
+  // RN Web 0.21 forwards the direct ARIA aliases, but drops the legacy state
+  // object. Native still receives that object unchanged.
+  const aria = isWeb ? {
+    'aria-expanded': state?.expanded,
+    'aria-busy': state?.busy,
+    'aria-disabled': disabled || state?.disabled || undefined,
+    'aria-checked': state?.checked,
+    'aria-selected': role === 'tab' ? state?.selected : undefined,
+    'aria-pressed': role === 'button' ? state?.selected : undefined,
+  } : {}
   return (
-    <Pressable disabled={disabled} {...rest} style={(s) => {
+    <Pressable disabled={disabled} accessibilityRole={role} {...rest} {...aria} style={(s) => {
       const st = s as PressState
       return [style?.(st), st.focused ? { outlineColor: C.accent, outlineWidth: 2, outlineStyle: 'solid' } as any : null, disabled ? { opacity: 0.45 } : null]
     }}>
@@ -39,7 +52,7 @@ export function Press({ style, children, disabled, ...rest }: Omit<PressableProp
 
 export function Screen({ children, edges = ['top'] }: { children: ReactNode; edges?: ('top' | 'bottom')[] }) {
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: C.bg }}>
+    <SafeAreaView edges={edges} {...webData({ screen: true })} style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ flex: 1, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>{children}</View>
     </SafeAreaView>
   )
@@ -100,10 +113,10 @@ export const TokenAvatar = memo(function TokenAvatar({ image, label, size = 36, 
   let h = 0
   for (const ch of label) h = (h * 31 + ch.charCodeAt(0)) % 360
   return (
-    <View style={{ width: size, height: size }}>
+    <View aria-hidden={isWeb ? true : undefined} style={{ width: size, height: size }}>
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: `hsl(${h}, 30%, 22%)`, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.displayBold, fontSize: size * 0.36, color: `hsl(${h}, 60%, 78%)` }}>{letter || '?'}</Text>
-        {src ? <Image source={{ uri: src }} onError={() => setFailed(true)} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" recyclingKey={src} /> : null}
+        {src ? <Image source={{ uri: src }} accessibilityLabel={label} onError={() => setFailed(true)} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" recyclingKey={src} /> : null}
       </View>
       {chain ? <View style={{ position: 'absolute', right: -2, bottom: -2, width: Math.max(9, size * 0.32), height: Math.max(9, size * 0.32), borderRadius: size, backgroundColor: CHAIN[chain].color, borderWidth: 2, borderColor: C.bg }} /> : null}
     </View>
@@ -132,18 +145,21 @@ export function Button({ label, onPress, kind = 'primary', size = 'md', disabled
   const height = size === 'sm' ? 32 : size === 'lg' ? 52 : 44
   const fontSize = size === 'sm' ? T.sm : size === 'lg' ? T.lg : T.md
   return (
-    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button" accessibilityState={{ disabled: !!disabled, busy: !!busy }}
+    <Press disabled={disabled || busy} onPress={onPress} accessibilityRole="button" accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }} {...webData({ button: kind })}
       style={({ pressed, hovered }) => [s.btn, { height, borderRadius: size === 'sm' ? 9 : 12, paddingHorizontal: size === 'sm' ? 12 : 18 }, kind === 'primary' ? s.btnPrimary : kind === 'ghost' ? s.btnGhost : s.btnQuiet,
-        hovered && (kind === 'primary' ? { backgroundColor: C.accent, shadowColor: C.accent, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 4 } } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
+        hovered && (kind === 'primary' ? { backgroundColor: C.accent, opacity: 0.88 } : { backgroundColor: C.hover, borderColor: C.lineStrong }),
         pressed && { transform: [{ scale: 0.97 }] }, style]}>
-      {busy ? <ActivityIndicator color={kind === 'primary' ? C.accentInk : C.text} /> : <Text style={[s.btnText, { fontSize }, kind === 'primary' && { color: C.accentInk }, kind === 'quiet' && { color: C.muted }]}>{label}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minWidth: 0 }}>
+        {busy ? <ActivityIndicator size="small" color={kind === 'primary' ? C.accentInk : C.text} /> : null}
+        <Text numberOfLines={1} style={[s.btnText, { fontSize, flexShrink: 1 }, kind === 'primary' && { color: C.accentInk }, kind === 'quiet' && { color: C.muted }]}>{label}</Text>
+      </View>
     </Press>
   )
 }
 
 export function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <View style={s.stat}>
+    <View style={s.stat} {...webData({ stat: true })}>
       <Text style={[t.label]}>{label}</Text>
       <Text style={[t.num, { fontSize: T.lg }, color ? { color } : null]}>{value}</Text>
     </View>
@@ -161,14 +177,15 @@ export function Empty({ title, body, children }: { title: string; body?: string;
   )
 }
 
-export function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
+export function Section({ title, right, children, collapsible = false }: { title: string; right?: ReactNode; children: ReactNode; collapsible?: boolean }) {
+  const [collapsed, setCollapsed] = useState(collapsible)
   return (
-    <View style={{ marginTop: 24 }}>
+    <View style={{ marginTop: 24 }} {...webData({ section: true })}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 8 }}>
-        <Txt v="label">{title}</Txt>
+        {collapsible ? <Press onPress={() => setCollapsed(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} style={({ hovered }) => [{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 30 }, hovered && { opacity: 0.8 }]}><Txt v="label">{title}</Txt><Txt v="small" color={C.muted}>{collapsed ? '+' : '−'}</Txt></Press> : <Txt v="label">{title}</Txt>}
         {right}
       </View>
-      {children}
+      {!collapsed ? children : null}
     </View>
   )
 }
@@ -213,7 +230,7 @@ export const s = StyleSheet.create({
   btnGhost: { borderWidth: 1, borderColor: C.line, backgroundColor: C.surface },
   btnQuiet: { backgroundColor: 'transparent' },
   btnText: { fontFamily: F.display, fontSize: T.md, color: C.text },
-  stat: { flex: 1, minWidth: 96, padding: 12, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, gap: 4 },
+  stat: { flex: 1, minWidth: 96, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: C.surface, gap: 6 },
   emptyRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.lineStrong, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   emptyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
 })

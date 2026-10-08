@@ -34,7 +34,7 @@ export const C = {
   lineStrong: oklch(0.32, 0.018, N),
   text: oklch(0.965, 0.006, N),
   muted: oklch(0.74, 0.016, N),
-  faint: oklch(0.56, 0.016, N),
+  faint: oklch(0.63, 0.016, N),        // small metadata stays legible on raised surfaces
   ghost: oklch(0.42, 0.014, N),
   accent: oklch(0.87, 0.165, 165),     // mint: inflow, live, the one brand color
   accentDim: oklch(0.87, 0.165, 165, 0.14),

@@ -20,13 +20,14 @@ import { programIds, lookup } from './programs.ts'
 import { extractSwap, looksLikeSwap, supportsQuoteMint, type SwapObservation, type SwapStreamEvent } from './swaps.ts'
 import { StreamPayloadBudget, type PayloadBudgetStatus } from './stream-budget.ts'
 import type { Lane } from '../../../shared/types.ts'
+import { observePrograms, type ProgramObservation } from './program-observation.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 // Each lane runs in its own worker thread (see worker.ts). A lane reports through a sink:
 // matched events go to the hub on the main thread, counters go to /api/status.
 export interface LaneStats extends Partial<PayloadBudgetStatus> { connected: boolean; msgs: number; lastMsgTs: number | null; lastDataTs?: number; lastSlot?: number; lastFinalizedSlot?: number; lagMs?: number; configuredStreams?: number; activeStreams?: number; filterPrograms?: number; estimatedPayloadBytes?: number; payloadSamples?: number; reason?: string }
-export interface Sink { emit(evs: RawEvent[]): void; swaps(swaps: SwapObservation[]): void; stream(event: SwapStreamEvent): void; stats(l: Lane): LaneStats }
+export interface Sink { emit(evs: RawEvent[]): void; swaps(swaps: SwapObservation[]): void; stream(event: SwapStreamEvent): void; stats(l: Lane): LaneStats; programs?(observations: ProgramObservation[]): void }
 export interface PrimaryStreamHealth { healthy: boolean; programs: string[]; lastSlot: number | null; lastFinalizedSlot: number | null; lastMsgTs: number | null; reason?: string }
 export function primaryStreamFresh(stats: Pick<LaneStats, 'connected' | 'lastDataTs'>, now = Date.now()): boolean {
   // A Yellowstone ping/pong proves only that the socket is open. Require a
@@ -56,7 +57,7 @@ function interesting(keys: Uint8Array[], ixs: { programIdIndex: number; data: Ui
 }
 
 export function __toNTx(...a: Parameters<typeof toNTx>) { return toNTx(...a) }
-export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[], loadedR: Uint8Array[], meta: any | null): NTx | null {
+export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[], loadedR: Uint8Array[], meta: any | null, allInstructions = false): NTx | null {
   const version = message?.config != null ? 1 : message?.versioned ? 0 : 'legacy'
   if (version === 1 && (loadedW.length || loadedR.length || message?.addressTableLookups?.length)) throw new Error('V1 transaction cannot contain address lookup tables')
   const raw: Uint8Array[] = [...(message?.accountKeys ?? []), ...loadedW, ...loadedR]
@@ -66,17 +67,22 @@ export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint
   // supported quote-token balance. Pre-execution lanes do not add this load.
   const includeSwaps = !!meta && [...(meta.preTokenBalances ?? []), ...(meta.postTokenBalances ?? [])]
     .some((b: any) => supportsQuoteMint(b.mint))
-  if (!interesting(raw, top, includeSwaps) && !inner.some(g => interesting(raw, g.ixs, includeSwaps))) return null
+  if (!allInstructions && !interesting(raw, top, includeSwaps) && !inner.some(g => interesting(raw, g.ixs, includeSwaps))) return null
   const keys = raw.map(k => bs58.encode(k))
   const ixs: NIx[] = []
   top.forEach((ix: any, i: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: Array.from(ix.accounts as Uint8Array), data: ix.data, n: String(i) }))
-  for (const g of inner) g.ixs.forEach((ix: any, j: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: Array.from(ix.accounts as Uint8Array), data: ix.data, n: `${g.idx}.${j}` }))
+  for (const g of inner) g.ixs.forEach((ix: any, j: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: Array.from(ix.accounts as Uint8Array), data: ix.data, n: `${g.idx}.${j}`, stackHeight: ix.stackHeight ?? undefined }))
   const tx: NTx = { sig: bs58.encode(sig), slot, keys, ixs, version, ...(version === 1 ? { transactionConfig: {
     ...(message.config.priorityFee != null ? { priorityFeeLamports: String(message.config.priorityFee) } : {}),
     ...(message.config.computeUnitLimit != null ? { computeUnitLimit: Number(message.config.computeUnitLimit) } : {}),
     ...(message.config.loadedAccountsDataSizeLimit != null ? { loadedAccountsDataSizeLimit: Number(message.config.loadedAccountsDataSizeLimit) } : {}),
     ...(message.config.heapSize != null ? { heapSize: Number(message.config.heapSize) } : {}),
   } } : {}) }
+  const header = message?.header
+  if (header) tx.keyFlags = keys.map((_, i) => ({ signer: i < header.numRequiredSignatures,
+    writable: i < header.numRequiredSignatures ? i < header.numRequiredSignatures - header.numReadonlySignedAccounts
+      : i < (message.accountKeys?.length ?? 0) ? i < message.accountKeys.length - header.numReadonlyUnsignedAccounts
+        : i < (message.accountKeys?.length ?? 0) + loadedW.length }))
   if (meta) {
     tx.failed = !!meta.err
     const bal = (arr: any[]): TokenBal[] => (arr ?? []).map(b => ({ idx: b.accountIndex, mint: b.mint, owner: b.owner, amount: BigInt(b.uiTokenAmount?.amount ?? '0'), decimals: b.uiTokenAmount?.decimals ?? 0 }))
@@ -89,6 +95,10 @@ export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint
 
 function emit(tx: NTx | null, l: Lane, stage: 'pending' | 'confirmed', bankId?: string | null) {
   if (!tx) return
+  if (config.programDiscovery && sink.programs) {
+    const observation = observePrograms(tx, l, Date.now(), stage === 'confirmed')
+    if (observation) sink.programs([observation])
+  }
   const evs = decode(tx, l, stage)
   if (evs.length) sink.emit(evs)
   if (stage === 'confirmed') {
@@ -221,7 +231,7 @@ export function geyserLane(l: Lane, url: string, token: string) {
         if (!t?.transaction) return
         const info = t.transaction
         try {
-          emit(toNTx(info.signature, Number(t.slot), info.transaction?.message, info.meta?.loadedWritableAddresses ?? [], info.meta?.loadedReadonlyAddresses ?? [], info.meta), l, 'confirmed', t.bankId)
+          emit(toNTx(info.signature, Number(t.slot), info.transaction?.message, info.meta?.loadedWritableAddresses ?? [], info.meta?.loadedReadonlyAddresses ?? [], info.meta, config.programDiscovery), l, 'confirmed', t.bankId)
         } catch (e) { console.error(`[sol:${l}] decode`, String(e)) }
       })
       await new Promise<void>((resolve) => {
@@ -273,7 +283,7 @@ export function deshredLane(url: string, token: string) {
         if (!d?.transaction) return
         const info = d.transaction
         try {
-          emit(toNTx(info.signature, Number(d.slot), info.transaction?.message, info.loadedWritableAddresses ?? [], info.loadedReadonlyAddresses ?? [], null), 'deshred', 'pending')
+          emit(toNTx(info.signature, Number(d.slot), info.transaction?.message, info.loadedWritableAddresses ?? [], info.loadedReadonlyAddresses ?? [], null, config.programDiscovery), 'deshred', 'pending')
         } catch (e) { console.error('[sol:deshred] decode', String(e)) }
       })
       await new Promise<void>((resolve) => {
@@ -321,7 +331,7 @@ async function fetchAlt(table: string) {
 
 export function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
   const w = parseWire(bytes)
-  if (!interesting(w.keys, w.ixs.map(ix => ({ programIdIndex: ix.prog, data: ix.data })))) return null
+  if (!config.programDiscovery && !interesting(w.keys, w.ixs.map(ix => ({ programIdIndex: ix.prog, data: ix.data })))) return null
   const keys: (string | null)[] = w.keys.map(k => bs58.encode(k))
   const ro: (string | null)[] = []
   for (const lk of w.lookups) {
@@ -387,7 +397,7 @@ export function preconfsLanes() {
 
 export function startSolana(ingest: (r: RawEvent) => void, setLane: (l: Lane, enabled: boolean, reason?: string, stats?: LaneStats) => void,
   onSwap?: (swap: SwapObservation) => void, onSwapStream?: (event: SwapStreamEvent) => void,
-  onPrimaryHealth?: (health: PrimaryStreamHealth) => void) {
+  onPrimaryHealth?: (health: PrimaryStreamHealth) => void, onPrograms?: (observations: ProgramObservation[]) => void) {
   const triton = config.tritonGrpcUrl && config.tritonXToken
   let primaryWorker: Worker | undefined
   let selectedPrimaryPrograms = [...programIds]
@@ -415,6 +425,7 @@ export function startSolana(ingest: (r: RawEvent) => void, setLane: (l: Lane, en
       if (m.t === 'ev') for (const r of m.evs) ingest(r)
       else if (m.t === 'swap' && onSwap) for (const swap of m.swaps) onSwap(swap)
       else if (m.t === 'swap-stream' && onSwapStream) onSwapStream(m.event)
+      else if (m.t === 'program-observations' && onPrograms) onPrograms(m.observations)
       else if (m.t === 'stats') {
         setLane(kind, true, undefined, m.stats)
         if (kind === 'geyser-primary') {

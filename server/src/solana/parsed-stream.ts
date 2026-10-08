@@ -7,6 +7,8 @@ import { config, redact } from '../config.ts'
 import type { RawEvent } from '../hub.ts'
 import { decode, type NIx, type NTx, type TokenBal } from './decode.ts'
 import { programIds, specs, venueOf, RAYDIUM_AMM_V4 } from './programs.ts'
+import { observePrograms, validProgram } from './program-observation.ts'
+import { ingestProgramObservations } from './program-service.ts'
 
 const PARSED_URL = 'wss://beta.helius-rpc.com'
 const DISCOVERY_URL = 'wss://fs-beta.helius-rpc.com'
@@ -163,6 +165,27 @@ export function parsedToRawEvents(value: any): RawEvent[] {
   return events
 }
 
+// Include unknown programs before the local IDL/spec filter. Parsed feeds do
+// not prove per-instruction privileges or complete balance deltas.
+export function parsedDiscoveryTransaction(value: any): NTx | null {
+  const transaction = value?.transaction, keys = transaction?.accountKeys
+  if (!Array.isArray(keys) || !keys.every(validProgram) || !Array.isArray(value.instructions) ||
+    typeof transaction.signature !== 'string' || !Number.isSafeInteger(transaction.slot)) return null
+  const indices = new Map<string, number>(keys.map((key: string, i: number) => [key, i]))
+  const ixs: NIx[] = []
+  for (const ix of value.instructions) {
+    if (!validProgram(ix.programId) || !Number.isSafeInteger(ix.instructionIndex) || ix.instructionIndex < 0) continue
+    const accounts = Array.isArray(ix.rawAccounts) ? ix.rawAccounts : ix.decoded?.accounts?.map((account: any) => account.pubkey)
+    if (!Array.isArray(accounts) || !accounts.every((account: string) => indices.has(account))) continue
+    const inner = ix.innerInstructionIndex
+    const n = inner === null || inner === undefined ? String(ix.instructionIndex) : `${ix.instructionIndex}.${inner}`
+    let data = new Uint8Array()
+    if (typeof ix.rawData === 'string') { try { data = bs58.decode(ix.rawData) } catch { continue } }
+    ixs.push({ prog: ix.programId, accts: accounts.map((account: string) => indices.get(account)!), data, n, stackHeight: ix.stackHeight ?? undefined, rawDataKnown: typeof ix.rawData === 'string' })
+  }
+  return { sig: transaction.signature, slot: transaction.slot, keys, ixs, failed: transaction.status !== 'ok' }
+}
+
 export function missingMatchedInstruction(value: any, events: RawEvent[]): boolean {
   if (!Array.isArray(value?.matchedIndexes) || !Array.isArray(value?.instructions)) return true
   for (const index of value.matchedIndexes) {
@@ -299,6 +322,11 @@ export function startParsedStream(onEvent: (event: RawEvent) => void,
       status.lastMsgTs = Date.now()
       try {
         const value = message.params?.result?.value
+        if (config.programDiscovery) {
+          const transaction = parsedDiscoveryTransaction(value)
+          const observation = transaction && observePrograms(transaction, 'helius-parsed')
+          if (observation) ingestProgramObservations([observation])
+        }
         const events = parsedToRawEvents(value)
         if (missingMatchedInstruction(value, events) && !degraded) {
           degraded = true

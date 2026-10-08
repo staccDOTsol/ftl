@@ -10,6 +10,7 @@ import { StandardConnect, StandardDisconnect, StandardEvents, type StandardConne
 import { SolanaSignTransaction, type SolanaSignTransactionFeature } from '@solana/wallet-standard-features'
 import { inspectTransaction, preferredTransactionVersion, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Txt } from './ui'
+import { updateWalletSession } from '@/lib/wallet-session'
 
 export interface SolanaSigner { address: string | null; transactionVersion: TransactionVersion | null; connect: () => Promise<void>; disconnect: () => Promise<void>; sign: (bytes: Uint8Array) => Promise<Uint8Array> }
 export type StandardSolanaWallet = Wallet & { features: StandardConnectFeature & SolanaSignTransactionFeature & Partial<StandardDisconnectFeature & StandardEventsFeature> }
@@ -87,7 +88,10 @@ export function useStandardSigner(wallet: StandardSolanaWallet): SolanaSigner {
   useEffect(() => wallet.features[StandardEvents]?.on('change', () => {
     setAccount(signingAccount(wallet.accounts)); updateCapabilities(value => value + 1)
   }), [wallet])
-  return useMemo<SolanaSigner>(() => ({
+  return useMemo<SolanaSigner>(() => {
+    // Wallet-standard can mutate advertised features without replacing wallet.
+    void capabilities
+    return {
     address: account?.address ?? null,
     transactionVersion: preferredTransactionVersion(wallet.features[SolanaSignTransaction].supportedTransactionVersions),
     connect: async () => {
@@ -107,7 +111,8 @@ export function useStandardSigner(wallet: StandardSolanaWallet): SolanaSigner {
       return results[0].signedTransaction
     },
   // `capabilities` forces a re-read of wallet.features after a change event.
-  }), [wallet, account, capabilities])
+    }
+  }, [wallet, account, capabilities])
 }
 
 export function useInjectedSigner(provider: InjectedWallet): SolanaSigner {
@@ -137,10 +142,12 @@ type SessionChild = (signer: SolanaSigner, name: string) => ReactNode
 
 function StandardSession({ wallet, children }: { wallet: StandardSolanaWallet; children: SessionChild }) {
   const signer = useStandardSigner(wallet)
+  useEffect(() => { updateWalletSession(standardKey(wallet), signer.address, wallet.name) }, [wallet, signer.address])
   return <>{children(signer, wallet.name)}</>
 }
 function InjectedSession({ entry, children }: { entry: InjectedEntry; children: SessionChild }) {
   const signer = useInjectedSigner(entry.provider)
+  useEffect(() => { updateWalletSession(entry.name, signer.address, entry.name) }, [entry.name, signer.address])
   return <>{children(signer, entry.name)}</>
 }
 

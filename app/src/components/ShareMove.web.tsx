@@ -5,6 +5,7 @@ import { StyleSheet, TextInput, View } from 'react-native'
 import { C, F } from '@/theme'
 import { post as apiPost } from '@/lib/api'
 import { short } from '@/lib/format'
+import { useNow } from '@/lib/useNow'
 import { moveTag, moveText } from '@/lib/move-text'
 import type { Chain, Move, Post } from '@/lib/types'
 import { PostItem } from './Posts'
@@ -22,6 +23,7 @@ export interface ShareMoveProps {
 }
 
 export function ShareMove({ chain, token, move, tx, graduated = true, symbol, side, onPosted }: ShareMoveProps) {
+  const now = useNow(5000)
   const sym = symbol ?? move.amounts?.find(a => a.mint === token)?.symbol
   const [body, setBody] = useState(() => moveText(move, sym ? '$' + sym : short(token), side))
   const [kind, setKind] = useState<'call' | 'comment'>(graduated ? 'comment' : 'call')
@@ -32,8 +34,8 @@ export function ShareMove({ chain, token, move, tx, graduated = true, symbol, si
   if (posted) {
     return (
       <View style={s.card}>
-        <Txt v="label">Shared to the token's feed</Txt>
-        <PostItem p={posted} now={Date.now()} />
+        <Txt v="label">Shared to the token’s feed</Txt>
+        <PostItem p={posted} now={now} />
       </View>
     )
   }

@@ -9,6 +9,9 @@ primary_region = 'ewr'
   PORT = '8080'
   BACKFILL_HOURS = '24'
   HELIUS_TARGETED_STREAM = '1'
+  PROGRAM_DISCOVERY = '1'
+  PROGRAM_DISCOVERY_BACKFILL = '1'
+  COMPOSER_URL = 'https://the-composer-svc.fly.dev'
 
 [mounts]
   source = 'ftl_data'

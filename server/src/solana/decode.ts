@@ -7,7 +7,7 @@ import { lookup, rolesOf, programIds, type IxSpec } from './programs.ts'
 import type { RawEvent } from '../hub.ts'
 import type { Amount, Lane, Stage } from '../../../shared/types.ts'
 
-export interface NIx { prog: string; accts: number[]; data: Uint8Array; n: string }
+export interface NIx { prog: string; accts: number[]; data: Uint8Array; n: string; stackHeight?: number; rawDataKnown?: boolean }
 export interface TokenBal { idx: number; mint: string; owner: string; amount: bigint; decimals: number }
 export interface NTx {
   version?: 'legacy' | 0 | 1
@@ -16,6 +16,7 @@ export interface NTx {
   slot: number
   keys: (string | null)[]     // static + loaded; null where a lane could not resolve a lookup table
   ixs: NIx[]                   // top-level, then inner (n = "i" or "i.j")
+  keyFlags?: { signer: boolean; writable: boolean }[]
   failed?: boolean
   pre?: TokenBal[]
   post?: TokenBal[]

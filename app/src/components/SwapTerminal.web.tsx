@@ -7,20 +7,22 @@
 // with the token page); the quote → build/simulate → sign → send → confirm
 // loop and the pending-transaction recovery follow the token page's TradeForm.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Linking, Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native'
+import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import bs58 from 'bs58'
 import { C, F, T } from '@/theme'
 import { ApiError, get } from '@/lib/api'
 import { short, venue } from '@/lib/format'
 import type { PoolSummary, TokenSummary } from '@/lib/types'
 import { tokenMetaOne, useTokenMeta, type TokenMetaMap, type TokenMetaRecord } from '@/lib/token-meta'
-import { balancePercent, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
+import { balancePercent, composerFeeLabel, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink, type SwapLinkAction, type SwapMode } from '@/lib/swap-link'
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Chip, Press, Seg, TokenAvatar, Txt } from './ui'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
+import { useWalletSelection, updateWalletSession } from '@/lib/wallet-session'
+import { Dialog, Icon } from './MarketUI.web'
 import ZapLiquidity from './ZapLiquidity.web'
 
 interface Token { mint: string; symbol: string; name?: string; image?: string }
@@ -52,7 +54,7 @@ const priceImpact = (value: string | null) => value === null || !Number.isFinite
 // opens the wallet once right after it is chosen.
 function SignerBridge({ signer, name, onSigner, onError }: { signer: SolanaSigner; name: string; onSigner: (signer: SolanaSigner | null, name: string | null) => void; onError: (message: string) => void }) {
   const latest = useRef({ signer, onError })
-  latest.current = { signer, onError }
+  useEffect(() => { latest.current = { signer, onError } }, [signer, onError])
   useEffect(() => { onSigner(signer, name) }, [signer, name, onSigner])
   useEffect(() => () => onSigner(null, null), [onSigner])
   useEffect(() => {
@@ -62,9 +64,9 @@ function SignerBridge({ signer, name, onSigner, onError }: { signer: SolanaSigne
   return null
 }
 
-export default function SwapTerminal({ initial }: { initial: SwapLink }) {
+export default function SwapTerminal({ initial, onModeChange }: { initial: SwapLink; onModeChange?: (next: SwapLink) => void }) {
   const wallets = useSolanaWallets()
-  const [selected, setSelected] = useState<WalletKey | null>(null)
+  const [selected, setSelected] = useWalletSelection()
   const [walletModal, setWalletModal] = useState(false)
   const [walletMenu, setWalletMenu] = useState(false)
   const signerRef = useRef<SolanaSigner | null>(null)
@@ -75,19 +77,20 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   const address = wallet?.address ?? null
   const transactionVersion = wallet?.version ?? '1'
 
-  const [input, setInput] = useState<Token>(() => tokenOf(initial.inputMint))
-  const [output, setOutput] = useState<Token | null>(() => initial.outputMint ? tokenOf(initial.outputMint) : null)
+  const [inputChoice, setInput] = useState<Token>(() => tokenOf(initial.inputMint))
+  const [outputChoice, setOutput] = useState<Token | null>(() => initial.outputMint ? tokenOf(initial.outputMint) : null)
   const [amount, setAmount] = useState(initial.amount)
   const [slippageBps, setSlippageBps] = useState(50)
   const [customBps, setCustomBps] = useState('')
   const [settings, setSettings] = useState(false)
+  const [routeExpanded, setRouteExpanded] = useState(false)
   const [picker, setPicker] = useState<'in' | 'out' | null>(null)
   const [rateFlipped, setRateFlipped] = useState(false)
   const [decimals, setDecimals] = useState<Record<string, number>>({ [SOL_MINT]: 9 })
   const [balances, setBalances] = useState<Record<string, { owner: string; raw: string }>>({})
   const [quoteResult, setQuoteResult] = useState<{ response: SolanaQuote; at: number; wallet: string | null; key: string } | null>(null)
   const [quoting, setQuoting] = useState(false)
-  const [quoteError, setQuoteError] = useState<{ message: string; at: number } | null>(null)
+  const [quoteError, setQuoteError] = useState<{ message: string; at: number; status?: number } | null>(null)
   const [networkFee, setNetworkFee] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<Phase>('idle')
@@ -99,8 +102,8 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   const operation = useRef(false)
   const mounted = useRef(true)
 
-  const inputMint = input.mint
-  const outputMint = output?.mint ?? null
+  const inputMint = inputChoice.mint
+  const outputMint = outputChoice?.mint ?? null
   const amountRaw = useMemo(() => {
     if (decimals[inputMint] === undefined) return null
     try { return toAtomic(amount, decimals[inputMint]) } catch { return null }
@@ -135,10 +138,8 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   // (FTL row → DAS → mint account) names them, and route legs through other mints.
   const legMints = useMemo(() => quoteResult?.response.routePlan.flatMap(leg => leg.swapInfo ? [leg.swapInfo.inputMint, leg.swapInfo.outputMint] : []) ?? [], [quoteResult])
   const meta = useTokenMeta([inputMint, outputMint, ...legMints])
-  useEffect(() => {
-    setInput(current => withMeta(current, meta))
-    setOutput(current => current ? withMeta(current, meta) : current)
-  }, [meta])
+  const input = withMeta(inputChoice, meta)
+  const output = outputChoice ? withMeta(outputChoice, meta) : null
   // An interrupted liquidity batch resumes in Liquidity mode, like the token page.
   useEffect(() => {
     const timer = setTimeout(() => { try { if (initial.outputMint && localStorage.getItem(LIQUIDITY_BATCH_KEY)) setMode('liquidity') } catch {} }, 0)
@@ -179,17 +180,16 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       const result = await getSolanaQuote({ inputMint: inMint, outputMint: outMint, amount: raw, slippageBps: Number(bps), transactionVersion: version as TransactionVersion })
       if (request === seq.current && mounted.current) { setQuoteResult({ response: result, at: Date.now(), wallet: signerRef.current?.address ?? null, key }); setNow(Date.now()) }
     } catch (error) {
-      if (request === seq.current && mounted.current) { setQuoteResult(null); setQuoteError({ message: messageOf(error), at: Date.now() }) }
+      if (request === seq.current && mounted.current) { setQuoteResult(null); setQuoteError({ message: messageOf(error), at: Date.now(), status: error instanceof ApiError ? error.status : undefined }) }
     } finally { if (request === seq.current && mounted.current) setQuoting(false) }
   }, [])
   // Inputs are disabled while a swap runs, so this never fires mid-swap; the
   // in-flight swap keeps its own `seq` snapshot.
   useEffect(() => {
     seq.current++
-    setQuoteResult(null); setQuoteError(null); setQuoting(false); setNetworkFee(null)
-    if (!quoteKey) return
-    const timer = setTimeout(() => void fetchQuote(quoteKey), 350)
-    return () => clearTimeout(timer)
+    const reset = setTimeout(() => { setQuoteResult(null); setQuoteError(null); setQuoting(false); setNetworkFee(null) }, 0)
+    const timer = quoteKey ? setTimeout(() => void fetchQuote(quoteKey), 350) : undefined
+    return () => { clearTimeout(reset); if (timer) clearTimeout(timer) }
   }, [quoteKey, address, fetchQuote])
   useEffect(() => {
     if (!quoteKey || locked || quoting) return
@@ -204,7 +204,8 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     setSigner(signer)
     const next: WalletState | null = signer && name ? { address: signer.address, version: signer.transactionVersion, name } : null
     setWallet(current => current?.address === next?.address && current?.version === next?.version && current?.name === next?.name ? current : next)
-  }, [])
+    if (selected && signer && name) updateWalletSession(selected, signer.address, name)
+  }, [selected])
   const chooseWallet = (key: WalletKey) => { setSelected(key); setWalletModal(false); setWalletMenu(false); setError(null) }
   const leaveWallet = () => { setSelected(null); setWalletMenu(false); wallets.rescan() }
 
@@ -294,34 +295,40 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     : null
   const countdown = quote ? Math.max(0, Math.ceil((quote.at + REFRESH_MS - now) / 1000)) : null
 
-  const primary = ((): { label: string; onPress?: () => void; busy?: boolean } => {
+  const primary = ((): { label: string; onPress?: () => void; busy?: boolean; enabled?: boolean } => {
     if (unresolved) return { label: 'Confirming…', busy: true }
-    if (!wallet) return { label: 'Connect wallet', onPress: () => setWalletModal(true) }
-    if (!address) return { label: 'Connect wallet', busy, onPress: () => void act(async () => { await signerRef.current?.connect() }) }
     if (phase === 'simulating') return { label: 'Simulating…', busy: true }
     if (phase === 'approve') return { label: 'Approve in wallet…', busy: true }
     if (phase === 'submitting') return { label: 'Submitting…', busy: true }
     if (phase === 'confirming') return { label: 'Confirming…', busy: true }
-    if (!output) return { label: 'Select a token' }
+    if (!output) return { label: 'Choose a token', enabled: true, onPress: () => setPicker('out') }
     if (!amountRaw) return { label: 'Enter an amount' }
+    if (!wallet) return { label: 'Connect wallet', enabled: true, onPress: () => setWalletModal(true) }
+    if (!address) return { label: 'Connect wallet', enabled: true, busy, onPress: () => void act(async () => { await signerRef.current?.connect() }) }
     if (inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance)) return { label: 'Insufficient balance' }
-    if (quoteError) return { label: 'No route' }
+    if (quoteError) return { label: quoteError.status === 404 ? 'No route' : 'Quote unavailable' }
     if (!quote || quoting && !fresh) return { label: 'Fetching route…', busy: true }
     if (wallet.version === null) return { label: 'Wallet cannot sign V0/V1' }
-    return { label: 'Swap', onPress: () => void act(swap) }
+    return { label: 'Swap', enabled: true, onPress: () => void act(swap) }
   })()
   const resolved = pending && pending.state !== 'pending' ? pending : null
+  const composedFee = quote ? composerFeeLabel(quote.response) : null
+  // Availability is derived only from render state. The handler itself reads
+  // signer refs at click time, never while deciding the button's appearance.
+  const primaryDisabled = !!(unresolved || busy || output && (!amountRaw || wallet && address && (
+    inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance) || quoteError || !quote || !fresh || wallet.version === null
+  )))
 
   return <View style={st.card}>
     <View style={st.header}>
-      <Txt v="h1">{mode === 'liquidity' ? 'Liquidity' : 'Swap'}</Txt>
+      <Txt v="h1">{mode === 'liquidity' ? 'Earn' : 'Trade'}</Txt>
       <View style={st.headerRight}>
         {mode === 'swap' ? <Press onPress={() => setSettings(value => !value)} accessibilityRole="button" accessibilityLabel="Swap settings" hitSlop={6} style={({ hovered, pressed }) => [st.icon, settings && { borderColor: C.accent + '88', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
-          <Txt v="mono" color={settings ? C.accent : C.muted}>⚙</Txt>
+          <Icon name="settings" size={18} />
         </Press> : null}
         {address
           ? <Button kind="ghost" label={shortMint(address)} disabled={locked} onPress={() => setWalletMenu(value => !value)} />
-          : <Button kind={wallet ? 'ghost' : 'primary'} label={wallet ? `Connect ${wallet.name}` : 'Connect'} busy={busy && phase === 'idle' && !!wallet} onPress={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} />}
+          : null}
       </View>
     </View>
     {walletMenu && address ? <View style={st.menu}>
@@ -334,9 +341,9 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     {selected && walletName(selected, wallets) ? <WalletSession selected={selected} wallets={wallets} onBack={leaveWallet} embeddedTitle={null}>
       {(signer, name) => <SignerBridge signer={signer} name={name} onSigner={onSigner} onError={setError} />}
     </WalletSession> : null}
-    <Seg value={mode} options={[{ value: 'swap', label: 'Swap' }, { value: 'liquidity', label: 'Liquidity' }]} onChange={value => { if (!locked) { setMode(value); setError(null) } }} />
+    <Seg value={mode} options={[{ value: 'swap', label: 'Trade' }, { value: 'liquidity', label: 'Earn' }]} onChange={value => { if (!locked) { setMode(value); setError(null); onModeChange?.({ ...initial, mode: value, inputMint, outputMint, amount, pool: outputMint === initial.outputMint ? initial.pool : null, action: outputMint === initial.outputMint ? initial.action : null }) } }} />
     {mode === 'liquidity' ? <>
-      <LiquidityPane token={output} pool={initial.pool} action={initial.action} advanced={initial.advanced} signer={signer} meta={meta} locked={locked} onLockChange={setLiquidityLocked} onPickToken={() => setPicker('out')} onConnect={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} />
+      <LiquidityPane token={output} pool={outputMint === initial.outputMint ? initial.pool : null} action={outputMint === initial.outputMint ? initial.action : null} advanced={initial.advanced} depositAmount={inputMint === SOL_MINT ? amount : ''} signer={signer} meta={meta} locked={locked} onLockChange={setLiquidityLocked} onPickToken={() => setPicker('out')} onConnect={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} />
       {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
     </> : null}
     {mode === 'swap' && settings ? <View style={st.panel}>
@@ -400,18 +407,20 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       <Detail label="Price impact" value={priceImpact(quote.response.priceImpactPct)} warn={Number(quote.response.priceImpactPct) >= 3} />
       <Detail label="Minimum received" value={outDecimals !== undefined ? `${fromAtomic(quote.response.otherAmountThreshold, outDecimals)} ${output.symbol}` : '…'} />
       <Detail label="Slippage" value={formatBps(quote.response.slippageBps)} />
-      <Detail label="Platform fee" value={quote.response.platformFee ? formatBps(quote.response.platformFee.feeBps) : 'none'} />
+      <Detail label="Platform fees" value={composedFee ?? (quote.response.platformFee ? formatBps(quote.response.platformFee.feeBps) : 'none')} />
+      {composedFee && quote.response.platformFee ? <Detail label="Additional router fee" value={formatBps(quote.response.platformFee.feeBps)} /> : null}
+      {composedFee ? <Txt v="monoSmall" color={C.accent}>Atomic execution · estimated output is after composer fees</Txt> : null}
       <Detail label="Network fee" value={networkFee !== null ? `≈ ${fromAtomic(String(networkFee), 9)} SOL` : 'after simulation'} />
       <View style={{ gap: 4, marginTop: 4 }}>
-        <Txt v="label">Route · {quote.response.routePlan.length} {quote.response.routePlan.length === 1 ? 'leg' : 'legs'}</Txt>
-        {quote.response.routePlan.map((leg, i) => leg.swapInfo ? <View key={`${i}-${leg.swapInfo.ammKey}`} style={st.leg}>
+        <Press onPress={() => setRouteExpanded(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: routeExpanded }} style={({ hovered }) => [st.between, { paddingVertical: 5 }, hovered && { opacity: 0.7 }]}><Txt v="label">{quote.response.routePlan.length} {quote.response.routePlan.length === 1 ? 'route leg' : 'route legs'} · {routeExpanded ? 'Hide details' : 'View details'}</Txt><Icon name={routeExpanded ? 'close' : 'plus'} size={13} /></Press>
+        {routeExpanded ? quote.response.routePlan.map((leg, i) => leg.swapInfo ? <View key={`${i}-${leg.swapInfo.ammKey}`} style={st.leg}>
           <Txt v="monoSmall" color={C.text}>{i + 1}. {venue(leg.swapInfo.label || '') || 'Pool'}{leg.percent !== 100 ? ` · ${leg.percent}%` : ''}</Txt>
           <Txt v="monoSmall">{symbol(leg.swapInfo.inputMint)} → {symbol(leg.swapInfo.outputMint)} · pool {short(leg.swapInfo.ammKey, 4)}</Txt>
-        </View> : null)}
+        </View> : null) : null}
       </View>
     </View> : null}
 
-    {quoteError && !quote ? <Txt v="small" color={C.warn}>{quoteError.message}</Txt> : null}
+    {quoteError && !quote ? <View style={{ gap: 8 }}><Txt v="small" color={C.warn}>{quoteError.message}</Txt><Button label="Retry quote" kind="ghost" disabled={locked || !quoteKey} onPress={() => { if (quoteKey) void fetchQuote(quoteKey) }} /></View> : null}
     {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
 
     {resolved ? <View style={[st.details, { borderColor: resolved.state === 'confirmed' ? C.accent + '66' : C.warn + '66' }]}>
@@ -430,20 +439,17 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       </View>
     </View> : null}
 
-    {!resolved ? <Button label={primary.label} busy={primary.busy} disabled={!primary.onPress} onPress={primary.onPress} style={st.primary} /> : null}
+    {!resolved ? <Button label={primary.label} busy={primary.busy} disabled={primaryDisabled} onPress={() => primary.onPress?.()} style={st.primary} /> : null}
     <Txt v="monoSmall" style={{ textAlign: 'center' }}>{routerMessage}</Txt>
     </> : null}
 
-    <Modal visible={walletModal} transparent animationType="fade" onRequestClose={() => setWalletModal(false)}>
-      <Press onPress={() => setWalletModal(false)} accessibilityLabel="Close" style={() => st.backdrop}>
-        <View style={st.sheet} onStartShouldSetResponder={() => true}>
-          <View style={st.between}><Txt v="h2">Connect a wallet</Txt><Button kind="quiet" label="Close" onPress={() => setWalletModal(false)} /></View>
+    {walletModal ? <Dialog title="Connect a wallet" onClose={() => setWalletModal(false)}>
+        <View style={{ gap: 14 }}>
           <WalletPicker wallets={wallets} onSelect={chooseWallet} />
           {!wallets.standard.length && !wallets.injected.length ? <Txt v="small">No browser wallet detected. Install Phantom or Solflare, or use the embedded wallet.</Txt> : null}
           <Txt v="small">Your trading wallet is separate from your profile key.</Txt>
         </View>
-      </Press>
-    </Modal>
+    </Dialog> : null}
     {picker ? <TokenPicker side={picker} exclude={picker === 'in' ? output?.mint ?? null : input.mint} onClose={() => setPicker(null)} onPick={token => pick(picker, token)} /> : null}
   </View>
 }
@@ -457,7 +463,7 @@ const synthesizeToken = (mint: string, record: TokenMetaRecord | null, token: To
   chain: 'solana', address: mint, symbol: record?.symbol ?? (token.symbol !== shortMint(mint) ? token.symbol : undefined), name: record?.name ?? token.name, image: record?.image ?? token.image, decimals: record?.decimals ?? undefined,
   launchedTs: null, launchVenue: null, graduatedTs: null, firstPoolTs: null, pools: 0, fundedPools: 0, lpWallets: 0, events: 0, lastTs: 0, score: 0, flags: [],
 })
-function LiquidityPane({ token, pool, action, advanced, signer, meta, locked, onLockChange, onPickToken, onConnect }: { token: Token | null; pool: string | null; action: SwapLinkAction; advanced: boolean; signer: SolanaSigner | null; meta: TokenMetaMap; locked: boolean; onLockChange: (locked: boolean) => void; onPickToken: () => void; onConnect: () => void }) {
+function LiquidityPane({ token, pool, action, advanced, depositAmount, signer, meta, locked, onLockChange, onPickToken, onConnect }: { token: Token | null; pool: string | null; action: SwapLinkAction; advanced: boolean; depositAmount: string; signer: SolanaSigner | null; meta: TokenMetaMap; locked: boolean; onLockChange: (locked: boolean) => void; onPickToken: () => void; onConnect: () => void }) {
   const mint = token?.mint ?? null
   const [page, setPage] = useState<LiquidityPage | null>(null)
   const [failure, setFailure] = useState<{ mint: string; message: string } | null>(null)
@@ -489,7 +495,7 @@ function LiquidityPane({ token, pool, action, advanced, signer, meta, locked, on
       </View>
       <View style={st.row}>
         <TokenButton token={token} disabled={locked} onPress={onPickToken} />
-        {token ? <Txt v="monoSmall" selectable numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{token.mint}</Txt> : <Txt v="small" style={{ flex: 1 }}>Choose the token whose liquidity you want to open, add to or pull.</Txt>}
+        {token ? <Txt v="monoSmall" selectable numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{short(token.mint, 5)}</Txt> : <Txt v="small" style={{ flex: 1 }}>Pick a token. FTL handles the pool and the route.</Txt>}
       </View>
       {token && record && !record.symbol ? <Txt v="small">Unnamed token: no symbol in DAS or on-chain metadata. Check the mint before adding liquidity.</Txt> : null}
     </View>
@@ -497,7 +503,7 @@ function LiquidityPane({ token, pool, action, advanced, signer, meta, locked, on
       <Txt v="small" color={C.warn}>{failure.message}</Txt>
       <Button kind="ghost" label="Retry" onPress={() => { setFailure(null); setAttempt(value => value + 1) }} />
     </View> : null}
-    {summary && current ? <ZapLiquidity key={current.mint} t={summary} pools={current.pools} signer={signer} onLockChange={onLockChange} exitRequest={action === 'exit'} initialPool={pool} advanced={advanced} onConnect={onConnect} /> : null}
+    {summary && current ? <ZapLiquidity key={current.mint} t={summary} pools={current.pools} signer={signer} onLockChange={onLockChange} exitRequest={action === 'exit'} initialPool={pool} initialAmount={depositAmount} advanced={advanced} onConnect={onConnect} /> : null}
   </>
 }
 
@@ -530,17 +536,17 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
   }, [])
   useEffect(() => {
     const text = query.trim()
-    if (!text) { setResults([]); setSearching(false); return }
     let alive = true
-    setSearching(true)
     const timer = setTimeout(() => {
+      if (!text) { setResults([]); setSearching(false); return }
+      setSearching(true)
       void get<{ tokens: TokenSummary[] }>('/api/search', { q: text }).then(result => {
         if (alive) setResults(result.tokens.filter(token => token.chain === 'solana').map(fromSummary))
       }).catch(() => { if (alive) setResults([]) }).finally(() => { if (alive) setSearching(false) })
-    }, 250)
+    }, text ? 250 : 0)
     return () => { alive = false; clearTimeout(timer) }
   }, [query])
-  async function usePasted() {
+  async function pickPastedMint() {
     try {
       const mint = validateMint(query)
       await mintDecimals(mint)
@@ -549,13 +555,11 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
   }
   const quick = [...KNOWN_TOKENS.map(token => tokenOf(token.mint)), ...hot].filter(token => token.mint !== exclude)
   const list = results.filter(token => token.mint !== exclude)
-  return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-    <Press onPress={onClose} accessibilityLabel="Close" style={() => st.backdrop}>
-      <View style={[st.sheet, { maxHeight: '85%' }]} onStartShouldSetResponder={() => true}>
-        <View style={st.between}><Txt v="h2">{side === 'in' ? 'Pay with' : 'Receive'}</Txt><Button kind="quiet" label="Close" onPress={onClose} /></View>
+  return <Dialog title={side === 'in' ? 'Pay with' : 'Choose a token'} onClose={onClose} className="lq-token-picker-dialog">
+      <View style={{ gap: 14 }}>
         <TextInput accessibilityLabel="Search tokens or paste a mint" value={query} onChangeText={value => { setQuery(value); setMessage(null) }} autoFocus autoCapitalize="none" autoCorrect={false} placeholder="Search by symbol, name or paste a mint" placeholderTextColor={C.faint} style={[st.textInput, st.boxed]} />
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 10 }}>
-          {pasted ? <Press onPress={() => void usePasted()} accessibilityRole="button" style={({ hovered, pressed }) => [st.tokenRow, { borderColor: C.accent + '66', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 10 }}>
+          {pasted ? <Press onPress={() => void pickPastedMint()} accessibilityRole="button" style={({ hovered, pressed }) => [st.tokenRow, { borderColor: C.accent + '66', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
             {pastedRecord ? <TokenAvatar image={pastedRecord.image ?? undefined} label={pastedRecord.symbol ?? shortMint(query.trim())} size={32} chain="solana" /> : null}
             <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
               <Txt v="body" numberOfLines={1}>{pastedRecord?.symbol ? <>Use {pastedRecord.symbol}{pastedRecord.name ? <Txt v="small">  {pastedRecord.name}</Txt> : null}</> : pastedRecord ? 'Use pasted mint · unnamed token' : 'Use pasted mint'}</Txt>
@@ -578,8 +582,7 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
           </Press>)}
         </ScrollView>
       </View>
-    </Press>
-  </Modal>
+  </Dialog>
 }
 
 const st = StyleSheet.create({
@@ -604,7 +607,7 @@ const st = StyleSheet.create({
   flipLine: { flex: 1, height: 1, backgroundColor: C.line },
   flip: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: C.lineStrong, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
   details: { gap: 6, padding: 12, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg },
-  leg: { gap: 2, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: C.accent + '66' },
+  leg: { gap: 4, paddingVertical: 8, borderTopWidth: 1, borderTopColor: C.line },
   primary: { height: 52, borderRadius: 14 },
   backdrop: { flex: 1, backgroundColor: '#00000099', alignItems: 'center', justifyContent: 'center', padding: 16 },
   sheet: { width: '100%', maxWidth: 420, gap: 10, padding: 14, borderRadius: 16, backgroundColor: C.surface, borderWidth: 1, borderColor: C.lineStrong },

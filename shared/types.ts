@@ -306,6 +306,7 @@ export interface Status {
 }
 
 export type ServerMsg =
+  | import('./programs.ts').ProgramUpdate
   | { t: 'event'; e: FlowEvent }
   | { t: 'upgrade'; id: string; stage: Stage; confirmedTs?: number; amounts?: Amount[]; quoteUi?: number | null; flags?: Flag[] }
   | { t: 'research'; keys: string[]; enrolled: boolean; all: boolean; ts: number }
@@ -316,5 +317,6 @@ export type ServerMsg =
   | { t: 'hello'; serverTs: number }
 
 export type ClientMsg =
+  | { t: 'program-subscribe'; enabled: boolean }
   | { t: 'filter'; chains?: Chain[]; kinds?: Kind[]; flaggedOnly?: boolean; minQuote?: number; follow?: { wallets: string[]; tokens: string[] } }
   | { t: 'ping' }

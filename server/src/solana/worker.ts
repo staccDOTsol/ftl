@@ -6,15 +6,19 @@ import { deshredLane, geyserLane, preconfsLanes, setGeyserPrimaryPrograms, setSi
 import type { SwapObservation } from './swaps.ts'
 import type { RawEvent } from '../hub.ts'
 import type { Lane } from '../../../shared/types.ts'
+import type { ProgramObservation } from './program-observation.ts'
 
 const kind = workerData.kind as Lane
 const stats: LaneStats = { connected: false, msgs: 0, lastMsgTs: null, configuredStreams: 0, activeStreams: 0 }
 let buf: RawEvent[] = []
 let swaps: SwapObservation[] = []
+let programs: ProgramObservation[] = []
 setSink({ emit: (evs) => { buf.push(...evs) }, swaps: (items) => { swaps.push(...items) },
-  stream: (event) => parentPort!.postMessage({ t: 'swap-stream', event }), stats: () => stats })
+  stream: (event) => parentPort!.postMessage({ t: 'swap-stream', event }), stats: () => stats,
+  programs: observations => { programs.push(...observations) } })
 setInterval(() => { if (buf.length) { parentPort!.postMessage({ t: 'ev', evs: buf }); buf = [] } }, 20)
 setInterval(() => { if (swaps.length) { parentPort!.postMessage({ t: 'swap', swaps }); swaps = [] } }, 20)
+setInterval(() => { if (programs.length) { parentPort!.postMessage({ t: 'program-observations', observations: programs }); programs = [] } }, 100)
 setInterval(() => parentPort!.postMessage({ t: 'stats', stats }), 1000)
 parentPort!.on('message', (m: any) => {
   if (kind === 'geyser-primary' && m?.t === 'program-filter') {

@@ -17,6 +17,7 @@ import { programIds } from './programs.ts'
 import { extractSwap, type SwapObservation, type SwapStreamEvent } from './swaps.ts'
 import type { HolderTransactionUpdate } from './holders.ts'
 import { StreamPayloadBudget } from './stream-budget.ts'
+import { observeRawPrograms, type ProgramObservation } from './program-observation.ts'
 
 const { CommitmentLevel, CompressedAccountFilterSet, subscribe } = laserstream
 const { SlotStatus, SubscribeUpdate } = proto.geyser
@@ -139,6 +140,7 @@ export interface BlockTimeStreamOptions {
   onFallbackEvent?: (event: RawEvent) => void
   onFallbackStatus?: (activePrograms: number) => void
   onConnection?: (connected: boolean, reason?: string) => void
+  onPrograms?: (observations: ProgramObservation[]) => void
 }
 
 export function researchLaserStreamRequest(mints: string[], fromSlot?: number, filterName = 'research',
@@ -516,6 +518,10 @@ export async function startBlockTimeStream(options: BlockTimeStreamOptions = {})
             updateTimer = setTimeout(() => void updateMints(), 0)
           const transaction = update.transaction
           const info = transaction?.transaction
+          if (info && options.onPrograms) {
+            const observation = observeRawPrograms(info, Number(transaction.slot), 'helius-laserstream', Date.now(), true)
+            if (observation) options.onPrograms([observation])
+          }
           if (transaction && info && options.onHolderTransaction) {
             const tagged = update.filters ?? []
             const accepted = !!acknowledgedResearchName && tagged.includes(acknowledgedResearchName)

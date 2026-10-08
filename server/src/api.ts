@@ -23,6 +23,9 @@ import { createSolanaZapHandler } from './solana/zap.ts'
 import { createTokenMetaHandler, type TokenMetaRecord } from './solana/token-meta.ts'
 import { validPublicKey } from './solana/router.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
+import { getProgram, getProgramIdl, listPrograms, programBus } from './solana/program-service.ts'
+import { validProgram } from './solana/program-observation.ts'
+import type { ProgramUpdate } from '../../shared/programs.ts'
 
 const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
   rpcUrl: config.solanaRpc, quoteRpcUrl: config.solanaQuoteRpc, selfRouter: config.solanaSelfRouter, composerProgramId: config.lpZapProgramId })
@@ -171,7 +174,7 @@ async function quote(q: URLSearchParams) {
 
 // ---- server -----------------------------------------------------------------
 
-const clients = new Map<WebSocket, { chains?: Set<Chain>; kinds?: Set<Kind>; flaggedOnly?: boolean; minQuote?: number; wallets?: Set<string>; tokens?: Set<string> }>()
+const clients = new Map<WebSocket, { programs?: boolean; chains?: Set<Chain>; kinds?: Set<Kind>; flaggedOnly?: boolean; minQuote?: number; wallets?: Set<string>; tokens?: Set<string> }>()
 
 function matches(f: ReturnType<typeof clients.get> & {}, e: FlowEvent): boolean {
   if (f.wallets || f.tokens) {
@@ -216,6 +219,29 @@ export function startApi(port: number) {
       }
       if (req.method === 'GET') {
         if (b === 'status') out = { ...status(), dropped: counters.dropped() }
+        else if (b === 'programs' && !c) {
+          const integer = (name: string, fallback: number, max: number) => {
+            const value = q.get(name)
+            if (value === null) return fallback
+            const number = Number(value)
+            if (!Number.isSafeInteger(number) || number < 0 || number > max) throw new HttpError(400, `invalid ${name}`)
+            return number
+          }
+          out = await listPrograms({ search: q.get('search') ?? '', filter: q.get('filter') ?? 'unseen', sort: q.get('sort') ?? 'new',
+            offset: integer('offset', 0, 1_000_000), limit: integer('limit', 75, 200), hours: integer('hours', 1, 168) })
+        }
+        else if (b === 'programs' && c === 'solana' && d && !parts[5]) {
+          if (!validProgram(d)) throw new HttpError(400, 'invalid program address')
+          if (parts[4] === 'idl') {
+            const idl = await getProgramIdl(d)
+            if (!idl) throw new HttpError(404, 'No indexed IDL is available yet')
+            res.writeHead(200, { 'content-type': 'application/json', 'content-disposition': `attachment; filename="${d}.json"`, 'cache-control': 'no-store' }).end(idl)
+            return
+          }
+          if (parts[4]) throw new HttpError(404, 'not found')
+          out = await getProgram(d)
+          if (!out) throw new HttpError(404, 'program not observed yet')
+        }
         else if (b === 'feed') out = feed(q)
         else if (b === 'event' && c && !d) {
           const id=decodeURIComponent(c)
@@ -280,6 +306,7 @@ export function startApi(port: number) {
         const m = JSON.parse(String(raw)) as ClientMsg
         if (m.t === 'filter') {
           clients.set(ws, {
+            programs: clients.get(ws)?.programs,
             chains: m.chains?.length ? new Set(m.chains) : undefined,
             kinds: m.kinds?.length ? new Set(m.kinds) : undefined,
             flaggedOnly: !!m.flaggedOnly,
@@ -287,6 +314,14 @@ export function startApi(port: number) {
             wallets: m.follow ? new Set(m.follow.wallets) : undefined,
             tokens: m.follow ? new Set(m.follow.tokens) : undefined,
           })
+        } else if (m.t === 'program-subscribe') {
+          const previous = clients.get(ws) ?? {}
+          clients.set(ws, { ...previous, programs: m.enabled === true })
+          if (m.enabled === true) void listPrograms({ filter: 'unseen', limit: 150 }).then(snapshot => {
+            if (!clients.get(ws)?.programs) return
+            send(ws, { t: 'programs', sequence: snapshot.sequence, reset: true, records: snapshot.items, activity: snapshot.activity,
+              totals: snapshot.totals, buckets: snapshot.buckets, coverage: snapshot.coverage, ts: Date.now() })
+          }).catch(() => {})
         }
       } catch {}
     })
@@ -303,6 +338,9 @@ export function startApi(port: number) {
     for (const ws of clients.keys()) send(ws, msg)
   })
   bus.on('upgrade', (u: ServerMsg) => { for (const ws of clients.keys()) send(ws, u) })
+  programBus.on('update', (update: ProgramUpdate) => {
+    for (const [ws, filters] of clients) if (filters.programs) send(ws, update)
+  })
 
   // Research invalidations are coalesced across all FTL events. At very high
   // rates, one all=true message replaces a large address list; clients then

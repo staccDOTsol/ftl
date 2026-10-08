@@ -7,7 +7,8 @@ import { useLive } from '@/lib/live'
 import { useSocial } from '@/lib/social'
 import { enableAlerts } from '@/lib/notify'
 import { ago } from '@/lib/format'
-import { Button, Screen, Section, Txt } from '@/components/ui'
+import { Button, Screen, Section, TokenAvatar, Txt } from '@/components/ui'
+import { webData } from '@/lib/web-props'
 import { laneLabel } from '@/components/NavBar'
 
 export default function Me() {
@@ -24,24 +25,22 @@ export default function Me() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
-        <View style={{ padding: 16, gap: 8 }}>
-          <Txt v="title">{social.profile?.handle ? '@' + social.profile.handle : 'You'}</Txt>
-          <Txt v="small">Your account is a key on this device. Its public half is a Solana address; every follow, call and like is signed with it. Nothing else to sign up for.</Txt>
-          <Txt v="monoSmall" selectable>{social.pubkey ?? (social.ready ? 'No active FTL profile key' : '…')}</Txt>
+        <View style={{ padding: 16, gap: 14 }} {...webData({ 'page-header': true })}>
+          <Txt v="label" color={C.accent}>Your space in the flow</Txt>
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}><TokenAvatar label={social.profile?.handle || 'You'} size={54} /><View style={{ flex: 1, minWidth: 0, gap: 4 }}><Txt v="title">{social.profile?.handle ? '@' + social.profile.handle : 'Make yourself at home.'}</Txt><Txt v="small">Your follows and calls are ready. Pick a handle to make them yours.</Txt></View></View>
         </View>
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 8 }}>
-          <Button label="What can I do with what I’m holding?" onPress={() => router.push('/holdings')} />
-          <Txt v="small">Paste or connect a Solana wallet. FTL reads its SOL, tokens and liquidity positions and lists the exits, sells, adds and buys it can execute here.</Txt>
-          <Button label="Swap ⇄" kind="ghost" onPress={() => router.push('/swap')} />
-          <Txt v="small">Swap any two Solana tokens through FTL’s router in one full-page terminal.</Txt>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 10, flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Button label="Your portfolio →" onPress={() => router.push('/holdings')} style={{ flex: 1, minWidth: 160 }} />
+          <Button label="Trade ⇄" kind="ghost" onPress={() => router.push('/swap')} style={{ flex: 1, minWidth: 120 }} />
+          <Button label="Earn →" kind="ghost" onPress={() => router.push('/swap?mode=liquidity')} style={{ flex: 1, minWidth: 120 }} />
         </View>
 
         <Section title="Handle">
           <View style={{ paddingHorizontal: 16, gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.lineStrong, borderRadius: 10, paddingHorizontal: 12, backgroundColor: C.surface }}>
               <Txt v="mono" color={C.muted}>@</Txt>
-              <TextInput value={handle} onChangeText={setHandle} placeholder={social.profile?.handle ?? 'pick a handle'} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={{ flex: 1, height: 44, color: C.text, fontFamily: F.mono, fontSize: 15 }} />
+              <TextInput accessibilityLabel="Your profile handle" value={handle} onChangeText={setHandle} placeholder={social.profile?.handle ?? 'pick a handle'} placeholderTextColor={C.faint} autoCapitalize="none" autoCorrect={false} style={{ flex: 1, height: 44, color: C.text, fontFamily: F.mono, fontSize: 15 }} />
             </View>
             {msg ? <Txt v="small" color={msg.startsWith('Saved') ? C.good : C.bad}>{msg}</Txt> : null}
             <Button label="Save handle" kind="ghost" busy={busy} disabled={!handle.trim()} onPress={async () => {
@@ -67,7 +66,7 @@ export default function Me() {
           </View>
         </Section> : null}
 
-        <Section title="Privacy and account">
+        <Section title="Privacy and account" collapsible>
           <View style={{ paddingHorizontal: 16, gap: 8 }}>
             <Txt v="small">Your calls, comments, likes, follows, handle, and optional push token are tied to this device profile key. Public blockchain activity is separate.</Txt>
             <Button label="Read privacy policy" kind="ghost" onPress={() => void Linking.openURL('https://www.liquidityxyz.fun/privacy.html')} />
@@ -93,7 +92,9 @@ export default function Me() {
           </View>
         </Section>
 
-        <Section title="Feeds">
+        <Section title="Profile identity" collapsible><View style={{ paddingHorizontal: 16, gap: 8 }}><Txt v="small">Your profile is created on this device. It signs your follows, calls and likes, and is separate from your trading wallet.</Txt><Txt v="monoSmall" selectable>{social.pubkey ?? (social.ready ? 'No active profile key' : 'Loading…')}</Txt></View></Section>
+
+        <Section title="Connection details" collapsible>
           <View style={{ paddingHorizontal: 16, gap: 10 }}>
             {(l.status?.lanes ?? []).map(s => (
               <View key={`${s.chain}:${s.lane}`} style={{ gap: 2 }}>
@@ -111,7 +112,7 @@ export default function Me() {
           </View>
         </Section>
 
-        <Section title="About">
+        <Section title="About liquidityxyz" collapsible>
           <View style={{ paddingHorizontal: 16, gap: 8 }}>
             <Txt v="small">liquidityxyz follows liquidity, not price. Bot crews arm a launch with pools before it moves: pools on a token still on its curve, bursts of funded pools within minutes, honeypot fee tiers, price ladders with no depth, liquidity pulled within blocks. The signals come from the forensic record in staccDOTsol/the-book.</Txt>
             <Txt v="small">Robinhood Chain streams over dRPC. Solana uses filtered Helius parsed events and Flux Yellowstone for uncovered instructions and failover. The first lane to see a transaction posts it; an executed copy confirms it and sizes it.</Txt>

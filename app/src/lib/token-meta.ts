@@ -52,7 +52,6 @@ export function useTokenMeta(mints: (string | null | undefined)[]): TokenMetaMap
     if (missingMints(wanted).length) void tokenMeta(wanted)
     return () => { listeners.delete(listener) }
   }, [key])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const snapshot = key ? key.split(',').map(mint => `${mint}:${cachedMeta(mint)?.symbol ?? ''}:${cachedMeta(mint)?.image ?? ''}`).join('|') : ''
   return useMemo(() => knownMeta(key ? key.split(',') : []), [snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 }

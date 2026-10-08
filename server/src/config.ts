@@ -64,6 +64,12 @@ export const config = {
   lpZapProgramId: lpZapProgramId(env('LP_ZAP_PROGRAM_ID')),
   solanaDasRpc: env('SOLANA_DAS_URL') === 'off' ? undefined : (env('SOLANA_DAS_URL') ?? solanaRpc),
 
+  // Observe every program in existing traffic, before venue classification.
+  // Learning is serialized in a separate durable-index worker.
+  programDiscovery: env('PROGRAM_DISCOVERY') !== '0',
+  composerUrl: env('COMPOSER_URL') ?? 'https://the-composer-svc.fly.dev',
+  programDiscoveryBackfill: env('PROGRAM_DISCOVERY_BACKFILL') === '1',
+
   // Liquidity moves on pools and tokens older than this are counted, not stored:
   // FTL follows young liquidity, not market makers rebalancing SOL/USDC.
   youngMs: Number(env('YOUNG_HOURS') ?? 72) * 3600_000,

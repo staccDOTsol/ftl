@@ -5,6 +5,7 @@ import { C } from '@/theme'
 import { get } from '@/lib/api'
 import type { ResearchCoin, ResearchCoinDetail, ResearchList } from '@/lib/types'
 import { live } from '@/lib/live'
+import { webData } from '@/lib/web-props'
 import { ResearchRow } from '@/components/Research'
 import { Empty, Loading, Screen, Seg, Txt } from '@/components/ui'
 
@@ -149,16 +150,18 @@ export default function ResearchIndex() {
         onEndReachedThreshold={0.4}
         contentContainerStyle={{ paddingBottom: 36 }}
         ListHeaderComponent={
-          <View style={st.header}>
+          <View style={st.header} {...webData({ 'page-header': true })}>
             <View style={{ gap: 4 }}>
-              <Txt v="title">Research</Txt>
-              <Txt v="small">Coins FTL sees appear automatically. Holder persistence and bottoming patterns are shown when their source histories are available.</Txt>
+              <Txt v="label" color={C.accent}>The story behind the signal</Txt>
+              <Txt v="title">Look a little deeper.</Txt>
+              <Txt v="small">Holder strength, liquidity activity, and bottoming research. Coins and source coverage update automatically.</Txt>
               <Pressable onPress={() => setShowCoverage(value => !value)} accessibilityRole="button" accessibilityLabel={showCoverage ? 'Hide research coverage' : 'Show research coverage'}>
                 <Txt v="monoSmall" color={C.accent}>{showCoverage ? 'Hide coverage ↑' : 'Coverage & limits ↓'}</Txt>
               </Pressable>
               {showCoverage ? <Txt v="small">{coverageNote}</Txt> : null}
             </View>
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: 12 }} {...webData({ 'research-controls': true })}>
+              <View style={{ gap: 8 }}>
               <Txt v="label">Find a coin</Txt>
               <TextInput
                 value={searchInput}
@@ -171,6 +174,8 @@ export default function ResearchIndex() {
                 maxLength={80}
                 style={st.search}
               />
+              </View>
+              <View style={{ gap: 8 }}><Txt v="label">Chain</Txt>
               <Seg value={chain} onChange={value => {
                 if (value === chain) return
                 generation.current++
@@ -183,10 +188,13 @@ export default function ResearchIndex() {
                 { value: 'solana', label: 'Solana' },
                 { value: 'robinhood', label: 'Robinhood' },
               ]} />
+              </View>
+              <View style={{ gap: 8 }}>
               <Txt v="label">Focus</Txt>
               <Seg value={mode} onChange={setMode} options={[{ value: 'holders', label: 'Holder strength' }, { value: 'bottoming', label: 'Bottoming test' }]} />
-              <Txt v="monoSmall">Newest first · {total} {search || chain !== 'all' ? 'matching coins' : 'coins'}{backlog !== null && backlog > 0 ? ` · ${backlog} awaiting research sources` : ''}. Scores need both a working source and enough history.</Txt>
+              </View>
             </View>
+            <Txt v="monoSmall">Newest first · {total} {search || chain !== 'all' ? 'matching coins' : 'coins'}{backlog !== null && backlog > 0 ? ` · ${backlog} awaiting sources` : ''}. Scores need a working source and enough history.</Txt>
             {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
           </View>
         }

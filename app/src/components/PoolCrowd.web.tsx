@@ -1,10 +1,9 @@
 // Who's in this pool: wallets that added or pulled liquidity here, with how
 // many app users follow each one, and a follow toggle on every row.
-import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { router } from 'expo-router'
 import { C } from '@/theme'
-import { get } from '@/lib/api'
+import { useLiveResource } from '@/lib/use-live-resource'
 import { useClock } from '@/lib/clock'
 import { ago, short } from '@/lib/format'
 import { useSocial } from '@/lib/social'
@@ -16,19 +15,9 @@ export interface PoolWallet { address: string; adds: number; pulls: number; last
 export function PoolCrowd({ pool, chain }: { pool: string; chain: Chain }) {
   const social = useSocial()
   const now = useClock()
-  const [rows, setRows] = useState<PoolWallet[] | null>(null)
-  const [err, setErr] = useState<string | null>(null)
+  const { data: rows, error: err } = useLiveResource<PoolWallet[]>(`/api/pool/${chain}/${pool}/wallets${social.pubkey ? `?viewer=${social.pubkey}` : ''}`, 30_000, true)
 
-  useEffect(() => {
-    let alive = true
-    setRows(null); setErr(null)
-    get<PoolWallet[]>(`/api/pool/${chain}/${pool}/wallets`, { viewer: social.pubkey })
-      .then(r => { if (alive) setRows(r) })
-      .catch(e => { if (alive) setErr(e.message) })
-    return () => { alive = false }
-  }, [chain, pool])   // eslint-disable-line react-hooks/exhaustive-deps -- one read per pool; follows update locally
-
-  if (err) return <Txt v="small" color={C.bad} style={s.note}>{err}</Txt>
+  if (err && !rows) return <Txt v="small" color={C.bad} style={s.note}>{err}</Txt>
   if (!rows) return <Txt v="small" style={s.note}>Loading the crowd…</Txt>
   if (!rows.length) return <Txt v="small" style={s.note}>No liquidity moves seen in this pool yet.</Txt>
   return (

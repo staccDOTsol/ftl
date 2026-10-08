@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
-import { DarkTheme, Stack, ThemeProvider, router } from 'expo-router'
+import { DarkTheme, Slot, Stack, ThemeProvider, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
@@ -10,6 +10,7 @@ import { C, F } from '@/theme'
 import { live } from '@/lib/live'
 import { social } from '@/lib/social'
 import '@/lib/notify'
+import AppShell from '@/components/AppShell'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
@@ -35,7 +36,8 @@ export default function Root() {
   return (
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
-      <Stack screenOptions={{
+      <AppShell>
+      {Platform.OS === 'web' ? <Slot /> : <Stack screenOptions={{
         headerStyle: { backgroundColor: C.bg },
         headerTintColor: C.text,
         headerTitleStyle: { fontFamily: F.display },
@@ -49,10 +51,13 @@ export default function Root() {
         <Stack.Screen name="swap" options={{ title: 'Swap' }} />
         <Stack.Screen name="research/index" options={{ title: 'Research' }} />
         <Stack.Screen name="research/[chain]/[address]" options={{ title: 'Coin research' }} />
+        <Stack.Screen name="programs/index" options={{ title: 'Program frontier' }} />
+        <Stack.Screen name="programs/[address]" options={{ title: 'Program evidence' }} />
         <Stack.Screen name="embedded-wallet" options={{ title: 'Embedded wallet' }} />
         <Stack.Screen name="wallet/[chain]/[address]" options={{ title: 'Wallet' }} />
         <Stack.Screen name="profile/[pubkey]" options={{ title: 'Profile' }} />
-      </Stack>
+      </Stack>}
+      </AppShell>
     </ThemeProvider>
   )
 }

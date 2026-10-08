@@ -32,7 +32,7 @@ export function WrapSol({ signer, defaultDirection = 'wrap', onDone }: WrapSolPr
     const [native, wrapped] = await Promise.all([tokenBalance(owner, SOL_MINT, true), tokenBalance(owner, SOL_MINT, false)])
     if (mounted.current) setBalances({ owner, native, wrapped })
   }, [owner])
-  useEffect(() => { void refresh().catch(e => { if (mounted.current) setError(errorMessage(e)) }) }, [refresh])
+  useEffect(() => { const timer = setTimeout(() => { void refresh().catch(e => { if (mounted.current) setError(errorMessage(e)) }) }, 0); return () => clearTimeout(timer) }, [refresh])
   const current = balances?.owner === owner ? balances : null
   const lamports = direction === 'wrap' ? (() => { try { return toAtomic(amount, 9) } catch { return null } })() : current?.wrapped ?? null
   const canRun = !!owner && !!version && !busy && lamports !== null && BigInt(lamports) > 0n

@@ -26,7 +26,7 @@ export function PoolYield({ venue, pool, depositUsd }: { venue: string; pool: st
 
   if (stats === undefined) return <Txt v="monoSmall">loading yield…</Txt>
   const label = aprLabel(stats)
-  if (!stats || !label) return <Txt v="monoSmall" color={C.ghost}>no data</Txt>
+  if (!stats || !label) return <Txt v="monoSmall" color={C.faint}>Yield data unavailable</Txt>
   const apr = stats.totalApr ?? stats.feeApr ?? 0
   const yearly = depositUsd !== undefined ? estimateShare(stats, depositUsd) : null
   return (
@@ -36,7 +36,7 @@ export function PoolYield({ venue, pool, depositUsd }: { venue: string; pool: st
         <Txt v="monoSmall">fees {money(stats.fees24hUsd)}/24h · TVL {money(stats.tvlUsd)} · vol {money(stats.volume24hUsd)}</Txt>
         <Chip label={`via ${sourceName(stats)}`} color={C.faint} />
       </View>
-      {yearly !== null ? <Txt v="monoSmall" color={C.muted}>≈ {money(yearly)}/yr at today's volume</Txt> : null}
+      {yearly !== null ? <Txt v="monoSmall" color={C.muted}>≈ {money(yearly)}/yr at today’s volume</Txt> : null}
     </View>
   )
 }

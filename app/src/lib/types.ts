@@ -272,6 +272,7 @@ export interface Status {
 }
 
 export type ServerMsg =
+  | import('../../../shared/programs').ProgramUpdate
   | { t: 'event'; e: FlowEvent }
   | { t: 'upgrade'; id: string; stage: Stage; confirmedTs?: number; amounts?: Amount[]; quoteUi?: number | null; flags?: Flag[] }
   | { t: 'token'; s: TokenSummary }
@@ -282,5 +283,6 @@ export type ServerMsg =
   | { t: 'hello'; serverTs: number }
 
 export type ClientMsg =
+  | { t: 'program-subscribe'; enabled: boolean }
   | { t: 'filter'; chains?: Chain[]; kinds?: Kind[]; flaggedOnly?: boolean; minQuote?: number; follow?: { wallets: string[]; tokens: string[] } }
   | { t: 'ping' }

@@ -16,9 +16,11 @@ import { startParsedStream } from './solana/parsed-stream.ts'
 import { setFallbackPrograms, startBlockTimeStream } from './solana/blocktime.ts'
 import { onHolderMetadataGap, onHolderStreamBatch, onHolderStreamEvent, onHolderTransaction, startHolders } from './solana/holders.ts'
 import { startProgramBackfill } from './solana/program-backfill.ts'
+import { ingestProgramObservations, programSource, startProgramDiscovery } from './solana/program-service.ts'
 
 loadFollowedWallets()
 startApi(config.port)
+startProgramDiscovery()
 startHolders(mint => bus.emit('research', 'solana', mint, false))
 startProgramBackfill()
 startPush()
@@ -53,7 +55,7 @@ let fallbackGapReason: string | undefined
 let fallbackActivation: NodeJS.Timeout | null = null
 let latestPrimaryHealth: { healthy: boolean; programs: string[]; lastFinalizedSlot: number | null } | null = null
 const setFluxPrograms = startSolana(ingest,
-  (l, enabled, reason, stats) => { const s = lane('solana', l, enabled, reason); if (stats) Object.assign(s, stats) },
+  (l, enabled, reason, stats) => { const s = lane('solana', l, enabled, reason); if (stats) Object.assign(s, stats); programSource(l, enabled && !!stats?.connected) },
   ingestSwap, onResearchSwapStream, health => {
     if (!config.heliusTargetedStream) return
     latestPrimaryHealth = health
@@ -82,14 +84,16 @@ const setFluxPrograms = startSolana(ingest,
         else void setFallbackPrograms([])
       }).catch(error => console.error('[sol:research] fallback filter', redact(String(error))))
     }, 20_000)
-  })
+  }, ingestProgramObservations)
 startParsedStream(ingest, (status, fallbackPrograms) => {
   const s = lane('solana', 'helius-parsed', config.heliusParsedStream, status.reason)
   Object.assign(s, status)
+  programSource('helius-parsed', status.connected)
   setFluxPrograms(fallbackPrograms)
 })
 if (config.heliusTargetedStream) void startBlockTimeStream({
   onSwap: ingestSwap,
+  onPrograms: config.programDiscovery ? ingestProgramObservations : undefined,
   onHolderStream: onHolderStreamEvent,
   onHolderStreamBatch,
   onHolderTransaction,
@@ -105,6 +109,7 @@ if (config.heliusTargetedStream) void startBlockTimeStream({
     if (programs && fallbackGapReason) heliusLane.reason = fallbackGapReason
   },
   onConnection: (connected, reason) => {
+    programSource('helius-laserstream', connected)
     heliusLane.connected = connected
     heliusLane.activeStreams = connected ? 1 : 0
     heliusLane.reason = reason ?? fallbackGapReason

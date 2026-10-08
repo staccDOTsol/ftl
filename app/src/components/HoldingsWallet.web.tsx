@@ -8,6 +8,7 @@ import { StandardConnect } from '@wallet-standard/features'
 import { C } from '@/theme'
 import { injectedWallets, isStandardSolana, signingAccount, type InjectedWallet, type SolanaSigner, type StandardSolanaWallet } from './SolanaTrade.web'
 import { Button, Txt } from './ui'
+import { selectWallet, updateWalletSession } from '@/lib/wallet-session'
 
 const EmbeddedWallet = lazy(() => import('./SolanaTradeEmbedded.web'))
 const messageOf = (error: unknown) => error instanceof Error ? error.message : 'Wallet connection failed. Try again.'
@@ -25,30 +26,32 @@ export default function HoldingsWallet({ onAddress }: { onAddress: (address: str
     const offRegister = registry.on('register', scan), offUnregister = registry.on('unregister', scan)
     return () => { clearTimeout(timer); offRegister(); offUnregister() }
   }, [])
-  async function connect(name: string, run: () => Promise<string | null | undefined>) {
+  async function connect(name: string, key: string, run: () => Promise<string | null | undefined>) {
     if (busy) return
     setBusy(name); setError(null)
     try {
       const address = await run()
       if (!address) throw new Error('The wallet did not return a Solana mainnet account.')
+      selectWallet(key)
+      updateWalletSession(key, address, name)
       onAddress(address)
     } catch (e) { setError(messageOf(e)) } finally { setBusy(null) }
   }
-  const connectStandard = (wallet: StandardSolanaWallet) => connect(wallet.name, async () => {
+  const connectStandard = (wallet: StandardSolanaWallet) => connect(wallet.name, `standard:${wallet.name}`, async () => {
     const result = await wallet.features[StandardConnect].connect()
     return (signingAccount(result.accounts) ?? result.accounts.find(account => account.chains.includes('solana:mainnet')))?.address
   })
-  const connectInjected = (name: string, provider: InjectedWallet) => connect(name, async () => { await provider.connect(); return provider.publicKey?.toBase58() })
+  const connectInjected = (name: string, provider: InjectedWallet) => connect(name, name, async () => { await provider.connect(); return provider.publicKey?.toBase58() })
 
   if (embedded) return <Suspense fallback={<Txt v="small">Loading embedded wallet…</Txt>}>
     <EmbeddedWallet title="Your embedded wallet" onBack={() => setEmbedded(false)}>{signer => <EmbeddedConnect signer={signer} onAddress={onAddress} onBack={() => setEmbedded(false)} />}</EmbeddedWallet>
   </Suspense>
   return <View style={st.stack}>
-    <Txt v="small">Connect only. This screen reads balances and never asks your wallet to sign.</Txt>
+    <Txt v="small">Connect to read your balances. No signature needed.</Txt>
     <View style={st.wrap}>
       {standardWallets.map(wallet => <Button key={wallet.name} label={wallet.name} kind="ghost" busy={busy === wallet.name} disabled={!!busy} onPress={() => void connectStandard(wallet)} />)}
       {wallets.filter(wallet => !standardWallets.some(standard => standard.name === wallet.name)).map(wallet => <Button key={wallet.name} label={wallet.name} kind="ghost" busy={busy === wallet.name} disabled={!!busy} onPress={() => void connectInjected(wallet.name, wallet.provider)} />)}
-      <Button label="Embedded wallet" disabled={!!busy} onPress={() => setEmbedded(true)} />
+      <Button label="Create or sign in to a wallet" disabled={!!busy} onPress={() => setEmbedded(true)} />
     </View>
     {!standardWallets.length && !wallets.length ? <Txt v="small" color={C.faint}>No browser wallet detected. Paste an address above or use the embedded wallet.</Txt> : null}
     {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
@@ -59,7 +62,7 @@ function EmbeddedConnect({ signer, onAddress, onBack }: { signer: SolanaSigner; 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const address = signer.address
-  useEffect(() => { if (address) onAddress(address) }, [address, onAddress])
+  useEffect(() => { if (address) { selectWallet('embedded'); updateWalletSession('embedded', address, 'Embedded wallet'); onAddress(address) } }, [address, onAddress])
   return <View style={st.stack}>
     <Txt v="small">{address ? `Connected ${address.slice(0, 4)}…${address.slice(-4)}. Nothing is signed from this screen.` : 'Sign in to your embedded wallet to read its holdings.'}</Txt>
     {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}

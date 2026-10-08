@@ -7,6 +7,7 @@ import { num, solanaExplorerAddr } from '@/lib/format'
 import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
 import { Button, Chip, Txt } from './ui'
 import SolanaTrade from './SolanaTrade'
+import { webData } from '@/lib/web-props'
 
 // Deep-link presets: exit opens Liquidity on remove, liquidity opens Liquidity, sell opens Swap on the sell side.
 export type TradeAction = 'exit' | 'liquidity' | 'sell'
@@ -22,7 +23,7 @@ function rawTokens(raw: string, decimals: number): number | null {
 export function Trade({ t, pools, origin, initialAction }: { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: TradeAction }) {
   const traps = pools.filter(p => (p.feeBps ?? 0) >= 7000)
   return (
-    <View style={st.card}>
+    <View style={st.card} {...webData({ tradecard: true })}>
       {traps.length ? (
         <View style={st.warn}>
           <Txt v="small" color={C.warn}>{traps.length} of {pools.length} pools on this token charge 70% or more. Check which pool a route uses before you sign.</Txt>

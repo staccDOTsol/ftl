@@ -4,6 +4,7 @@
 import { useSyncExternalStore } from 'react'
 import { WS_URL, get } from './api'
 import type { Chain, ClientMsg, FlowEvent, Post, ServerMsg, Status, TokenMeta, TokenSummary } from './types'
+import { recentEvents } from './market-model'
 
 type Listener = () => void
 const MAX = 300
@@ -13,6 +14,7 @@ const BIN_MS = 2000
 
 export type LiveEvent = FlowEvent & { fresh?: number }
 type ResearchChange = Extract<ServerMsg, { t: 'research' }>
+type ProgramChange = Extract<ServerMsg, { t: 'programs' }>
 
 class Live {
   events: LiveEvent[] = []
@@ -42,6 +44,7 @@ class Live {
   private dirty = false
   private eventHooks = new Set<(e: FlowEvent) => void>()
   private researchHooks = new Set<(change: ResearchChange) => void>()
+  private programHooks = new Set<(change: ProgramChange) => void>()
 
   private lastMsg = 0
   private downSince = Date.now()
@@ -76,16 +79,29 @@ class Live {
     try {
       const f = this.filter && this.filter.t === 'filter' ? this.filter : null
       const after = this.pollAfter || (this.events[0]?.ts ?? Date.now() - 60_000)
-      const evs = await get<FlowEvent[]>('/api/feed', { after, limit: 100, chain: f?.chains?.length === 1 ? f.chains[0] : undefined, kinds: f?.kinds?.join(','), flagged: f?.flaggedOnly ? 1 : undefined })
+      const evs = await get<FlowEvent[]>('/api/feed', { after, limit: MAX, chain: f?.chains?.length === 1 ? f.chains[0] : undefined, kinds: f?.kinds?.join(','), flagged: f?.flaggedOnly ? 1 : undefined })
       if (evs.length) {
         this.pollAfter = evs[0].ts
         const have = new Set(this.events.map(e => e.id))
-        for (const e of evs.reverse()) if (!have.has(e.id)) { this.bump(e.chain, e.kind === 'launch' ? null : e.token); this.inbox.push({ ...e, fresh: Date.now() }) }
+        for (const e of evs.reverse()) {
+          this.applyMeta(e)
+          if (!have.has(e.id)) {
+            this.bump(e.chain, e.kind === 'launch' ? null : e.token)
+            for (const hook of this.eventHooks) hook(e)
+            this.inbox.push({ ...e, fresh: Date.now() })
+          } else this.inbox.push(e)
+        }
       }
-      if (!this.status || Date.now() - this.lastStatusPoll > 5000) { this.lastStatusPoll = Date.now(); this.onStatus(await get<Status>('/api/status')) }
+      if (Date.now() - this.lastStatusAttempt > 5000) {
+        this.lastStatusAttempt = Date.now()
+        const status = await get<Status>('/api/status')
+        this.lastStatusPoll = Date.now()
+        this.onStatus(status)
+      }
     } catch {} finally { this.polling = false }
   }
   private lastStatusPoll = 0
+  private lastStatusAttempt = 0
   // live either over the socket or, while it reconnects, over HTTP polling
   get healthy() { return this.connected || (!!this.status && Date.now() - this.lastStatusPoll < 12_000) }
 
@@ -93,7 +109,7 @@ class Live {
     if (this.ws) return
     const ws = new WebSocket(WS_URL)
     this.ws = ws
-    ws.onopen = () => { this.connected = true; this.retry = 0; this.lastMsg = Date.now(); this.pollAfter = 0; if (this.filter) ws.send(JSON.stringify(this.filter)); this.dirty = true }
+    ws.onopen = () => { this.connected = true; this.retry = 0; this.lastMsg = Date.now(); this.pollAfter = 0; if (this.filter) ws.send(JSON.stringify(this.filter)); if (this.programHooks.size) ws.send(JSON.stringify({ t: 'program-subscribe', enabled: true })); this.dirty = true }
     ws.onclose = () => {
       if (this.connected) this.downSince = Date.now()
       this.connected = false
@@ -131,13 +147,21 @@ class Live {
         const next = this.events.map(e => (e.chain === msg.chain && e.token === msg.address ? (hit = true, { ...e, tokenMeta: { ...e.tokenMeta, ...msg.m } }) : e))
         if (hit) { this.events = next; this.dirty = true }
       } else if (msg.t === 'status') this.onStatus(msg.s)
-      else if (msg.t === 'token') { this.tokens.set(`${msg.s.chain}:${msg.s.address}`, msg.s); this.tokenTick++; this.dirty = true }
+      else if (msg.t === 'token') {
+        const key = `${msg.s.chain}:${msg.s.address}`
+        this.tokens.delete(key)
+        this.tokens.set(key, msg.s)
+        if (this.tokens.size > 5000) this.tokens.delete(this.tokens.keys().next().value!)
+        this.tokenTick++; this.dirty = true
+      }
       else if (msg.t === 'post') {
         this.posts = [msg.p, ...this.posts.filter(p => p.id !== msg.p.id)].slice(0, 100)
         this.postTick++
         this.dirty = true
       } else if (msg.t === 'research') {
         for (const h of this.researchHooks) h(msg)
+      } else if (msg.t === 'programs') {
+        for (const h of this.programHooks) h(msg)
       }
     }
   }
@@ -200,8 +224,8 @@ class Live {
     if (this.inbox.length) {
       const batch = this.inbox.reverse()
       this.inbox = []
-      if (this.hold) this.held = [...batch, ...this.held].slice(0, MAX)
-      else this.events = [...batch, ...this.events].slice(0, MAX)
+      if (this.hold) this.held = recentEvents([...this.held, ...batch]).slice(0, MAX)
+      else this.events = recentEvents([...this.events, ...batch]).slice(0, MAX)
       this.dirty = true
     }
     if (this.dirty) { this.dirty = false; this.version++; for (const l of this.listeners) l() }
@@ -213,23 +237,31 @@ class Live {
     this.filter = f
     this.events = []
     this.held = []
+    this.hold = false
     this.inbox = []
     if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(f))
     this.dirty = true
   }
   seed(events: FlowEvent[]) {
-    const have = new Set(this.events.map(e => e.id))
-    this.events = [...this.events, ...events.filter(e => !have.has(e.id))].sort((a, b) => b.ts - a.ts).slice(0, MAX)
+    this.events = recentEvents([...events, ...this.events]).slice(0, MAX)
     this.dirty = true
   }
   setHold(h: boolean) {
     if (h === this.hold) return
     this.hold = h
-    if (!h && this.held.length) { this.events = [...this.held, ...this.events].slice(0, MAX); this.held = [] }
+    if (!h && this.held.length) { this.events = recentEvents([...this.events, ...this.held]).slice(0, MAX); this.held = [] }
     this.dirty = true
   }
   onEvent(h: (e: FlowEvent) => void) { this.eventHooks.add(h); return () => { this.eventHooks.delete(h) } }
   onResearch(h: (change: ResearchChange) => void) { this.researchHooks.add(h); return () => { this.researchHooks.delete(h) } }
+  onPrograms(h: (change: ProgramChange) => void) {
+    this.programHooks.add(h)
+    if (this.programHooks.size === 1 && this.ws?.readyState === 1) this.ws.send(JSON.stringify({ t: 'program-subscribe', enabled: true }))
+    return () => {
+      this.programHooks.delete(h)
+      if (!this.programHooks.size && this.ws?.readyState === 1) this.ws.send(JSON.stringify({ t: 'program-subscribe', enabled: false }))
+    }
+  }
 
   subscribe = (l: Listener) => { this.listeners.add(l); return () => { this.listeners.delete(l) } }
   private version = 0

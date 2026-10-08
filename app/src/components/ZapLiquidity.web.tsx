@@ -24,7 +24,7 @@ import { PoolYield } from './PoolYield.web'
 import { ShareMove } from './ShareMove.web'
 import { Button, Chip, Press, Seg, Txt } from './ui'
 
-type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; exitRequest?: boolean; initialPool?: string | null; advanced?: boolean; onConnect?: () => void; onBack?: () => void }
+type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; exitRequest?: boolean; initialPool?: string | null; initialAmount?: string; advanced?: boolean; onConnect?: () => void; onBack?: () => void }
 const BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
 const PLAN_REFRESH_MS = 45_000
 const NO_SOL_POOL = 'No SOL pool for this token yet'
@@ -60,13 +60,14 @@ export default function ZapLiquidity(props: Props) {
   </View>
 }
 
-function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, onConnect, onOpenPool }: Props & { onOpenPool: () => void }) {
+function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, initialAmount, onConnect, onOpenPool }: Props & { onOpenPool: () => void }) {
   const mint = t.address
   const [direction, setDirection] = useState<ZapDirection>(exitRequest ? 'out' : 'in')
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(initialAmount ?? '')
   const [preference, setPreference] = useState<ZapPreference>('auto')
   const [forcedPool, setForcedPool] = useState<string | null>(initialPool ?? null)
   const [showPools, setShowPools] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
   const [balance, setBalance] = useState<{ owner: string; raw: string } | null>(null)
   const [decimals, setDecimals] = useState<number | null>(t.decimals ?? null)
   const [planState, setPlanState] = useState<{ plan: ZapPlan; key: string; at: number } | null>(null)
@@ -91,8 +92,9 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
   const meta = useTokenMeta([mint])
   const symbol = t.symbol || meta[mint]?.symbol ? `$${(t.symbol || meta[mint]?.symbol || '').slice(0, 14)}` : shortMint(mint)
   const amountRaw = useMemo(() => { try { return toAtomic(amount, 9) } catch { return null } }, [amount])
-  const walletPositions = positions?.owner === owner ? positions.rows : []
-  const position = walletPositions.find(p => p.position === selected) ?? null
+  const walletPositions = useMemo(() => positions?.owner === owner ? positions.rows : [], [positions, owner])
+  const linkedPositions = initialPool ? walletPositions.filter(p => p.pool === initialPool) : []
+  const position = walletPositions.find(p => p.position === selected) ?? (!selected ? linkedPositions.length === 1 ? linkedPositions[0] : walletPositions.length === 1 ? walletPositions[0] : null : null)
   const key = owner && version ? (direction === 'in' ? (amountRaw ? `${owner}|${version}|in|${amountRaw}|${preference}|${forcedPool ?? ''}` : '') : (position ? `${owner}|${version}|out|${position.venue}|${position.pool}|${position.position}` : '')) : ''
   const plan = planState?.key === key ? planState.plan : null
   const locked = busy || !!progress
@@ -145,13 +147,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
       if (mounted.current && current.current.signer?.address === owner) setPositions({ owner, rows: [...rows.values()], errors: (all.errors ?? []).filter(e => !POOL_SCOPED_VENUES.has(e.venue)) })
     } catch (error) { if (mounted.current) setPositionError(messageOf(error)) }
   }, [owner, mint, pools])
-  useEffect(() => { if (direction === 'out') void refreshPositions() }, [direction, refreshPositions, result])
-  useEffect(() => {
-    if (direction !== 'out' || selected || !walletPositions.length) return
-    const linked = initialPool ? walletPositions.filter(p => p.pool === initialPool) : []
-    if (linked.length === 1) setSelected(linked[0].position)
-    else if (walletPositions.length === 1) setSelected(walletPositions[0].position)
-  }, [direction, selected, walletPositions, initialPool])
+  useEffect(() => { const timer = setTimeout(() => { if (direction === 'out') void refreshPositions() }, 0); return () => clearTimeout(timer) }, [direction, refreshPositions, result])
 
   // Plan on every valid change (debounced) and every 45 s after that while idle.
   const fetchPlan = useCallback(async (planKey: string) => {
@@ -170,10 +166,9 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
   }, [mint])
   useEffect(() => {
     seq.current++
-    setPlanState(null); setPlanError(null); setPlanning(false)
-    if (!key || locked) return
-    const timer = setTimeout(() => void fetchPlan(key), 400)
-    return () => clearTimeout(timer)
+    const reset = setTimeout(() => { setPlanState(null); setPlanError(null); setPlanning(false) }, 0)
+    const timer = key && !locked ? setTimeout(() => void fetchPlan(key), 400) : undefined
+    return () => { clearTimeout(reset); if (timer) clearTimeout(timer) }
   }, [key, locked, fetchPlan])
   useEffect(() => {
     if (!key || locked || planning) return
@@ -286,11 +281,14 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
     if (!amountRaw) return { label: 'Enter an amount' }
     if (solBalance !== null && BigInt(amountRaw) + 10_000_000n > BigInt(solBalance)) return { label: 'Insufficient SOL' }
     if (noPool) return { label: 'No SOL pool yet' }
-    if (planError?.key === key) return { label: 'No route' }
+    if (planError?.key === key) return { label: 'Quote unavailable' }
     if (!plan) return { label: 'Finding the best pool…', busy: true }
     if (version === null) return { label: 'Wallet cannot sign V0/V1' }
     return { label: 'Deposit', onPress: () => void act(start) }
   })()
+  const primaryDisabled = progress ? owner !== progress.owner : !owner ? !onConnect && !signer : busy || routerOk === false || (direction === 'out'
+    ? !position || planError?.key === key || !plan
+    : !amountRaw || solBalance !== null && BigInt(amountRaw) + 10_000_000n > BigInt(solBalance) || noPool || planError?.key === key || !plan || version === null)
   const poolBadge = (venue: string, kind: ZapPlan['pool']['kind']) => <View style={st.poolRow}><Txt v="num" style={{ fontSize: T.sm }}>{venueName(venue)}</Txt><Chip label={KIND_LABEL[kind]} color={kind === 'constant' ? C.accent : kind === 'splash' ? C.violet : C.gold} active /></View>
   const moveFor = (): Move | null => {
     if (!result) return null
@@ -319,7 +317,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
           <View style={st.tokenButton}><View style={[st.dot, { backgroundColor: C.violet }]} /><Txt v="num" style={{ fontSize: T.sm }}>SOL</Txt></View>
           <TextInput accessibilityLabel="SOL amount to deposit" value={amount} onChangeText={value => { setAmount(value); setError('') }} editable={!locked} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={C.faint} style={st.amount} />
         </View>
-        {owner ? <Txt v="monoSmall">HALF and MAX leave 0.01 SOL for fees and rent. Half of this swaps into {symbol}; the rest pairs with it.</Txt> : null}
+        {owner ? <Txt v="monoSmall">FTL handles the token split. Shortcuts reserve 0.01 SOL for fees.</Txt> : null}
       </View>
     </> : <View style={st.panel}>
       <View style={st.between}><Txt v="label">You withdraw</Txt><Button kind="quiet" size="sm" label="Refresh" disabled={busy || !owner} onPress={() => void refreshPositions()} /></View>
@@ -327,13 +325,13 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
         : positionError ? <Txt v="small" color={C.warn}>Positions unavailable: {positionError}</Txt>
         : positions?.owner !== owner ? <Txt v="small">Loading your positions…</Txt>
         : !walletPositions.length ? <Txt v="small">No {symbol} position for {shortMint(owner)}. Flip to deposit SOL into one.</Txt>
-        : walletPositions.map(p => <Press key={`${p.venue}:${p.position}`} disabled={locked} onPress={() => { setSelected(p.position); setError('') }} accessibilityRole="button" accessibilityState={{ selected: selected === p.position }} style={({ hovered, pressed }) => [st.positionRow, selected === p.position && { borderColor: C.accent + '88', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+        : walletPositions.map(p => <Press key={`${p.venue}:${p.position}`} disabled={locked} onPress={() => { setSelected(p.position); setError('') }} accessibilityRole="button" accessibilityState={{ selected: position?.position === p.position }} style={({ hovered, pressed }) => [st.positionRow, position?.position === p.position && { borderColor: C.accent + '88', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
           <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
             <View style={st.poolRow}><Txt v="num" style={{ fontSize: T.sm }}>{venueName(p.venue)}</Txt><Txt v="monoSmall" selectable>pool {shortMint(p.pool)} · {shortMint(p.position)}</Txt></View>
             <Txt v="monoSmall" color={C.text}>{p.amounts?.length ? p.amounts.map(a => `${compactAmount(a.raw ?? a.amount ?? '0', a.decimals)} ${a.mint === SOL_MINT ? 'SOL' : a.mint === mint ? symbol : shortMint(a.mint)}`).join(' + ') : p.removalMode === 'percentage' ? 'bin position · withdrawn in full' : `${p.liquidity ?? '—'} liquidity units · withdrawn in full`}</Txt>
             <PoolYield venue={p.venue} pool={p.pool} />
           </View>
-          <Txt v="mono" color={selected === p.position ? C.accent : C.faint}>{selected === p.position ? '●' : '○'}</Txt>
+          <Txt v="mono" color={position?.position === p.position ? C.accent : C.faint}>{position?.position === p.position ? '●' : '○'}</Txt>
         </Press>)}
       {positions?.owner === owner && positions.errors.length ? <Txt v="monoSmall">{positions.errors.map(e => venueName(e.venue)).join(', ')} did not answer; refresh before treating an empty list as no position.</Txt> : null}
     </View>}
@@ -354,14 +352,13 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
       {direction === 'in' ? <>
         {plan ? <>
           <View style={st.between}>
-            {poolBadge(plan.pool.venue, plan.pool.kind)}
+            <View style={st.poolRow}><Txt v="num" style={{ fontSize: T.sm }}>{symbol} / SOL LP</Txt><Txt v="monoSmall" color={C.accent}>{forcedPool ? 'Selected pool' : 'Auto-selected'}</Txt></View>
             <Chip label={showPools ? 'Done' : 'Change pool'} active={showPools} onPress={() => { if (!locked) setShowPools(value => !value) }} />
           </View>
           <Txt v="num" style={st.estimate} numberOfLines={2}>{estimate}</Txt>
-          <Txt v="monoSmall" selectable>pool {shortMint(plan.pool.pool)} · {plan.pool.pool}</Txt>
+          <Txt v="small">Trading fees from {venueName(plan.pool.venue)}</Txt>
           <PoolYield venue={plan.pool.venue} pool={plan.pool.pool} />
-          <Txt v="small">{plan.pool.reason}</Txt>
-          {details.priceLower !== undefined && details.priceUpper !== undefined ? <Txt v="monoSmall">Range {String(details.priceLower)} → {String(details.priceUpper)} SOL per {symbol}{details.priceCurrent !== undefined ? ` · now ${String(details.priceCurrent)}` : ''}</Txt> : null}
+          {showDetails ? <><Txt v="monoSmall" selectable>{plan.pool.pool}</Txt><Txt v="small">{plan.pool.reason}</Txt>{details.priceLower !== undefined && details.priceUpper !== undefined ? <Txt v="monoSmall">Range {String(details.priceLower)} → {String(details.priceUpper)} SOL per {symbol}{details.priceCurrent !== undefined ? ` · now ${String(details.priceCurrent)}` : ''}</Txt> : null}</> : null}
           {addQuote?.warnings?.map(warning => <Txt key={warning} v="small" color={C.warn}>{warning}</Txt>)}
         </> : noPool ? <>
           <Txt v="body">No SOL pool for {symbol} yet.</Txt>
@@ -370,7 +367,7 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
         </> : <>
           <View style={st.poolRow}><Txt v="num" style={{ fontSize: T.sm }}>{symbol} / SOL LP</Txt><Txt v="monoSmall">{pools.filter(p => p.funded).length} funded pool{pools.filter(p => p.funded).length === 1 ? '' : 's'} on FTL</Txt></View>
           <Txt v="num" style={[st.estimate, { color: C.faint }]}>{planning ? '…' : '0.00'}</Txt>
-          <Txt v="small">{!owner ? 'Connect a wallet to price this deposit.' : !amountRaw ? 'Enter a SOL amount. FTL picks the deepest constant-product pool, falling back to Splash and then concentrated pools, splits your SOL, swaps half and deposits both sides.' : planError?.key === key ? planError.message : 'Finding the best pool…'}</Txt>
+          <Txt v="small">{!owner ? 'Connect a wallet to price this deposit.' : !amountRaw ? 'Enter your SOL amount. Pool selection, token splits, and the deposit route are automatic.' : planError?.key === key ? planError.message : 'Finding the best pool…'}</Txt>
         </>}
         {showPools && plan ? <View style={st.alternatives}>
           <Seg value={preference} options={PREFERENCE_OPTIONS} onChange={value => { if (!locked) { setPreference(value); setForcedPool(null) } }} />
@@ -392,10 +389,12 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
     </View>
 
     {plan && !progress ? <View style={st.details}>
-      {plan.steps.map((step, i) => <View key={`${step.kind}:${i}`} style={st.between}><Txt v="monoSmall" color={C.text}>{stepLabel(i, plan.steps.length, step.title)}</Txt><Txt v="monoSmall">{step.kind === 'swap' ? `min ${compactAmount(step.minOut, step.outputMint === SOL_MINT ? 9 : plan.estimate.tokenDecimals ?? decimals ?? 0)} ${step.outputMint === SOL_MINT ? 'SOL' : symbol}` : 'quoted live before signing'}</Txt></View>)}
+      <Press onPress={() => setShowDetails(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: showDetails }} style={({ hovered }) => [st.between, { paddingVertical: 4 }, hovered && { opacity: 0.8 }]}><Txt v="monoSmall" color={C.text}>{plan.steps.length} guided steps · {showDetails ? 'Hide route' : 'View route'}</Txt><Txt v="monoSmall" color={C.accent}>{showDetails ? '−' : '+'}</Txt></Press>
+      {showDetails ? plan.steps.map((step, i) => <View key={`${step.kind}:${i}`} style={st.between}><Txt v="monoSmall" color={C.text}>{stepLabel(i, plan.steps.length, step.title)}</Txt><Txt v="monoSmall">{step.kind === 'swap' ? `min ${compactAmount(step.minOut, step.outputMint === SOL_MINT ? 9 : plan.estimate.tokenDecimals ?? decimals ?? 0)} ${step.outputMint === SOL_MINT ? 'SOL' : symbol}` : 'quoted live before signing'}</Txt></View>) : null}
       <View style={st.between}><Txt v="monoSmall">Network fees</Txt><Txt v="monoSmall" color={C.text}>≈ {plan.estimate.networkFeeSolApprox} SOL + account rent</Txt></View>
       <View style={st.between}><Txt v="monoSmall">Slippage per step</Txt><Txt v="monoSmall" color={C.text}>{plan.slippageBps / 100}%</Txt></View>
-      <Txt v="monoSmall">{plan.steps.length} transactions, each simulated before your wallet is asked. Not atomic: a later failure does not reverse an earlier confirmed step.</Txt>
+      {plan.steps.filter(step => step.kind === 'swap').map((step, i) => step.kind === 'swap' ? <View key={`minimum-${i}`} style={st.between}><Txt v="monoSmall">Swap minimum</Txt><Txt v="monoSmall" color={C.text}>{compactAmount(step.minOut, step.outputMint === SOL_MINT ? 9 : plan.estimate.tokenDecimals ?? decimals ?? 0)} {step.outputMint === SOL_MINT ? 'SOL' : symbol}</Txt></View> : null)}
+      <Txt v="monoSmall">Steps confirm in order. Earlier confirmed steps remain if a later step fails.</Txt>
     </View> : null}
 
     {routerOk === false ? <Txt v="small" color={C.warn}>Liquidity routing is temporarily unavailable. Try again shortly, or use Advanced.</Txt> : null}
@@ -415,7 +414,8 @@ function SimpleZap({ t, pools, signer, onLockChange, exitRequest, initialPool, o
       {!progress.pending ? <Button kind="quiet" size="sm" label="Stop remaining steps" disabled={busy} onPress={() => { persist(null); setPlanState(null) }} /> : null}
     </View> : null}
 
-    <Button label={primary.label} busy={primary.busy} disabled={!primary.onPress} onPress={primary.onPress} style={st.primary} />
+    {planError?.key === key && key && !locked ? <Button label="Retry quote" kind="ghost" onPress={() => void fetchPlan(key)} /> : null}
+    <Button label={primary.label} busy={primary.busy} disabled={primaryDisabled} onPress={() => primary.onPress?.()} style={st.primary} />
 
     {result ? <View style={[st.details, { borderColor: C.accent + '66' }]}>
       <Txt v="h2" color={C.accent}>{result.direction === 'in' ? `Deposited into ${venueName(result.venue)}` : `Withdrawn to SOL from ${venueName(result.venue)}`}</Txt>
