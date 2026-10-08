@@ -17,6 +17,7 @@ import { poolWallets } from './pool-crowd.ts'
 import { config } from './config.ts'
 import { createSolanaRouterHandler } from './solana/router.ts'
 import { createSolanaHoldingsHandler } from './solana/holdings.ts'
+import { createSolanaWrapHandler } from './solana/wrap.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
 const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
@@ -28,6 +29,7 @@ const handleSolanaHoldings = createSolanaHoldingsHandler({ rpcUrl: config.solana
   pools: (mint, limit) => (db.prepare('SELECT * FROM pools WHERE chain = ? AND token = ? ORDER BY funded DESC, created_ts DESC LIMIT ?').all('solana', mint, limit) as any[]).map(rowToPool),
   hot: limit => hot(new URLSearchParams({ chain: 'solana', limit: String(limit) })),
 } })
+const handleSolanaWrap = createSolanaWrapHandler({ rpcUrl: config.solanaRpc })
 const started = Date.now()
 let programStatusCache: { at: number; value: ProgramBackfillStatus } | null = null
 
@@ -172,6 +174,7 @@ export function startApi(port: number) {
     try {
       if (await handleSolanaRouter(req, res, url, body)) return
       if (await handleSolanaHoldings(req, res, url)) return
+      if (await handleSolanaWrap(req, res, url, body)) return
       if (await handleHeliusWaas(req, res, url, body)) return
       let out: unknown
       const [a, b, c, d] = parts
