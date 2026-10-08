@@ -2,7 +2,7 @@
 // log; prices, account ownership and executable instructions come from the
 // current chain state through our configured RPC. No route/transaction API.
 import { Connection, ComputeBudgetProgram, PublicKey, SYSVAR_CLOCK_PUBKEY, TransactionMessage,
-  VersionedTransaction, type TransactionInstruction } from '@solana/web3.js'
+  VersionedTransaction, type AddressLookupTableAccount, type TransactionInstruction } from '@solana/web3.js'
 import { CpAmm, CP_AMM_PROGRAM_ID, SwapMode, getTokenProgram } from '@meteora-ag/cp-amm-sdk'
 import { OnlinePumpAmmSdk, PUMP_AMM_SDK, PUMP_AMM_PROGRAM_ID,
   buyQuoteInput, sellBaseInput, supportsTradeV2 } from '@pump-fun/pump-swap-sdk'
@@ -10,7 +10,9 @@ import BN from 'bn.js'
 import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
-import { DirectVenueError, type DirectPrice } from './direct-adapter.ts'
+import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
+  type DirectLeg, type DirectPrice } from './direct-adapter.ts'
+import { composeInstructions, composeRoute, hopEstimates, type ComposableLeg } from './compose.ts'
 import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
@@ -37,9 +39,18 @@ export const DIRECT_SOLANA_VENUES = Object.keys(VENUE_LABELS)
 
 type Pool = { address: string; venue: string; mint_a: string; mint_b: string; liq_events: number }
 export type LocalIntent = { inputMint: string; outputMint: string; amount: string;
-  slippageBps: number; transactionVersion: '0' | '1' }
-type Priced = { pool: Pool; out: bigint; minimum: bigint; fee: bigint; feeMint: string;
-  instructions: (wallet: PublicKey, minimum: bigint) => Promise<TransactionInstruction[]> }
+  slippageBps: number; transactionVersion: '0' | '1'; keepNative?: 'input' | 'output' | 'both' }
+export type Priced = { pool: Pool; out: bigint; minimum: bigint; fee: bigint; feeMint: string;
+  instructions: (wallet: PublicKey, minimum: bigint) => Promise<TransactionInstruction[]>;
+  leg: (wallet: PublicKey, minimum: bigint) => Promise<DirectLeg> }
+type RoutePlanEntry = { percent: number; swapInfo: { ammKey: string; label: string; inputMint: string;
+  outputMint: string; inAmount: string; outAmount: string; feeAmount: string; feeMint: string } }
+/** One executable route: a single pool, or several pools composed into one
+ * on-chain composer call whose later hops are sized from real deltas. */
+type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
+  build: (wallet: PublicKey, floor: bigint) => Promise<TransactionInstruction[]> }
+const MAX_INTERMEDIATES = 2
+const MAX_POOLS_PER_HOP = 2
 
 async function quotePool(connection: Connection, pool: Pool, intent: LocalIntent): Promise<Priced> {
   if (pool.venue === 'meteora-damm-v2') return quoteDamm(connection, pool, intent)
@@ -76,17 +87,39 @@ const atomic = (value: string): bigint => {
 }
 const bn = (n: bigint): BN => new BN(n.toString())
 const pctMinimum = (out: bigint, bps: number) => out * BigInt(10_000 - bps) / 10_000n
+const priced2leg = (priced: Priced, wallet: PublicKey, program: PublicKey, inputMint: string,
+  outputMint: string, keepNative: LocalIntent['keepNative'], amount: bigint, floor: bigint) =>
+  async (instructions: TransactionInstruction[]): Promise<DirectLeg> => venueLeg(
+    stripNativeWrapping(instructions, wallet, keepNative), program, amount, floor,
+    mintAta(wallet, new PublicKey(inputMint)), mintAta(wallet, new PublicKey(outputMint)))
 const toBig = (value: { toString(): string }): bigint => BigInt(value.toString())
 const pairMatches = (a: string, b: string, intent: LocalIntent) =>
   (a === intent.inputMint && b === intent.outputMint) ||
   (a === intent.outputMint && b === intent.inputMint)
 
-function poolRows(intent: LocalIntent): Pool[] {
+function poolRows(intent: Pick<LocalIntent, 'inputMint' | 'outputMint'>): Pool[] {
   return db.prepare(`SELECT address,venue,mint_a,mint_b,liq_events FROM pools
     WHERE chain='solana' AND funded=1 AND mint_a IS NOT NULL AND mint_b IS NOT NULL
       AND ((mint_a=? AND mint_b=?) OR (mint_a=? AND mint_b=?))
     ORDER BY liq_events DESC, created_ts DESC`).all(intent.inputMint, intent.outputMint,
       intent.outputMint, intent.inputMint) as Pool[]
+}
+/** Mints that have a funded, supported pool against both ends of the pair,
+ * most active first. Only the composer path reads this. */
+export function intermediateMints(inputMint: string, outputMint: string, limit = MAX_INTERMEDIATES): string[] {
+  const venues = DIRECT_SOLANA_VENUES.map(() => '?').join(',')
+  return (db.prepare(`WITH edges AS (
+      SELECT CASE WHEN mint_a=? THEN mint_b ELSE mint_a END AS via, liq_events, 0 AS side FROM pools
+        WHERE chain='solana' AND funded=1 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?)
+      UNION ALL
+      SELECT CASE WHEN mint_a=? THEN mint_b ELSE mint_a END AS via, liq_events, 1 AS side FROM pools
+        WHERE chain='solana' AND funded=1 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?))
+    SELECT via FROM edges WHERE via IS NOT NULL AND via NOT IN (?, ?)
+    GROUP BY via HAVING COUNT(DISTINCT side)=2
+    ORDER BY SUM(liq_events) DESC LIMIT ?`).all(
+    inputMint, ...DIRECT_SOLANA_VENUES, inputMint, inputMint,
+    outputMint, ...DIRECT_SOLANA_VENUES, outputMint, outputMint,
+    inputMint, outputMint, limit) as { via: string }[]).map(row => row.via)
 }
 
 async function standardMints(connection: Connection, a: PublicKey, b: PublicKey) {
@@ -134,19 +167,23 @@ async function quoteDamm(connection: Connection, pool: Pool, intent: LocalIntent
   const fee = toBig(result.claimingFee) + toBig(result.protocolFee) +
     toBig(result.compoundingFee) + toBig(result.referralFee)
   if (out <= 0n || minimum <= 0n || minimum > out) noRoute('Pool cannot fill this amount')
-  return { pool, out, minimum, fee, feeMint: intent.inputMint,
-    instructions: async (wallet, protectedMinimum) => {
-      // Re-fetching the pool for the swap and the router's requote occurs at
-      // request time; the chain instruction enforces the older stricter floor.
-      const tx = await amm.swap2({ payer: wallet, pool: key,
-        inputTokenMint: new PublicKey(intent.inputMint),
-        outputTokenMint: new PublicKey(intent.outputMint),
-        tokenAMint: a, tokenBMint: b, tokenAVault: state.tokenAVault,
-        tokenBVault: state.tokenBVault, tokenAProgram: TOKEN, tokenBProgram: TOKEN,
-        referralTokenAccount: null, poolState: state, swapMode: SwapMode.ExactIn,
-        amountIn: bn(amount), minimumAmountOut: bn(protectedMinimum) })
-      return tx.instructions
-    } }
+  // DAMM v2 `swap2`: discriminator, amount_0 (exact in) u64, amount_1
+  // (minimum out) u64, swap_mode. The leg proves both offsets from the data.
+  const leg = async (wallet: PublicKey, protectedMinimum: bigint): Promise<DirectLeg> => {
+    // Re-fetching the pool for the swap and the router's requote occurs at
+    // request time; the chain instruction enforces the older stricter floor.
+    const tx = await amm.swap2({ payer: wallet, pool: key,
+      inputTokenMint: new PublicKey(intent.inputMint),
+      outputTokenMint: new PublicKey(intent.outputMint),
+      tokenAMint: a, tokenBMint: b, tokenAVault: state.tokenAVault,
+      tokenBVault: state.tokenBVault, tokenAProgram: TOKEN, tokenBProgram: TOKEN,
+      referralTokenAccount: null, poolState: state, swapMode: SwapMode.ExactIn,
+      amountIn: bn(amount), minimumAmountOut: bn(protectedMinimum) })
+    return priced2leg(null!, wallet, CP_AMM_PROGRAM_ID, intent.inputMint, intent.outputMint,
+      intent.keepNative, amount, protectedMinimum)(tx.instructions)
+  }
+  return { pool, out, minimum, fee, feeMint: intent.inputMint, leg,
+    instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
 }
 
 async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent): Promise<Priced> {
@@ -187,22 +224,27 @@ async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent
   const fee = buy ? toBig(amount) - toBig((result as ReturnType<typeof buyQuoteInput>).internalQuoteWithoutFees)
     : toBig((result as ReturnType<typeof sellBaseInput>).internalQuoteAmountOut) - out
   if (out <= 0n || minimum <= 0n || fee < 0n) noRoute('Pool cannot fill this amount')
-  return { pool, out, minimum, fee, feeMint: quote,
-    instructions: async (wallet, protectedMinimum) => {
-      const fresh = await online.swapSolanaState(key, wallet)
-      if (!fresh.baseMint.equals(state.baseMint) || !fresh.pool.quoteMint.equals(state.pool.quoteMint))
-        noRoute('Pool mints changed before swap build')
-      const pinned = supportsTradeV2(fresh.pool) ? {
-        ...fresh,
-        globalConfig: { ...fresh.globalConfig,
-          buybackFeeRecipients: [await validBuybackRecipient(connection, fresh, buybackRecipient)] },
-      } : fresh
-      return buy
-        ? PUMP_AMM_SDK.buyExactQuoteInV2Instructions(pinned, amount, bn(protectedMinimum))
-        : supportsTradeV2(pinned.pool)
-          ? PUMP_AMM_SDK.sellV2Instructions(pinned, amount, bn(protectedMinimum))
-          : PUMP_AMM_SDK.sellInstructions(fresh, amount, bn(protectedMinimum))
-    } }
+  // PumpSwap `buy_exact_quote_in_v2` / `sell(_v2)`: discriminator, exact
+  // amount in u64, minimum out u64. The leg proves both offsets from the data.
+  const leg = async (wallet: PublicKey, protectedMinimum: bigint): Promise<DirectLeg> => {
+    const fresh = await online.swapSolanaState(key, wallet)
+    if (!fresh.baseMint.equals(state.baseMint) || !fresh.pool.quoteMint.equals(state.pool.quoteMint))
+      noRoute('Pool mints changed before swap build')
+    const pinned = supportsTradeV2(fresh.pool) ? {
+      ...fresh,
+      globalConfig: { ...fresh.globalConfig,
+        buybackFeeRecipients: [await validBuybackRecipient(connection, fresh, buybackRecipient)] },
+    } : fresh
+    const instructions = await (buy
+      ? PUMP_AMM_SDK.buyExactQuoteInV2Instructions(pinned, amount, bn(protectedMinimum))
+      : supportsTradeV2(pinned.pool)
+        ? PUMP_AMM_SDK.sellV2Instructions(pinned, amount, bn(protectedMinimum))
+        : PUMP_AMM_SDK.sellInstructions(fresh, amount, bn(protectedMinimum)))
+    return priced2leg(null!, wallet, PUMP_AMM_PROGRAM_ID, intent.inputMint, intent.outputMint,
+      intent.keepNative, toBig(amount), protectedMinimum)(instructions)
+  }
+  return { pool, out, minimum, fee, feeMint: quote, leg,
+    instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
 }
 
 async function validBuybackRecipient(connection: Connection,
@@ -225,10 +267,13 @@ async function validBuybackRecipient(connection: Connection,
   return noRoute('PumpSwap buyback fee accounts are unavailable for this quote mint')
 }
 
-function validateInstructions(instructions: TransactionInstruction[], payer: PublicKey): void {
+export type EmitOptions = { allowPrograms?: PublicKey[] }
+function validateInstructions(instructions: TransactionInstruction[], payer: PublicKey,
+  options: EmitOptions = {}): void {
   if (!instructions.length || instructions.length > 64) throw new DirectRouteError(422, 'Unsupported transaction instruction count')
+  const extra = new Set((options.allowPrograms ?? []).map(p => p.toBase58()))
   for (const ix of instructions) {
-    if (!ALLOWED_PROGRAMS.has(ix.programId.toBase58()))
+    if (!ALLOWED_PROGRAMS.has(ix.programId.toBase58()) && !extra.has(ix.programId.toBase58()))
       throw new DirectRouteError(422, 'Direct pool SDK produced an unsupported program')
     if (ix.keys.some(key => key.isSigner && !key.pubkey.equals(payer)))
       throw new DirectRouteError(422, 'Direct swap unexpectedly requires another signer')
@@ -236,8 +281,8 @@ function validateInstructions(instructions: TransactionInstruction[], payer: Pub
 }
 
 export function unsignedV1(payer: PublicKey, blockhash: string,
-  instructions: TransactionInstruction[], computeUnitLimit = 800_000): string {
-  validateInstructions(instructions, payer)
+  instructions: TransactionInstruction[], computeUnitLimit = 800_000, options: EmitOptions = {}): string {
+  validateInstructions(instructions, payer, options)
   const flags = new Map<string, { key: PublicKey; writable: boolean }>()
   flags.set(payer.toBase58(), { key: payer, writable: true })
   for (const ix of instructions) {
@@ -280,11 +325,12 @@ export function unsignedV1(payer: PublicKey, blockhash: string,
   return wire.toString('base64')
 }
 
-function unsignedV0(payer: PublicKey, blockhash: string, instructions: TransactionInstruction[]): string {
-  validateInstructions(instructions, payer)
+export function unsignedV0(payer: PublicKey, blockhash: string, instructions: TransactionInstruction[],
+  computeUnitLimit = 800_000, options: EmitOptions & { addressLookupTables?: AddressLookupTableAccount[] } = {}): string {
+  validateInstructions(instructions, payer, options)
   const message = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash,
-    instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 800_000 }), ...instructions] })
-    .compileToV0Message()
+    instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnitLimit }), ...instructions] })
+    .compileToV0Message(options.addressLookupTables)
   const wire = Buffer.from(new VersionedTransaction(message).serialize())
   if (wire.length > 1232) throw new DirectRouteError(422, 'Direct swap exceeds the V0 transaction limit; use a V1 wallet')
   return wire.toString('base64')

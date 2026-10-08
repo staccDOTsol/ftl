@@ -8,7 +8,7 @@ import { ORCA_WHIRLPOOL_PROGRAM_ID, WhirlpoolContext, buildWhirlpoolClient,
 import { createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
 import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
   exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions,
-  pairIsExact, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
+  pairIsExact, venueLeg, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
 
 const integer = (value: { toString(): string }): bigint => BigInt(value.toString())
 
@@ -53,8 +53,11 @@ export async function quoteOrcaWhirlpool(connection: Connection, row: DirectPool
       inputAta, wallet, new PublicKey(intent.inputMint))
     const outputCreate = createAssociatedTokenAccountIdempotentInstruction(wallet,
       outputAta, wallet, new PublicKey(intent.outputMint))
-    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount)
-    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint)
-    return [inputCreate, outputCreate, ...wrap, ...ix.instructions, ...ix.cleanupInstructions, ...unwrap]
+    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount, intent.keepNative)
+    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint, intent.keepNative)
+    // Whirlpool `swap`: discriminator, amount u64, other_amount_threshold u64,
+    // sqrt_price_limit u128, flags. The offsets are proven from the built data.
+    return venueLeg([inputCreate, outputCreate, ...wrap, ...ix.instructions, ...ix.cleanupInstructions, ...unwrap],
+      ORCA_WHIRLPOOL_PROGRAM_ID, amount, protectedMinimum, inputAta, outputAta)
   })
 }

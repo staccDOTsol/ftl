@@ -6,8 +6,8 @@ import { createRequire } from 'node:module'
 import type { BinArrayAccount, SwapQuote } from '@meteora-ag/dlmm'
 import BN from 'bn.js'
 import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
-  exactAmount, nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact,
-  type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
+  exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact,
+  venueLeg, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
 
 const PROGRAM = new PublicKey('LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo')
 const integer = (value: { toString(): string }): bigint => BigInt(value.toString())
@@ -61,8 +61,11 @@ export async function quoteMeteoraDlmm(connection: Connection, row: DirectPool,
       inAmount: new BN(amount.toString()), minOutAmount: new BN(protectedMinimum.toString()),
       lbPair: pool.pubkey, user: wallet, binArraysPubkey: quote.binArraysPubkey,
     })
-    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount)
-    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint)
-    return [...wrap, ...transaction.instructions, ...unwrap]
+    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount, intent.keepNative)
+    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint, intent.keepNative)
+    // DLMM `swap2`: discriminator, amount_in u64, min_amount_out u64, then the
+    // remaining-accounts descriptor. Offsets proven from the built data.
+    return venueLeg([...wrap, ...transaction.instructions, ...unwrap], PROGRAM, amount, protectedMinimum,
+      mintAta(wallet, new PublicKey(intent.inputMint)), mintAta(wallet, new PublicKey(intent.outputMint)))
   })
 }

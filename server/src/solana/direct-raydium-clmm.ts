@@ -7,7 +7,7 @@ import { CLMM_PROGRAM_ID, ClmmInstrument, Raydium, TickArrayBitmapExtensionLayou
 import BN from 'bn.js'
 import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
   exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions,
-  pairIsExact, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
+  pairIsExact, venueLeg, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
 
 const PROGRAM = CLMM_PROGRAM_ID
 const integer = (value: { toString(): string }): bigint => BigInt(value.toString())
@@ -80,10 +80,12 @@ export async function quoteRaydiumClmm(connection: Connection, row: DirectPool,
       remainingAccounts: simulation.accounts,
     })
     if (instructions.signers.length) throw new DirectVenueError('CLMM requires an unexpected server signer')
-    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount)
-    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint)
-    return [createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint),
+    const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount, intent.keepNative)
+    const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint, intent.keepNative)
+    // CLMM `swap_v2`: discriminator, amount u64, other_amount_threshold u64,
+    // sqrt_price_limit_x64 u128, is_base_input. Offsets proven from the data.
+    return venueLeg([createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint),
       createAssociatedTokenAccountIdempotentInstruction(wallet, outputAta, wallet, outputMint),
-      ...wrap, ...instructions.instructions, ...unwrap]
+      ...wrap, ...instructions.instructions, ...unwrap], PROGRAM, amount, protectedMinimum, inputAta, outputAta)
   })
 }
