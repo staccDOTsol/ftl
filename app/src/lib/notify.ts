@@ -5,6 +5,8 @@
 //  - web: the browser Notification API while the tab is open
 
 import { Platform } from 'react-native'
+import { router } from 'expo-router'
+import { eventLink } from './event-context'
 import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
@@ -50,8 +52,8 @@ live.onEvent((e) => {
   const title = `${tokenLabel(e)} · ${KIND[e.kind].label}`
   const body = `${short(e.wallet)} ${KIND[e.kind].verb}${e.flags.length ? ' · ' + e.flags.join(', ') : ''}`
   if (Platform.OS === 'web') {
-    try { new Notification(title, { body }) } catch {}
+    try { const notification = new Notification(title, { body }); notification.onclick = () => { router.push(eventLink(e)); notification.close() } } catch {}
   } else {
-    void Notifications.scheduleNotificationAsync({ content: { title, body, data: { url: e.token ? `/token/${e.chain}/${e.token}` : `/wallet/${e.chain}/${e.wallet}` } }, trigger: null })
+    void Notifications.scheduleNotificationAsync({ content: { title, body, data: { url: eventLink(e) } }, trigger: null })
   }
 })

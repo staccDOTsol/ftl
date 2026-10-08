@@ -12,7 +12,9 @@ export interface RawEvent {
   venue: string
   ix: string
   pool: string | null
-  mints: string[]            // pool mints in pool order when known; for launch/graduate, [token]
+  mints: string[]            // pool order; DBC launches preserve [base, quote]
+  baseMint?: string          // explicit protocol roles, never inferred from symbol
+  quoteMint?: string
   wallet: string
   amounts?: Amount[]         // only from executed lanes
   feeBps?: number | null
@@ -176,9 +178,11 @@ export function ingest(r: RawEvent): void {
     const p = lookupPool(r.chain, r.pool)
     if (p && p.mints.length) mints = p.mints
   }
-  const { token, quote } = r.kind === 'launch' || r.kind === 'graduate'
-    ? { token: mints[0] ?? null, quote: null }
-    : pickToken(r.chain, mints)
+  const { token, quote } = r.baseMint && r.quoteMint
+    ? { token: r.baseMint, quote: r.quoteMint }
+    : r.kind === 'launch' || r.kind === 'graduate'
+      ? { token: mints[0] ?? null, quote: null }
+      : pickToken(r.chain, mints)
 
   // young-liquidity rule
   if (r.kind === 'liq_add' || r.kind === 'liq_remove') {
@@ -233,6 +237,7 @@ function upgrade(prev: FlowEvent, r: RawEvent, now: number) {
     prev.confirmedTs = now
     if (r.amounts?.length) { prev.amounts = r.amounts; prev.quoteUi = quoteLeg(prev.chain, r.amounts, prev.quote) }
     if (!prev.pool && r.pool) prev.pool = r.pool
+    if (r.baseMint && r.quoteMint) { prev.token = r.baseMint; prev.quote = r.quoteMint; prev.quoteUi = quoteLeg(prev.chain, prev.amounts, prev.quote) }
     ls.leads.push(now - prev.ts)
     if (ls.leads.length > 2000) ls.leads.splice(0, 1000)
     const firstLane = lane(prev.chain, prev.lane, true)
@@ -299,14 +304,15 @@ const tokenEventIds = new Map<string, string[]>()   // token -> recent event ids
 
 function applyState(e: FlowEvent, r: RawEvent, mints: string[]) {
   const now = e.ts
+  const poolBorn = r.kind === 'pool_init' || (r.kind === 'launch' && r.venue === 'meteora-dbc' && !!r.pool)
   if (r.pool && (r.kind === 'pool_init' || mints.length >= 2)) {
     const prevIdx = lookupPool(r.chain, r.pool)
-    indexPool(r.chain, r.pool, { token: e.token, quote: e.quote, mints, created: r.kind === 'pool_init' ? now : (prevIdx?.created ?? null) })
+    indexPool(r.chain, r.pool, { token: e.token, quote: e.quote, mints, created: poolBorn ? now : (prevIdx?.created ?? null) })
   }
   tx(() => {
     if (r.pool) {
       upPool.run(e.chain, r.pool, e.venue, e.token, e.quote, mints[0] ?? null, mints[1] ?? null, e.feeBps,
-        r.kind === 'pool_init' ? now : null, r.kind === 'pool_init' ? e.wallet : null, r.kind === 'pool_init' ? e.tx : null)
+        poolBorn ? now : null, poolBorn ? e.wallet : null, poolBorn ? e.tx : null)
       if (r.kind === 'liq_add' || r.kind === 'liq_remove') bumpPool.run(r.kind === 'liq_add' ? 1 : 0, e.chain, r.pool)
     }
     upWallet.run(e.chain, e.wallet, r.kind === 'pool_init' ? 1 : 0, r.kind === 'liq_add' ? 1 : 0, r.kind === 'liq_remove' ? 1 : 0, now, now)
@@ -322,6 +328,10 @@ function applyState(e: FlowEvent, r: RawEvent, mints: string[]) {
     t.launched ??= now
     t.launchVenue ??= e.venue
     launchMeta.set(tk(e.chain, e.token), { tx: e.tx, creator: e.wallet })
+    if (poolBorn && r.pool) {
+      t.firstPool ??= now
+      if (!t.pools.has(r.pool)) t.pools.set(r.pool, { created: now, funded: null, venue: e.venue, feeBps: e.feeBps, grad: false })
+    }
   }
   if (r.kind === 'graduate') graduate(t, now)
 

@@ -15,21 +15,33 @@ import { EventRow, WalletRow } from '@/components/rows'
 import { Button, ChainBadge, Chip, Empty, FlagChips, Loading, Screen, Section, Stat, TokenAvatar, Txt } from '@/components/ui'
 import { Composer, PostItem } from '@/components/Posts'
 import { Trade } from '@/components/Trade'
+import { eventContext } from '@/lib/event-context'
 
 interface Page { token: TokenSummary; pools: PoolSummary[]; events: FlowEvent[]; wallets: WalletSummary[]; posts: Post[] }
 
 export default function TokenScreen() {
-  const { chain, address } = useLocalSearchParams<{ chain: Chain; address: string }>()
+  const { chain, address, event: eventId, action } = useLocalSearchParams<{ chain: Chain; address: string; event?: string; action?: string }>()
   const social = useSocial()
   const now = useNow(5000)
   const live = useLive()
   const { width } = useWindowDimensions()
   const [page, setPage] = useState<Page | null>(null)
+  const [origin, setOrigin] = useState<FlowEvent | null>(() => eventContext(eventId, chain, address))
   const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   const load = useCallback(() => get<Page>(`/api/token/${chain}/${address}`, { viewer: social.pubkey }).then(setPage).catch(e => setErr(e.message)), [chain, address, social.pubkey])
   useEffect(() => { void load(); const t = setInterval(load, 8000); return () => clearInterval(t) }, [load])
+
+  useEffect(() => {
+    if (!eventId || eventContext(eventId, chain, address)) return
+    let active = true
+    void get<FlowEvent>(`/api/event/${encodeURIComponent(eventId)}`).then(event => {
+      if (active && event.id === eventId && event.chain === chain && event.token === address) setOrigin(event)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [eventId, chain, address])
+  const context = eventId ? page?.events.find(event => event.id === eventId && event.token === address && event.chain === chain) ?? live.events.find(event => event.id === eventId && event.token === address && event.chain === chain) ?? (origin?.id === eventId && origin.token === address && origin.chain === chain ? origin : eventContext(eventId, chain, address)) : null
 
   if (err && !page) return <Screen edges={[]}><Empty title="Not seen yet" body={err} /></Screen>
   if (!page) return <Screen edges={[]}><Loading /></Screen>
@@ -82,7 +94,7 @@ export default function TokenScreen() {
           ) : null}
         </View>
 
-        <Trade t={t} pools={page.pools} />
+        <Trade key={`${t.chain}:${t.address}:${eventId ?? ''}`} t={t} pools={page.pools} origin={context ?? null} initialAction={action === 'exit' ? 'exit' : eventId ? 'liquidity' : undefined} />
 
         <Section title={`Calls & comments · ${page.posts.length}`}>
           <Composer chain={t.chain} token={t.address} graduated={!!t.graduatedTs} onPosted={p => setPage(pg => pg ? { ...pg, posts: [p, ...pg.posts] } : pg)} />

@@ -46,7 +46,9 @@ function interesting(keys: Uint8Array[], ixs: { programIdIndex: number; data: Ui
 }
 
 export function __toNTx(...a: Parameters<typeof toNTx>) { return toNTx(...a) }
-function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[], loadedR: Uint8Array[], meta: any | null): NTx | null {
+export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[], loadedR: Uint8Array[], meta: any | null): NTx | null {
+  const version = message?.config != null ? 1 : message?.versioned ? 0 : 'legacy'
+  if (version === 1 && (loadedW.length || loadedR.length || message?.addressTableLookups?.length)) throw new Error('V1 transaction cannot contain address lookup tables')
   const raw: Uint8Array[] = [...(message?.accountKeys ?? []), ...loadedW, ...loadedR]
   const top = message?.instructions ?? []
   const inner: { idx: number; ixs: any[] }[] = (meta?.innerInstructions ?? []).map((g: any) => ({ idx: g.index, ixs: g.instructions }))
@@ -55,7 +57,12 @@ function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint8Array[
   const ixs: NIx[] = []
   top.forEach((ix: any, i: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: Array.from(ix.accounts as Uint8Array), data: ix.data, n: String(i) }))
   for (const g of inner) g.ixs.forEach((ix: any, j: number) => ixs.push({ prog: keys[ix.programIdIndex], accts: Array.from(ix.accounts as Uint8Array), data: ix.data, n: `${g.idx}.${j}` }))
-  const tx: NTx = { sig: bs58.encode(sig), slot, keys, ixs }
+  const tx: NTx = { sig: bs58.encode(sig), slot, keys, ixs, version, ...(version === 1 ? { transactionConfig: {
+    ...(message.config.priorityFee != null ? { priorityFeeLamports: String(message.config.priorityFee) } : {}),
+    ...(message.config.computeUnitLimit != null ? { computeUnitLimit: Number(message.config.computeUnitLimit) } : {}),
+    ...(message.config.loadedAccountsDataSizeLimit != null ? { loadedAccountsDataSizeLimit: Number(message.config.loadedAccountsDataSizeLimit) } : {}),
+    ...(message.config.heapSize != null ? { heapSize: Number(message.config.heapSize) } : {}),
+  } } : {}) }
   if (meta) {
     tx.failed = !!meta.err
     const bal = (arr: any[]): TokenBal[] => (arr ?? []).map(b => ({ idx: b.accountIndex, mint: b.mint, owner: b.owner, amount: BigInt(b.uiTokenAmount?.amount ?? '0'), decimals: b.uiTokenAmount?.decimals ?? 0 }))
@@ -201,7 +208,7 @@ function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
     for (const i of lk.r) ro.push(t?.[i] ?? null)
   }
   keys.push(...ro)
-  return { sig: bs58.encode(w.sig), slot, keys, ixs: w.ixs.map((ix, i) => ({ prog: keys[ix.prog] as string, accts: ix.accts, data: ix.data, n: String(i) })) }
+  return { sig: bs58.encode(w.sig), slot, keys, version: w.version, transactionConfig: w.transactionConfig, ixs: w.ixs.map((ix, i) => ({ prog: keys[ix.prog] as string, accts: ix.accts, data: ix.data, n: String(i) })) }
 }
 
 export function preconfsLanes() {

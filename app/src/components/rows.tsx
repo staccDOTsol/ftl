@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated'
 import { C, CHAIN, F, FLAG, KIND, T } from '@/theme'
 import { loudness, num, pct, quoteLeg, short, usd, usdOf, venue } from '@/lib/format'
+import { eventLink } from '@/lib/event-context'
 import type { LiveEvent } from '@/lib/live'
 import type { TokenSummary, WalletSummary } from '@/lib/types'
 import { Ago, ChainBadge, FlagChips, Press, Spark, TokenAvatar, Txt } from './ui'
@@ -43,7 +44,7 @@ export const EventRow = memo(function EventRow({ e, prices, wide, showToken = tr
   const early = e.lane === 'preconf' || e.lane === 'deshred'
   const lead = early && e.confirmedTs ? e.confirmedTs - e.ts : null
   const meta = [venue(e.venue), e.feeBps !== null ? `${(e.feeBps / 100).toFixed(e.feeBps % 100 ? 2 : 0)}% fee` : null].filter(Boolean).join(' · ')
-  const open = () => (e.token ? router.push(`/token/${e.chain}/${e.token}`) : router.push(`/wallet/${e.chain}/${e.wallet}`))
+  const open = () => router.push(eventLink(e))
 
   const amount = (
     <View style={{ alignItems: 'flex-end', minWidth: wide ? 104 : 80, gap: 3 }}>

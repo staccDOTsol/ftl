@@ -13,10 +13,22 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0",
+    "@meteora-ag/cp-amm-sdk": "1.5.1",
+    "@meteora-ag/dlmm": "1.9.14",
     "@noble/curves": "^2.4.0",
-    "@noble/hashes": "^2.4.0",
+    "@noble/hashes": "1.8.0",
+    "@noble/hashes-v2": "npm:@noble/hashes@2.4.0",
+    "@orca-so/whirlpools-sdk": "0.22.0",
+    "@pump-fun/pump-swap-sdk": "2.1.0",
+    "@raydium-io/raydium-sdk-v2": "0.2.73-alpha",
+    "@solana/spl-token": "0.4.14",
+    "@solana/web3.js": "1.99.0",
     "@triton-one/yellowstone-grpc": "8.0.0",
+    "bn.js": "5.2.2",
     "bs58": "^6.0.0",
+    "ethers": "^6.17.0",
+    "helius-laserstream": "^0.8.5",
+    "laserstream-core-proto-js": "^9.1.0",
     "tweetnacl": "^1.0.3",
     "ws": "^8.18.3"
   }

@@ -32,6 +32,9 @@ export const config = {
   drpcGeyserUrl: env('DRPC_GEYSER_URL'),
   drpcKey,
   solanaRpc: env('SOLANA_RPC_URL') ?? (drpcKey ? `https://lb.drpc.live/solana/${drpcKey}` : undefined),
+  // The browser uses this server transport; RPC credentials remain server-side.
+  solanaRouterUrl: env('SOLANA_ROUTER_URL'),
+  solanaSelfRouter: env('SOLANA_SELF_ROUTER') === '1',
 
   // Liquidity moves on pools and tokens older than this are counted, not stored:
   // FTL follows young liquidity, not market makers rebalancing SOL/USDC.

@@ -41,7 +41,7 @@ export function startPush() {
       if (now - (lastSent.get(k) ?? 0) < 60_000) continue
       lastSent.set(k, now)
       for (const r of db.prepare('SELECT token FROM push_tokens WHERE user = ?').all(t.user) as any[])
-        messages.push({ to: r.token, title: t.title, body: `${e.venue} · ${e.chain}${e.quoteUi ? ` · ${e.quoteUi.toFixed(e.quoteUi < 10 ? 3 : 0)} quote` : ''}`, data: { url: e.token ? `/token/${e.chain}/${e.token}` : `/wallet/${e.chain}/${e.wallet}` }, sound: 'default' })
+        messages.push({ to: r.token, title: t.title, body: `${e.venue} · ${e.chain}${e.quoteUi ? ` · ${e.quoteUi.toFixed(e.quoteUi < 10 ? 3 : 0)} quote` : ''}`, data: { url: e.token ? `/token/${e.chain}/${e.token}?event=${encodeURIComponent(e.id)}&action=${e.kind === 'liq_remove' ? 'exit' : 'liquidity'}` : `/wallet/${e.chain}/${e.wallet}` }, sound: 'default' })
     }
     if (messages.length) void send(messages)
   })

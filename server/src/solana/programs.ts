@@ -163,7 +163,10 @@ export function roles(spec: IxSpec) {
   const idx = (n: string) => spec.accounts.indexOf(n)
   const pool = POOL_NAMES.map(idx).find(i => i >= 0) ?? -1
   let mints: number[] = []
-  if (spec.kind === 'launch' || spec.kind === 'graduate') {
+  const dbcLaunch = spec.venue === 'meteora-dbc' && spec.kind === 'launch'
+  if (dbcLaunch) {
+    mints = [idx('base_mint'), idx('quote_mint')].filter(i => i >= 0)
+  } else if (spec.kind === 'launch' || spec.kind === 'graduate') {
     const i = LAUNCH_MINT.map(idx).find(i => i >= 0)
     if (i !== undefined) mints = [i]
   } else {
@@ -176,7 +179,7 @@ export function roles(spec: IxSpec) {
   const vaults = spec.accounts.map((n, i) => (/(^|_)vault(_|$)|^reserve(_[xy])?$|^token_vault_|^pool_(coin|pc|base|quote)_token_account$|_vault_[ab01]$/.test(n) && !/authority|lp|program|bin_array|event|config|signer|_mint$/.test(n)) ? i : -1).filter(i => i >= 0)
   // single-mint instructions (DLMM one-side adds) still name the side they touch
   if (!mints.length && spec.kind !== 'launch' && spec.kind !== 'graduate') { const i = idx('token_mint'); if (i >= 0) mints = [i] }
-  return { pool: spec.kind === 'launch' || spec.kind === 'graduate' ? -1 : pool, mints, vaults }
+  return { pool: (spec.kind === 'launch' && !dbcLaunch) || spec.kind === 'graduate' ? -1 : pool, mints, vaults }
 }
 
 export const roleCache = new Map<IxSpec, ReturnType<typeof roles>>()

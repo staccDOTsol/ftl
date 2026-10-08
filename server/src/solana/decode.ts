@@ -2,6 +2,7 @@
 // an NTx; executed lanes add balances so amounts come out exact.
 
 import bs58 from 'bs58'
+import { decodeV1, type V1Config } from './transaction-v1.ts'
 import { lookup, rolesOf, programIds, type IxSpec } from './programs.ts'
 import type { RawEvent } from '../hub.ts'
 import type { Amount, Lane, Stage } from '../../../shared/types.ts'
@@ -9,6 +10,8 @@ import type { Amount, Lane, Stage } from '../../../shared/types.ts'
 export interface NIx { prog: string; accts: number[]; data: Uint8Array; n: string }
 export interface TokenBal { idx: number; mint: string; owner: string; amount: bigint; decimals: number }
 export interface NTx {
+  version?: 'legacy' | 0 | 1
+  transactionConfig?: V1Config
   sig: string
   slot: number
   keys: (string | null)[]     // static + loaded; null where a lane could not resolve a lookup table
@@ -110,8 +113,9 @@ export function decode(tx: NTx, lane: Lane, stage: Stage): RawEvent[] {
       kind: spec.kind,
       venue: spec.venue,
       ix: spec.name,
-      pool: spec.kind === 'launch' || spec.kind === 'graduate' ? null : pool,
+      pool,
       mints,
+      ...(spec.venue === 'meteora-dbc' && spec.kind === 'launch' ? { baseMint: key(ix, spec.accounts.indexOf('base_mint')) ?? undefined, quoteMint: key(ix, spec.accounts.indexOf('quote_mint')) ?? undefined } : {}),
       wallet,
       amounts,
       feeBps: null,
@@ -131,49 +135,62 @@ export function decode(tx: NTx, lane: Lane, stage: Stage): RawEvent[] {
 // ---- wire-format transactions (Preconfs) -----------------------------------
 
 function shortvec(b: Uint8Array, o: { i: number }): number {
-  let len = 0, size = 0
-  for (;;) {
+  let len = 0
+  for (let size = 0; size < 3; size++) {
+    if (o.i >= b.length) throw new Error('Truncated transaction length')
     const x = b[o.i++]
+    if (size === 2 && x > 3) throw new Error('Invalid compact-u16 length')
     len |= (x & 0x7f) << (size * 7)
-    size++
-    if ((x & 0x80) === 0) return len
+    if ((x & 0x80) === 0) { if (size > 0 && x === 0) throw new Error('Noncanonical transaction length'); return len }
   }
+  throw new Error('Invalid transaction length')
 }
 
-export interface WireTx { sig: Uint8Array; keys: Uint8Array[]; ixs: { prog: number; accts: number[]; data: Uint8Array }[]; lookups: { table: string; w: number[]; r: number[] }[] }
+export interface WireTx { version: 'legacy' | 0 | 1; transactionConfig?: V1Config; sig: Uint8Array; keys: Uint8Array[]; ixs: { prog: number; accts: number[]; data: Uint8Array }[]; lookups: { table: string; w: number[]; r: number[] }[] }
 
-// raw parse: no base58 until the caller knows the tx is one it wants
+// Raw parse: no base58 until the caller knows the tx is one it wants. Pending
+// V1 transactions can have inadequate resource limits; decode them faithfully
+// and let executed metadata determine success, rather than inventing a result.
 export function parseWire(b: Uint8Array): WireTx {
+  if (b[0] === 0x81) {
+    const decoded = decodeV1(b)
+    return { version: 1, transactionConfig: decoded.config, sig: decoded.signatures[0], keys: decoded.keys, ixs: decoded.ixs, lookups: [] }
+  }
+  if (!b.length || b.length > 1232) throw new Error('Invalid legacy/V0 transaction size')
   const o = { i: 0 }
+  const take = (size: number) => { if (size < 0 || o.i + size > b.length) throw new Error('Truncated transaction'); const value = b.subarray(o.i, o.i + size); o.i += size; return value }
   const nsig = shortvec(b, o)
-  const sig = b.subarray(o.i, o.i + 64)
-  o.i += 64 * nsig
-  let versioned = false
-  if (b[o.i] & 0x80) { versioned = true; o.i++ }
-  o.i += 3 // header
+  if (nsig < 1 || nsig > 12) throw new Error('Invalid transaction signer count')
+  const signatures = take(64 * nsig), sig = signatures.subarray(0, 64)
+  let version: 'legacy' | 0 = 'legacy'
+  if (b[o.i] & 0x80) { if (take(1)[0] !== 0x80) throw new Error('Unsupported transaction version'); version = 0 }
+  const header = take(3)
   const nkeys = shortvec(b, o)
+  if (header[0] !== nsig || header[1] >= nsig || nkeys < nsig + header[2] || nkeys > 256) throw new Error('Invalid transaction account counts')
   const keys: Uint8Array[] = []
-  for (let k = 0; k < nkeys; k++) { keys.push(b.subarray(o.i, o.i + 32)); o.i += 32 }
-  o.i += 32 // blockhash
+  for (let k = 0; k < nkeys; k++) keys.push(take(32))
+  take(32) // blockhash
   const nix = shortvec(b, o)
+  if (nix > 64) throw new Error('Too many transaction instructions')
   const ixs: WireTx['ixs'] = []
   for (let k = 0; k < nix; k++) {
-    const prog = b[o.i++]
-    const na = shortvec(b, o)
-    const accts = Array.from(b.subarray(o.i, o.i + na)); o.i += na
-    const nd = shortvec(b, o)
-    const data = b.subarray(o.i, o.i + nd); o.i += nd
+    const prog = take(1)[0]
+    const accts = Array.from(take(shortvec(b, o)))
+    const data = take(shortvec(b, o))
     ixs.push({ prog, accts, data })
   }
   const lookups: WireTx['lookups'] = []
-  if (versioned && o.i < b.length) {
+  if (version === 0) {
     const nl = shortvec(b, o)
+    if (nl > 64) throw new Error('Too many address lookup tables')
     for (let k = 0; k < nl; k++) {
-      const table = bs58.encode(b.subarray(o.i, o.i + 32)); o.i += 32
-      const nw = shortvec(b, o); const w = Array.from(b.subarray(o.i, o.i + nw)); o.i += nw
-      const nr = shortvec(b, o); const r = Array.from(b.subarray(o.i, o.i + nr)); o.i += nr
+      const table = bs58.encode(take(32))
+      const w = Array.from(take(shortvec(b, o))), r = Array.from(take(shortvec(b, o)))
       lookups.push({ table, w, r })
     }
   }
-  return { sig, keys, ixs, lookups }
+  if (o.i !== b.length) throw new Error('Unexpected trailing transaction data')
+  const totalKeys = keys.length + lookups.reduce((n, lookup) => n + lookup.w.length + lookup.r.length, 0)
+  if (totalKeys > 256 || ixs.some(ix => ix.prog >= keys.length || ix.accts.some(a => a >= totalKeys))) throw new Error('Invalid transaction instruction index')
+  return { version, sig, keys, ixs, lookups }
 }

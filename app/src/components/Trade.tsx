@@ -3,12 +3,13 @@ import { Linking, Platform, StyleSheet, TextInput, View } from 'react-native'
 import { C, F } from '@/theme'
 import { connect, hasInjected, quote, routePools, send, type Quote } from '@/lib/evm'
 import { explorerAddr, num } from '@/lib/format'
-import type { PoolSummary, TokenSummary } from '@/lib/types'
+import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
 import { Button, Chip, Txt } from './ui'
+import SolanaTrade from './SolanaTrade'
 
 const open = (url: string) => Linking.openURL(url)
 
-export function Trade({ t, pools }: { t: TokenSummary; pools: PoolSummary[] }) {
+export function Trade({ t, pools, origin, initialAction }: { t: TokenSummary; pools: PoolSummary[]; origin?: FlowEvent | null; initialAction?: 'exit' | 'liquidity' }) {
   const traps = pools.filter(p => (p.feeBps ?? 0) >= 7000)
   return (
     <View style={st.card}>
@@ -17,7 +18,7 @@ export function Trade({ t, pools }: { t: TokenSummary; pools: PoolSummary[] }) {
           <Txt v="small" color={C.warn}>{traps.length} of {pools.length} pools on this token charge 70% or more. Check which pool a route uses before you sign.</Txt>
         </View>
       ) : null}
-      {t.chain === 'solana' ? <SolanaLinks t={t} /> : <RobinhoodBuy t={t} trapAddrs={new Set(traps.map(p => p.address))} />}
+      {t.chain === 'solana' ? <><SolanaTrade t={t} pools={pools} origin={origin} initialAction={initialAction} /><SolanaLinks t={t} /></> : <RobinhoodBuy t={t} trapAddrs={new Set(traps.map(p => p.address))} />}
     </View>
   )
 }
@@ -25,9 +26,7 @@ export function Trade({ t, pools }: { t: TokenSummary; pools: PoolSummary[] }) {
 function SolanaLinks({ t }: { t: TokenSummary }) {
   return (
     <View style={{ gap: 10 }}>
-      <Button label="Swap on Jupiter" onPress={() => open(`https://jup.ag/swap?buy=${t.address}&sell=So11111111111111111111111111111111111111112`)} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {t.launchVenue === 'pumpfun' && !t.graduatedTs ? <Chip label="pump.fun" onPress={() => open(`https://pump.fun/coin/${t.address}`)} /> : null}
         <Chip label="Dexscreener" onPress={() => open(`https://dexscreener.com/solana/${t.address}`)} />
         <Chip label="Solscan" onPress={() => open(explorerAddr('solana', t.address))} />
       </View>

@@ -7,8 +7,13 @@ import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken,
 import { enrich } from './meta.ts'
 import { prices } from './prices.ts'
 import { HttpError, callers, createPost, follow, follows, getPost, like, listPosts, profile, registerPush, setProfile, verify } from './social.ts'
+import { handleHeliusWaas } from './helius-waas.ts'
+import { config } from './config.ts'
+import { createSolanaRouterHandler } from './solana/router.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
+const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
+  rpcUrl: config.solanaRpc, selfRouter: config.solanaSelfRouter })
 const started = Date.now()
 const ROUTING_API = process.env.ROUTING_API_URL ?? 'https://xn644o3px9.execute-api.us-east-2.amazonaws.com/prod/quote'
 
@@ -145,10 +150,12 @@ export function startApi(port: number) {
     const q = url.searchParams
     const parts = url.pathname.split('/').filter(Boolean)
     let body = ''
-    if (req.method === 'POST') { for await (const c of req) { body += c; if (body.length > 20_000) break } }
+    if (req.method === 'POST') { for await (const c of req) { body += c; if (Buffer.byteLength(body) > 32_000) break } }
     const json = () => { try { return JSON.parse(body || '{}') } catch { throw new HttpError(400, 'bad json') } }
     const viewer = q.get('viewer')
     try {
+      if (await handleSolanaRouter(req, res, url, body)) return
+      if (await handleHeliusWaas(req, res, url, body)) return
       let out: unknown
       const [a, b, c, d] = parts
       if (a !== 'api') {
@@ -158,6 +165,13 @@ export function startApi(port: number) {
       if (req.method === 'GET') {
         if (b === 'status') out = { ...status(), dropped: counters.dropped() }
         else if (b === 'feed') out = feed(q)
+        else if (b === 'event' && c && !d) {
+          const id=decodeURIComponent(c)
+          if(id.length>240)throw new HttpError(400,'invalid event ID')
+          const row=db.prepare(`${eventSelect} WHERE e.id = ?`).get(id)
+          if(!row)throw new HttpError(404,'event not found')
+          out=rowToEvent(row)
+        }
         else if (b === 'tokens' && c === 'hot') out = hot(q)
         else if (b === 'token' && chainOf(c ?? null) && d) out = tokenPage(c as Chain, normAddr(c as Chain, d), viewer)
         else if (b === 'wallet' && chainOf(c ?? null) && d) out = walletPage(c as Chain, normAddr(c as Chain, d))
