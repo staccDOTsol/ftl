@@ -8,9 +8,8 @@ import proto from 'laserstream-core-proto-js/generated.js'
 import type { StreamHandle, SubscribeRequest } from 'helius-laserstream'
 import { config, redact } from '../config.ts'
 import { db } from '../db.ts'
-import { bus } from '../hub.ts'
 import type { RawEvent } from '../hub.ts'
-import { validSolanaMint } from '../research.ts'
+import { validSolanaMint } from './mint.ts'
 import { toNTx } from './lanes.ts'
 import { decode } from './decode.ts'
 import { programIds } from './programs.ts'
@@ -141,6 +140,8 @@ export interface BlockTimeStreamOptions {
   onFallbackStatus?: (activePrograms: number) => void
   onConnection?: (connected: boolean, reason?: string) => void
   onPrograms?: (observations: ProgramObservation[]) => void
+  /** Research enrollments; returns an unsubscribe. The stream runs off the main thread, away from the hub's bus. */
+  subscribeResearch?: (listener: (chain: string, address: string, enrolled: boolean) => void) => () => void
 }
 
 export function researchLaserStreamRequest(mints: string[], fromSlot?: number, filterName = 'research',
@@ -376,7 +377,7 @@ export async function startBlockTimeStream(options: BlockTimeStreamOptions = {})
     if (updateTimer) clearTimeout(updateTimer)
     updateTimer = setTimeout(() => void updateMints(), 100)
   }
-  bus.on('research', onResearch)
+  const unsubscribeResearch = options.subscribeResearch?.(onResearch)
   const run = async () => {
     if (stopped) return
     const currentGeneration = ++generation
@@ -631,7 +632,7 @@ export async function startBlockTimeStream(options: BlockTimeStreamOptions = {})
     if (retry) clearTimeout(retry)
     if (updateTimer) clearTimeout(updateTimer)
     if (ackTimer) clearTimeout(ackTimer)
-    bus.off('research', onResearch)
+    unsubscribeResearch?.()
     emitStream({ t: 'close', lane: 'laserstream', ts: Date.now() })
     handle?.cancel()
     budget.flush()

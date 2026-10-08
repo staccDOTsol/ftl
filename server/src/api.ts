@@ -7,7 +7,7 @@ import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken,
 import { enrich } from './meta.ts'
 import { prices } from './prices.ts'
 import { getResearch, listResearch, startResearch } from './research.ts'
-import { blockTimeUsage } from './solana/blocktime.ts'
+import { blockTimeUsage } from './solana/blocktime-thread.ts'
 import { programBackfillStatus, type ProgramBackfillStatus } from './solana/program-backfill.ts'
 import { quotePonsV2 } from './robinhood/pons-quote.ts'
 import { quoteV4 } from './robinhood/v4-quote.ts'
@@ -188,7 +188,13 @@ function matches(f: ReturnType<typeof clients.get> & {}, e: FlowEvent): boolean 
   return true
 }
 
-function send(ws: WebSocket, m: ServerMsg) { if (ws.readyState === 1 && ws.bufferedAmount < 4_000_000) ws.send(JSON.stringify(m)) }
+function send(ws: WebSocket, m: ServerMsg) { sendRaw(ws, JSON.stringify(m)) }
+function sendRaw(ws: WebSocket, data: string) { if (ws.readyState === 1 && ws.bufferedAmount < 4_000_000) ws.send(data) }
+// Broadcasts encode once: with hundreds of feeds open, per-client JSON.stringify dominated the API thread.
+function broadcast(targets: Iterable<WebSocket>, m: ServerMsg) {
+  let data: string | undefined
+  for (const ws of targets) sendRaw(ws, data ??= JSON.stringify(m))
+}
 
 export function startApi(port: number) {
   const server = http.createServer(async (req, res) => {
@@ -276,7 +282,7 @@ export function startApi(port: number) {
         else if (b === 'unfollow') out = follow(user, json(), false)
         else if (b === 'posts' && !c) {
           const p = createPost(user, json())
-          for (const ws of clients.keys()) send(ws, { t: 'post', p })
+          broadcast(clients.keys(), { t: 'post', p })
           out = p
         }
         else if (b === 'posts' && c && (d === 'like' || d === 'unlike')) out = like(user, Number(c), d === 'like')
@@ -329,17 +335,19 @@ export function startApi(port: number) {
   })
 
   bus.on('event', (e: FlowEvent) => {
-    for (const [ws, f] of clients) if (matches(f, e)) send(ws, { t: 'event', e })
+    let data: string | undefined
+    for (const [ws, f] of clients) if (matches(f, e)) sendRaw(ws, data ??= JSON.stringify({ t: 'event', e }))
     if (e.token && !e.tokenMeta?.image) enrich(e.chain, e.token)
   })
   // names and images resolve after the event went out: patch them into every open feed
   bus.on('meta', (chain: Chain, address: string, m: any) => {
     const msg: ServerMsg = { t: 'meta', chain, address, m: { symbol: m.symbol, name: m.name, image: m.image, decimals: m.decimals } }
-    for (const ws of clients.keys()) send(ws, msg)
+    broadcast(clients.keys(), msg)
   })
-  bus.on('upgrade', (u: ServerMsg) => { for (const ws of clients.keys()) send(ws, u) })
+  bus.on('upgrade', (u: ServerMsg) => broadcast(clients.keys(), u))
   programBus.on('update', (update: ProgramUpdate) => {
-    for (const [ws, filters] of clients) if (filters.programs) send(ws, update)
+    let data: string | undefined
+    for (const [ws, filters] of clients) if (filters.programs) sendRaw(ws, data ??= JSON.stringify(update))
   })
 
   // Research invalidations are coalesced across all FTL events. At very high
@@ -358,7 +366,7 @@ export function startApi(port: number) {
     if (!researchDirty.size && !researchAll) return
     const msg: ServerMsg = { t: 'research', keys: researchAll ? [] : [...researchDirty], enrolled: researchEnrolled, all: researchAll, ts: Date.now() }
     researchDirty.clear(); researchEnrolled = false; researchAll = false
-    for (const ws of clients.keys()) send(ws, msg)
+    broadcast(clients.keys(), msg)
   }, 1000).unref()
 
   // token summaries change on every event; coalesce to one push per token per second
@@ -372,10 +380,10 @@ export function startApi(port: number) {
       const [chain, address] = k.split('|') as [Chain, string]
       const s = getToken(chain, address)
       if (!s || s.pools === 0) continue
-      for (const ws of clients.keys()) send(ws, { t: 'token', s })
+      broadcast(clients.keys(), { t: 'token', s })
     }
   }, 1000).unref()
-  setInterval(() => { const s = status(); for (const ws of clients.keys()) send(ws, { t: 'status', s }) }, 5000).unref()
+  setInterval(() => broadcast(clients.keys(), { t: 'status', s: status() }), 5000).unref()
 
   server.listen(port, '0.0.0.0', () => console.log(`[api] listening on :${port}`))
   startResearch()

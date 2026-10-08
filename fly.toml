@@ -32,5 +32,5 @@ primary_region = 'ewr'
     timeout = '5s'
 
 [[vm]]
-  size = 'performance-2x'
-  memory = '4gb'
+  size = 'performance-8x'
+  memory = '16gb'

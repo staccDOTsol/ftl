@@ -2,7 +2,7 @@
 // not call providers, poll balances, or invent holder/price history. Confirmed
 // liquidity observations come from the same durable event log as Live.
 
-import bs58 from 'bs58'
+import { validSolanaMint } from './solana/mint.ts'
 import { db } from './db.ts'
 import { bus } from './hub.ts'
 import { HttpError } from './social.ts'
@@ -62,10 +62,7 @@ interface ResearchRow {
 
 interface Cursor { ts: number; chain: Chain; address: string }
 
-export function validSolanaMint(address: unknown): address is string {
-  if (typeof address !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return false
-  try { return bs58.decode(address).length === 32 } catch { return false }
-}
+export { validSolanaMint }
 
 const insertResearchToken = db.prepare('INSERT OR IGNORE INTO research_tokens(chain,address,first_seen_ts) VALUES(?,?,?)')
 const correctFirstSeen = db.prepare('UPDATE research_tokens SET first_seen_ts = ? WHERE chain = ? AND address = ? AND first_seen_ts > ?')
