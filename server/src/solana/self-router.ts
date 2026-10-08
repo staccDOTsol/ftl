@@ -59,8 +59,20 @@ export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: Rout
   build: (wallet: PublicKey, floor: bigint) => Promise<BuiltRoute> }
 export const MAX_INTERMEDIATES = 2
 export const MAX_POOLS_PER_HOP = 2
+// Direct pools are priced concurrently, a few at a time: one by one, a pair
+// with ~16 funded pools took ~12 s; unbounded, the quote RPC rate-limits.
+export const POOL_QUOTE_CONCURRENCY = 6
 const SINGLE_CU = 800_000
 const COMPOSED_CU = 1_400_000
+
+/** Results in input order, at most `limit` calls in flight. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let next = 0
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]) } }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
+}
 
 async function quotePool(connection: Connection, pool: Pool, intent: LocalIntent): Promise<Priced> {
   if (pool.venue === 'meteora-damm-v2') return quoteDamm(connection, pool, intent)
@@ -419,8 +431,7 @@ export class DirectSolanaRouter {
     const priced: Priced[] = []
     // FTL activity orders discovery, not execution price. Compare every
     // eligible direct pool using its current on-chain, after-fee output.
-    for (const row of supported) {
-      const result = await this.attemptPool(row, intent)
+    for (const result of await mapLimit(supported, POOL_QUOTE_CONCURRENCY, row => this.attemptPool(row, intent))) {
       if ('ok' in result) priced.push(result.ok)
       else if (result.transient) transient++
       else lastReason = reasonOf(result.error, 'Pool state or quote is unavailable')

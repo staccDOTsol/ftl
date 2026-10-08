@@ -36,6 +36,8 @@ const MAX_PLANS = 2_000
 const MAX_RESPONSE = 4_000_000
 const MAX_ALTERNATIVES = 4
 const MAX_CANDIDATE_QUOTES = 3
+/** A constant-product add takes both sides at the pool's own price; this far from the market it is arbitraged away at once. */
+export const MAX_POOL_PRICE_DEVIATION_BPS = 300n
 const MAX_CONFIRMED = 8
 const RATE_CEILING = 30
 const U64_MAX = (1n << 64n) - 1n
@@ -105,6 +107,11 @@ export function eligiblePools(pools: PoolSummary[]): { venue: PoolStatsVenue; po
     out.push({ venue, pool: p.address, feeBps: p.feeBps })
   }
   return out
+}
+/** Pool price vs market price in bps (10_000 = equal): token per lamport the add debits, over token per lamport the swap returns. */
+export function poolPriceBps(tokenDebit: bigint, solDebit: bigint, tokenOut: bigint, solIn: bigint): bigint | null {
+  if (tokenDebit <= 0n || solDebit <= 0n || tokenOut <= 0n || solIn <= 0n) return null
+  return tokenDebit * solIn * 10_000n / (solDebit * tokenOut)
 }
 /** Half of the deposit swaps into the token; the rest stays SOL for the add. A 0.5% buffer covers swap fees and slippage. */
 export function splitDeposit(lamports: bigint): { swap: bigint; keep: bigint; buffer: bigint } {
@@ -282,6 +289,10 @@ export function createSolanaZapHandler(options: Options) {
     if (lamports < MIN_DEPOSIT_LAMPORTS) throw new RequestError(400, `Deposit at least ${uiText(MIN_DEPOSIT_LAMPORTS, 9)} SOL`)
     const eligible = eligiblePools(options.catalog.pools(mint, 100))
     if (!eligible.length) throw Object.assign(new RequestError(409, 'No SOL pool for this token yet'), { suggest: { venue: 'meteora-damm-v2', operation: 'initialize' } })
+    const { swap, keep } = splitDeposit(lamports)
+    // The swap quote does not depend on the pool; it runs alongside the stats reads.
+    const quoting = swapQuote(SOL_MINT, mint, swap.toString(), slippageBps, transactionVersion)
+    quoting.catch(() => {})
     const stats = await Promise.allSettled(eligible.map(e => poolStats(e.venue, e.pool)))
     const candidates: ZapCandidate[] = eligible.map((e, i) => { const s = stats[i].status === 'fulfilled' ? stats[i].value : null; return { ...e, stats: s, kind: classifyPool(e.venue, s) } })
     let ranked = rankCandidates(candidates, input.preference)
@@ -291,16 +302,25 @@ export function createSolanaZapHandler(options: Options) {
       if (!picked) throw new RequestError(409, 'That pool is not an eligible SOL pool for this token')
       ranked = [picked, ...ranked.filter(c => c !== picked)]
     }
-    const { swap, keep } = splitDeposit(lamports)
     const symbol = symbolOf(mint)
-    const quote = await swapQuote(SOL_MINT, mint, swap.toString(), slippageBps, transactionVersion)
+    const quote = await quoting
     const swapStep: SwapStep = { kind: 'swap', title: `Swapping ${uiText(swap, 9)} SOL → ${symbol}`, inputMint: SOL_MINT, outputMint: mint, amount: swap.toString(), expectedOut: quote.outAmount, minOut: quote.otherAmountThreshold, slippageBps }
     let chosen: ZapCandidate | null = null, addQuote: any = null, lastError: unknown = null
     for (const candidate of ranked.slice(0, MAX_CANDIDATE_QUOTES)) {
+      let candidateQuote: any
       try {
-        addQuote = await options.router.liquidityQuote({ venue: candidate.venue, operation: 'add', owner, pool: candidate.pool, mintA: mint, mintB: SOL_MINT, amountA: quote.otherAmountThreshold, amountB: keep.toString(), slippageBps, parameters: addParameters(candidate.venue), transactionVersion })
-        chosen = candidate; break
-      } catch (e) { lastError = e }
+        candidateQuote = await options.router.liquidityQuote({ venue: candidate.venue, operation: 'add', owner, pool: candidate.pool, mintA: mint, mintB: SOL_MINT, amountA: quote.otherAmountThreshold, amountB: keep.toString(), slippageBps, parameters: addParameters(candidate.venue), transactionVersion })
+      } catch (e) { lastError = e; continue }
+      const tokenDebit = debitOf(candidateQuote, mint), solDebit = debitOf(candidateQuote, SOL_MINT)
+      const price = candidate.kind === 'constant' && tokenDebit && solDebit && integer(quote.outAmount)
+        ? poolPriceBps(BigInt(tokenDebit.expectedRaw), BigInt(solDebit.expectedRaw), BigInt(quote.outAmount), swap) : null
+      if (price !== null && (price > 10_000n + MAX_POOL_PRICE_DEVIATION_BPS || price < 10_000n - MAX_POOL_PRICE_DEVIATION_BPS)) {
+        lastError = new RequestError(409, `That ${venueLabel(candidate.venue)} pool prices ${symbol} ${(Math.abs(Number(price) - 10_000) / 100).toFixed(1)}% away from the market; depositing there would lose the difference`)
+        // Your pick is not silently swapped for another pool.
+        if (input.pool === candidate.pool) throw lastError
+        continue
+      }
+      addQuote = candidateQuote; chosen = candidate; break
     }
     if (!chosen || !addQuote) throw lastError instanceof Error ? lastError : new RequestError(503, 'No pool could quote this deposit right now')
     const addStep: AddStep = { kind: 'add', title: `Depositing into ${venueLabel(chosen.venue)}`, venue: chosen.venue, pool: chosen.pool, mintA: mint, mintB: SOL_MINT, tokenAmount: quote.outAmount, solAmount: keep.toString(), parameters: addParameters(chosen.venue), quote: addQuote }

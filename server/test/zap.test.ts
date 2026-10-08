@@ -135,7 +135,7 @@ test('position resolution: exactly one active position or the named one; remove 
 type Scenario = {
   pools?: PoolSummary[]; stats?: Record<string, PoolStats | Error>
   sol?: number; token?: string; statuses?: Record<string, { err: unknown; confirmationStatus: string } | null>
-  positions?: unknown[]; failQuote?: boolean; failAdd?: string[]
+  positions?: unknown[]; failQuote?: boolean; failAdd?: string[]; offMarket?: string[]
   /** lp-zap program id: plans compose and the fakes build provable instructions. */
   composer?: string
   /** With a composer: the swap build stays opaque, so composing must fall back. */
@@ -181,7 +181,8 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
       if (scenario.failAdd?.includes(body.pool)) return Response.json({ message: `Pool is frozen; see ${ROUTER}/docs` }, { status: 422 })
       const quoteId = `00000000-0000-4000-8000-${String(++quoteSeq).padStart(12, '0')}`
       const amounts = body.operation === 'add'
-        ? [{ mint: body.mintA, decimals: 6, expectedRaw: body.amountA, limitRaw: body.amountA, direction: 'debit' }, { mint: body.mintB, decimals: 9, expectedRaw: (BigInt(body.amountB) * 9n / 10n).toString(), limitRaw: body.amountB, direction: 'debit' }]
+        // A pool at the swap's 2:1 price takes SOL for the token at that price; an off-market one takes 10% less SOL.
+        ? [{ mint: body.mintA, decimals: 6, expectedRaw: body.amountA, limitRaw: body.amountA, direction: 'debit' }, { mint: body.mintB, decimals: 9, expectedRaw: (scenario.offMarket?.includes(body.pool) ? BigInt(body.amountB) * 9n / 10n : BigInt(body.amountA) / 2n).toString(), limitRaw: body.amountB, direction: 'debit' }]
         : [{ mint: MINT, decimals: 6, expectedRaw: '5000000', limitRaw: '4950000', direction: 'credit' }, { mint: SOL_MINT, decimals: 9, expectedRaw: '30000000', limitRaw: '29700000', direction: 'credit' }]
       const quote = { quoteId, expiresAt: clock.now + 60_000, owner: body.owner, venue: body.venue, operation: body.operation, pool: body.pool, mintA: body.mintA ?? MINT, mintB: body.mintB ?? SOL_MINT, position: body.position ?? POSITION, slot: 1, transactionVersion: body.transactionVersion, amounts,
         details: { ...(body.venue === 'meteora-dlmm' ? { inferredRange: true, priceLower: '1', priceUpper: '2', binCount: body.parameters?.binCount } : {}),
@@ -254,9 +255,17 @@ test('plan in: picks the deepest constant-product SOL pool, splits, quotes swap 
   assert.equal(add.quote.quoteId.length, 36)
   const addRequest = calls.find(c => c.url.endsWith('/liquidity/quote'))!.body
   assert.deepEqual({ amountA: addRequest.amountA, amountB: addRequest.amountB, mintA: addRequest.mintA, mintB: addRequest.mintB, parameters: addRequest.parameters, owner: addRequest.owner }, { amountA: '985050000', amountB: '497500000', mintA: MINT, mintB: SOL_MINT, parameters: {}, owner: OWNER })
-  assert.deepEqual(plan.estimate, { depositSol: '1', positionValueSol: '0.94525', tokenExpected: '995000000', tokenDecimals: 6, networkFeeSolApprox: '0.00002' })
+  assert.deepEqual(plan.estimate, { depositSol: '1', positionValueSol: '0.990025', tokenExpected: '995000000', tokenDecimals: 6, networkFeeSolApprox: '0.00002' })
   assert.equal(plan.expiresAt, 1_700_000_000_000 + PLAN_TTL)
   assert.equal(new URL(calls.find(c => c.url.includes('/quote?'))!.url).searchParams.get('amount'), '497500000')
+}))
+test('plan in: a constant-product pool priced away from the market is skipped, and refused when picked', async () => withZap({ ...bordr, offMarket: [DAMM] }, async request => {
+  const r = await request('/api/zap/solana/plan', planIn())
+  assert.equal(r.status, 200, r.text)
+  assert.notEqual(r.data.pool.pool, DAMM)
+  const picked = await request('/api/zap/solana/plan', planIn({ pool: DAMM }))
+  assert.equal(picked.status, 409, picked.text)
+  assert.match(picked.data.error, /Meteora DAMM v2 pool prices \$BORDR 10\.0% away from the market/)
 }))
 test('plan in: preference and concentrated parameters; honeypot and non-SOL pools never win', async () => withZap(bordr, async (request, calls) => {
   const splash = await request('/api/zap/solana/plan', planIn({ preference: 'splash' }))
