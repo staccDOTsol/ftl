@@ -126,10 +126,15 @@ test('bestQuote returns 503 rate-limited with retry-after 2 only when both sourc
   })
 })
 
-test('bestQuote keeps 404 when either source genuinely has no route', async () => {
+test('bestQuote returns 503 when the direct router is rate-limited even if the external router has no route', async () => {
   await serve(rateLimited(), () => Response.json({ error: 'no route' }, { status: 404 }), async get => {
-    assert.equal((await get()).status, 404)
+    const r = await get()
+    assert.equal(r.status, 503)
+    assert.equal(r.retryAfter, '2')
   })
+})
+
+test('bestQuote keeps 404 when the direct router genuinely has no route', async () => {
   await serve(new DirectRouteError(404, 'No executable direct pool route'), () => new Response('busy', { status: 429 }), async get => {
     const r = await get()
     assert.equal(r.status, 404)
