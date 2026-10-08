@@ -46,12 +46,14 @@ const pool = (address: string, venue: string, extra: Partial<PoolSummary> = {}):
 const SYSTEM = '1'.repeat(32)
 const COMPOSER = 'BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx'
 const u64le = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b }
-function venueV1(ixs: { programId: string; data: Buffer }[]): string {
+/** `writes`: writable accounts an instruction names, between the payer and the read-only programs. */
+function venueV1(ixs: { programId: string; data: Buffer; writes?: string[] }[]): string {
   const kp = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(7))
   const programs = [...new Set(ixs.map(ix => ix.programId))]
-  const keys = [kp.publicKey, ...programs.map(p => new PublicKey(p).toBuffer())]
+  const writable = [...new Set(ixs.flatMap(ix => ix.writes ?? []))]
+  const keys = [kp.publicKey, ...writable.map(p => new PublicKey(p).toBuffer()), ...programs.map(p => new PublicKey(p).toBuffer())]
   const header = Buffer.alloc(42)
-  header.set([0x81, 1, 0, keys.length - 1]); header.writeUInt32LE(15, 4); header.fill(1, 8, 40)
+  header.set([0x81, 1, 0, programs.length]); header.writeUInt32LE(15, 4); header.fill(1, 8, 40)
   header[40] = ixs.length; header[41] = keys.length
   const config = Buffer.alloc(16)
   config.writeBigUInt64LE(1000n, 0); config.writeUInt32LE(200_000, 8); config.writeUInt32LE(67_108_864, 12)
@@ -59,10 +61,10 @@ function venueV1(ixs: { programId: string; data: Buffer }[]): string {
   const heads: Buffer[] = []
   for (const ix of ixs) {
     const at = Buffer.alloc(4)
-    at[0] = 1 + programs.indexOf(ix.programId); at[1] = 0; at.writeUInt16LE(ix.data.length, 2)
+    at[0] = 1 + writable.length + programs.indexOf(ix.programId); at[1] = ix.writes?.length ?? 0; at.writeUInt16LE(ix.data.length, 2)
     heads.push(at)
   }
-  for (const ix of ixs) body.push(ix.data)
+  for (const ix of ixs) body.push(Buffer.from((ix.writes ?? []).map(w => 1 + writable.indexOf(w))), ix.data)
   return Buffer.concat([header, ...keys.map(k => Buffer.from(k)), config, ...heads, ...body, Buffer.alloc(64)]).toString('base64')
 }
 const stats = (venue: string, poolAddress: string, tvlUsd: number | null, feeRateBps: number | null = 25, tickSpacing?: number): PoolStats => ({ venue: venue as any, pool: poolAddress, tvlUsd, volume24hUsd: 1, fees24hUsd: 1, feeRateBps, feeApr: 1, rewardApr: null, totalApr: 1, ...(tickSpacing !== undefined ? { tickSpacing } : {}), source: 'x', fetchedAt: 1 })
@@ -140,6 +142,8 @@ type Scenario = {
   composer?: string
   /** With a composer: the swap build stays opaque, so composing must fall back. */
   plainSwap?: boolean
+  /** With a composer: the swap trades through this pool, and simulating it leaves this pool state. */
+  swapWrites?: { pool: string; data: Buffer }
 }
 async function withZap(scenario: Scenario, run: (request: (path: string, body: unknown) => Promise<{ status: number; data: any; text: string }>, calls: { url: string; body: any }[], clock: { now: number }) => Promise<void>) {
   const calls: { url: string; body: any }[] = []
@@ -154,6 +158,11 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
       if (body.method === 'getAccountInfo') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { owner: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', data: ['', 'base64'] } } })
       if (body.method === 'getLatestBlockhash') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { blockhash: bs58.encode(Buffer.alloc(32, 7)), lastValidBlockHeight: 999 } } })
       if (body.method === 'getTokenAccountsByOwner') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: scenario.token === undefined ? [] : [{ pubkey: TRAP, account: { data: { parsed: { type: 'account', info: { mint: body.params[1].mint, tokenAmount: { amount: scenario.token, decimals: 6 } } } } } }] } })
+      if (body.method === 'simulateTransaction' && scenario.swapWrites) {
+        const { addresses } = body.params[1].accounts
+        return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 1,
+          accounts: addresses.map((a: string) => a === scenario.swapWrites!.pool ? { owner: SYSTEM, lamports: 1, executable: false, rentEpoch: 0, data: [scenario.swapWrites!.data.toString('base64'), 'base64'] } : null) } } })
+      }
       if (body.method === 'getSignatureStatuses') return Response.json({ jsonrpc: '2.0', id: 1, result: { context: { slot: 1 }, value: body.params[0].map((s: string) => scenario.statuses?.[s] ?? null) } })
       return Response.json({ jsonrpc: '2.0', id: 1, error: { code: -32601, message: `unknown method at ${RPC}` } })
     }
@@ -170,7 +179,9 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
         const amountIn = BigInt(body.quoteResponse.inAmount), minOut = BigInt(body.quoteResponse.otherAmountThreshold)
         return Response.json({ swapTransaction: venueV1([
           { programId: SYSTEM, data: Buffer.from([2, 3]) },
-          { programId: DAMM, data: Buffer.concat([Buffer.from([9]), u64le(amountIn), u64le(minOut), Buffer.from([7])]) },
+          scenario.swapWrites
+            ? { programId: 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG', data: Buffer.concat([Buffer.from([9]), u64le(amountIn), u64le(minOut), Buffer.from([7])]), writes: [scenario.swapWrites.pool] }
+            : { programId: DAMM, data: Buffer.concat([Buffer.from([9]), u64le(amountIn), u64le(minOut), Buffer.from([7])]) },
           { programId: SYSTEM, data: Buffer.from([3]) },
         ]), transactionVersion: body.transactionVersion, lastValidBlockHeight: 999, prioritizationFeeLamports: 100 })
       }
@@ -435,6 +446,26 @@ test('composed: a deposit this server builds is signed by its new position key b
     const end = bytes.length - 2 * 64
     assert.ok(bytes.subarray(end, end + 64).every(b => b === 0), 'the wallet signs its own slot')
     assert.ok(nacl.sign.detached.verify(bytes.subarray(0, end), bytes.subarray(end + 64), position.publicKey.toBytes()), 'the position key already signed')
+  })
+})
+test('composed: a swap through the deposit pool sizes the deposit against the pool it leaves', async () => {
+  const after = Buffer.from('pool after the swap'), seen: (Buffer | undefined)[] = [], DAMM_V2_PROGRAM = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG'
+  const builder = async (connection: any, input: any) => {
+    const [pool] = await connection.getMultipleAccountsInfo([new PublicKey(input.pool)])
+    seen.push(pool?.data, (await connection.getAccountInfo(new PublicKey(input.pool)))?.data)
+    const data = Buffer.alloc(24); data.writeBigUInt64LE(input.tokenAmount, 8); data.writeBigUInt64LE(input.solAmount, 16)
+    return { signers: [], position: POSITION, instructions: [{ programId: DAMM_V2_PROGRAM, data: data.toString('base64'), keys: [{ pubkey: OWNER, isSigner: true, isWritable: true }] }],
+      quote: { amounts: [{ mint: MINT, direction: 'debit', expectedRaw: String(input.tokenAmount), limitRaw: String(input.tokenAmount) },
+        { mint: SOL_MINT, direction: 'debit', expectedRaw: String(input.solAmount), limitRaw: String(input.solAmount) }], details: {} } }
+  }
+  await withZap({ ...bordr, composer: COMPOSER, depositBuilders: { 'meteora-damm-v2': builder }, swapWrites: { pool: DAMM, data: after } }, async (request, calls) => {
+    const plan = (await request('/api/zap/solana/plan', planIn({ pool: DAMM }))).data
+    const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+    assert.equal(r.status, 200, r.text)
+    const simulated = calls.filter(c => c.body?.method === 'simulateTransaction')
+    assert.equal(simulated.length, 1, 'the swap leg is simulated once')
+    assert.ok(simulated[0].body.params[1].accounts.addresses.includes(DAMM))
+    assert.deepEqual(seen, [after, after], 'both read paths see the pool as the swap leaves it')
   })
 })
 test('composed: an unprovable build is refused with its reason, never split into steps', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {

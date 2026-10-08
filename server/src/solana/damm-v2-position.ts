@@ -46,9 +46,13 @@ export function liquidityWord(delta: bigint): { liquidity: bigint; encoded: bigi
 /** The deposit against an already-read pool state. Sized by the SDK's deposit
  * quote from each side: the smaller liquidity wins, and the SOL side is
  * quoted at solAmount less the slippage headroom so its maximum — which is
- * also what gets wrapped — never exceeds solAmount. Each debit's expected is
- * what add_liquidity takes at the read price, its limit the maximum the
- * instruction encodes (expected plus slippageBps). Builds offline. */
+ * also what gets wrapped — never exceeds solAmount. The token debit's
+ * expected is the token budget the liquidity was sized from (as Orca's), the
+ * anchor the composer scales by: when the SOL side binds, add_liquidity takes
+ * fewer tokens than arrive, and anchoring on that smaller amount would scale
+ * the deposit past the SOL wrapped. What it takes at the read price is
+ * details.tokenEstimateRaw. Each limit is the maximum the instruction encodes
+ * (the at-price amount plus slippageBps). Builds offline. */
 export async function dammV2DepositFrom(amm: CpAmm, state: PoolState, input: VenueDepositInput, tokenInfo?: TokenInfo): Promise<VenueDeposit> {
   if (!Number.isInteger(input.slippageBps) || input.slippageBps < 0 || input.slippageBps > 10_000) throw new Error('slippageBps must be an integer from 0 to 10000')
   if (input.tokenAmount <= 0n || input.solAmount <= 0n) throw new Error('DAMM v2 deposit needs positive token and SOL amounts')
@@ -81,8 +85,9 @@ export async function dammV2DepositFrom(amm: CpAmm, state: PoolState, input: Ven
   })
   return { instructions: rawInstructions(transaction.instructions), signers: [positionNft],
     position: derivePositionAddress(positionNft.publicKey).toBase58(),
-    quote: { amounts: [debit(input.tokenMint, tokenExpected, tokenMax), debit(SOL, solExpected, solMax)],
-      details: { liquidity: liquidity.toString(), liquidityQ64: encoded.toString(), positionNftMint: positionNft.publicKey.toBase58() } } }
+    quote: { amounts: [debit(input.tokenMint, input.tokenAmount, tokenMax), debit(SOL, solExpected, solMax)],
+      details: { liquidity: liquidity.toString(), liquidityQ64: encoded.toString(), tokenEstimateRaw: tokenExpected.toString(),
+        positionNftMint: positionNft.publicKey.toBase58() } } }
 }
 
 /** A deposit into a new full-pool-range DAMM v2 position the wallet owns.

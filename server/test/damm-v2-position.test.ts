@@ -44,8 +44,10 @@ for (const solIsA of [false, true]) {
     const [token, sol] = deposit.quote.amounts
     assert.equal(token.mint, TOKEN); assert.equal(sol.mint, WSOL_MINT)
     assert.ok(BigInt(sol.limitRaw) <= input.solAmount, 'the SOL maximum (and wrap) stays within solAmount')
-    assert.ok(BigInt(token.expectedRaw) <= input.tokenAmount)
-    assert.equal(BigInt(token.limitRaw), BigInt(token.expectedRaw) * 10_100n / 10_000n)
+    assert.equal(BigInt(token.expectedRaw), input.tokenAmount, 'the composer anchors on the token budget')
+    const estimate = BigInt(deposit.quote.details.tokenEstimateRaw as string)
+    assert.ok(estimate <= input.tokenAmount)
+    assert.equal(BigInt(token.limitRaw), estimate * 10_100n / 10_000n)
     const nft = deposit.signers[0].publicKey
     assert.equal(deposit.signers.length, 1)
     assert.equal(deposit.position, derivePositionAddress(nft).toBase58())

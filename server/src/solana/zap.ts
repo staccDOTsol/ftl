@@ -7,7 +7,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import bs58 from 'bs58'
-import { Connection, PublicKey, TransactionMessage, VersionedTransaction, type Keypair } from '@solana/web3.js'
+import { Connection, PublicKey, TransactionMessage, VersionedTransaction, type AccountInfo, type Keypair } from '@solana/web3.js'
 import type { PoolSummary, TokenSummary } from '../../../shared/types.ts'
 import { validPublicKey } from './router.ts'
 import { decodeV1 } from './transaction-v1.ts'
@@ -19,7 +19,7 @@ import { newDlmmDeposit } from './dlmm-position.ts'
 import { newOrcaDeposit } from './orca-position.ts'
 import { newDammV2Deposit } from './damm-v2-position.ts'
 import { newClmmDeposit } from './clmm-position.ts'
-import type { VenueDepositBuilder } from './venue-deposit.ts'
+import { afterSwap, type VenueDepositBuilder } from './venue-deposit.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
 export type PoolKind = 'constant' | 'splash' | 'concentrated'
@@ -421,11 +421,26 @@ export function createSolanaZapHandler(options: Options) {
     const built = await options.router.liquidityBuild({ quoteId: quote.quoteId, owner, transactionVersion })
     return { step: index, mode: 'sequential' as ZapMode, kind: 'remove', transactions: withInstructions(built.transactions), quote: built.quote, pool: built.pool, position: built.position }
   }
+  /** Each key's state once `wire` (the swap leg) has run alone, by simulation. */
+  async function simulatedState(wire: string, keys: string[]): Promise<Map<string, AccountInfo<Buffer> | null>> {
+    const result = await rpc('simulateTransaction', [wire, { encoding: 'base64', sigVerify: false, replaceRecentBlockhash: true,
+      commitment: 'confirmed', accounts: { encoding: 'base64', addresses: keys } }])
+    const value = result?.value
+    if (!object(value) || value.err) throw unavailable(`the swap fails in simulation (${JSON.stringify(value?.err ?? null).slice(0, 80)})`)
+    if (!Array.isArray(value.accounts) || value.accounts.length !== keys.length) throw unavailable('the swap simulation returned no account state')
+    return new Map(keys.map((key, i): [string, AccountInfo<Buffer> | null] => {
+      const account = value.accounts[i]
+      if (account === null) return [key, null]
+      if (!object(account) || !Array.isArray(account.data) || typeof account.data[0] !== 'string' || !validPublicKey(account.owner)) throw unavailable('the swap simulation returned unreadable account state')
+      return [key, { data: Buffer.from(account.data[0], 'base64'), owner: new PublicKey(account.owner), lamports: Number(account.lamports),
+        executable: account.executable === true, rentEpoch: Number(account.rentEpoch ?? 0) }]
+    }))
+  }
   /** Both steps of a composed plan as one transaction through the lp-zap
    * composer: each step is rebuilt against live state exactly as buildStep
    * does, every amount offset is proven from the bytes the venue builders just
    * produced, and the second step is patched from the first's real delta.
-   * Any failure returns null and the caller serves the sequential build. */
+   * Any failure throws its reason: nothing falls back to separate steps. */
   async function buildComposedZap(plan: ZapPlan, version: '1' | '0'): Promise<Record<string, unknown>> {
     const programId = options.composerProgramId
     if (!programId || plan.steps.length !== 2) throw unavailable('this plan has no composed form')
@@ -458,7 +473,12 @@ export function createSolanaZapHandler(options: Options) {
           // actually delivered; quoting the tokens at the swap's output plus slippage
           // keeps that within the SOL wrapped when the swap over-delivers.
           const out = BigInt(builtSwap.quoteResponse.outAmount)
-          const deposit = await builder(connection(), { pool: addStep.pool, owner, tokenMint: plan.mint,
+          // The swap runs first in the same transaction: when it trades through
+          // the deposit's own pool, the deposit is sized against the pool the
+          // swap leaves behind, not the price before it.
+          const written = [...new Set(swapInstructions.flatMap(ix => ix.keys.filter(k => k.isWritable && !k.isSigner).map(k => k.pubkey)))]
+          const chain = written.includes(addStep.pool) ? afterSwap(connection(), await simulatedState(builtSwap.swapTransaction, written)) : connection()
+          const deposit = await builder(chain, { pool: addStep.pool, owner, tokenMint: plan.mint,
             tokenAmount: out + out * BigInt(plan.slippageBps) / 10_000n, solAmount, slippageBps: plan.slippageBps, parameters: addStep.parameters ?? {} })
           addInstructions = deposit.instructions; addQuote = { ...deposit.quote, venue: addStep.venue, pool: addStep.pool, owner, operation: 'add' }
           positionKeys = deposit.signers
