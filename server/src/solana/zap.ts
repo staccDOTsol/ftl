@@ -448,8 +448,12 @@ export function createSolanaZapHandler(options: Options) {
         // Venues that open a position account are built here (venue-deposit.ts).
         const builder = DEPOSIT_BUILDERS[addStep.venue]
         if (builder && options.rpcUrl) {
+          // The composer sizes the SOL side as (quoted SOL / quoted tokens) x tokens
+          // actually delivered; quoting the tokens at the swap's output plus slippage
+          // keeps that within the SOL wrapped when the swap over-delivers.
+          const out = BigInt(builtSwap.quoteResponse.outAmount)
           const deposit = await builder(connection(), { pool: addStep.pool, owner, tokenMint: plan.mint,
-            tokenAmount: BigInt(builtSwap.quoteResponse.outAmount), solAmount, slippageBps: plan.slippageBps, parameters: addStep.parameters ?? {} })
+            tokenAmount: out + out * BigInt(plan.slippageBps) / 10_000n, solAmount, slippageBps: plan.slippageBps, parameters: addStep.parameters ?? {} })
           addInstructions = deposit.instructions; addQuote = { ...deposit.quote, venue: addStep.venue, pool: addStep.pool, owner, operation: 'add' }
           positionKeys = deposit.signers
           pool = addStep.pool; position = deposit.position
