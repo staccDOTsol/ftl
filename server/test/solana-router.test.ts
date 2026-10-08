@@ -193,6 +193,16 @@ test('a slow external router does not hold back a direct quote or build', async 
     assert.ok(Date.now() - started < 2_000, 'built without waiting for the external router')
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
 })
+test('when no route builds, the direct router\'s own reason is reported, not the external router\'s outage', async () => {
+  const direct = {
+    async quote() { throw new Error('unused') },
+    async swap() { throw Object.assign(new Error('No quoted direct pool passed current on-chain simulation'), { status: 404 }) },
+  }
+  const handler = createSolanaRouterHandler({ routerUrl: 'http://router.example', rpcUrl: 'https://rpc.example', localRouter: direct, externalGraceMs: 50,
+    fetch: async () => new Response('down', { status: 503 }) })
+  await assert.rejects(handler.buildSwap({ userPublicKey: SOL, quoteResponse: q }),
+    (e: any) => e.status === 404 && e.message === 'No quoted direct pool passed current on-chain simulation')
+})
 test('V1 validates signatures at the tail over the entire message including config', () => {
   const signed = encodedV1(true, { signerCount: 2 })
   assert.equal(transaction(signed, true), signed)
