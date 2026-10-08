@@ -10,7 +10,6 @@ import { C, F } from '@/theme'
 import { live } from '@/lib/live'
 import { social } from '@/lib/social'
 import '@/lib/notify'
-import AppShell from '@/components/AppShell'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
@@ -36,9 +35,7 @@ export default function Root() {
   return (
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
-      <AppShell>
       <Stack screenOptions={{
-        headerShown: Platform.OS !== 'web',
         headerStyle: { backgroundColor: C.bg },
         headerTintColor: C.text,
         headerTitleStyle: { fontFamily: F.display },
@@ -56,7 +53,6 @@ export default function Root() {
         <Stack.Screen name="wallet/[chain]/[address]" options={{ title: 'Wallet' }} />
         <Stack.Screen name="profile/[pubkey]" options={{ title: 'Profile' }} />
       </Stack>
-      </AppShell>
     </ThemeProvider>
   )
 }
