@@ -1,0 +1,2474 @@
+{
+  "version": 1,
+  "program": "BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+  "frozenAt": "2026-10-08T14:52:49.583Z",
+  "frozenAfterSlot": 454577034,
+  "idlSha256": "b7acd8fd254e0973a39e13823e5a27f2e6ae54ef158fb34aadebce9896938140",
+  "publishedIdl": {
+    "exists": false,
+    "anchorIdlAccount": "CSNywR3HTefMJBHg97HhHwXx3r9mdtjj92RBqhFN6ZuN",
+    "independentlyChecked": true,
+    "checkedAtSlot": 454577031,
+    "composerHttpStatus": 400
+  },
+  "programAccount": {
+    "executable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "checkedAtSlot": 454577031,
+    "accountDataSha256": "087cb292b7c2b6073792e3d8045e5ab3a0a693a0115caf1194e68086569bff7f"
+  },
+  "catalogs": [
+    {
+      "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+      "url": "https://idl.solana.com/api/idl?programId=BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+      "checkedAt": "2026-10-08T14:52:49.422Z",
+      "httpStatus": 404,
+      "verdict": "missing",
+      "response": {
+        "error": "No IDL found for this program (checked PMP and Anchor)"
+      }
+    },
+    {
+      "name": "SolanaFM IDL metadata catalog",
+      "url": "https://api.solana.fm/v0/programs/meta/BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+      "checkedAt": "2026-10-08T14:52:49.505Z",
+      "httpStatus": 502,
+      "verdict": "unavailable",
+      "response": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>solana.fm | 502: Bad gateway</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" con"
+    }
+  ],
+  "catalogControl": {
+    "program": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "checks": [
+      {
+        "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+        "url": "https://idl.solana.com/api/idl?programId=JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:52:49.058Z",
+        "httpStatus": 200,
+        "verdict": "listed"
+      },
+      {
+        "name": "SolanaFM IDL metadata catalog",
+        "url": "https://api.solana.fm/v0/programs/meta/JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:52:49.290Z",
+        "httpStatus": 502,
+        "verdict": "unavailable"
+      }
+    ]
+  },
+  "composer": "https://the-composer-svc.fly.dev",
+  "serviceReportedEvidence": {
+    "discriminatorBytes": 8,
+    "distinctDiscriminators": 4,
+    "encoding": "anchor",
+    "encodingConfident": true,
+    "instructionSamples": 257,
+    "instructionsNamed": 7,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 4227,
+    "seedDerivationsTried": 21662361,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 364,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "provenanceLimit": "This records the artifact returned by the live service. It does not prove authorship, inference method or learner source availability.",
+  "receiptsSha256": "28a5cd0cadba5726abc43baf86c6ba610d422599a1ee8226983ba5ff64a209f6",
+  "requestedTransactions": 32,
+  "failedListed": [
+    "49imSdWDvbBvH3twiHD1FrFChJA8muS8qHiQGycMFSLJn2o2R1bLNb4Pdi4pzvPvykLepsRnuFr583rf15ojZ3wg",
+    "5pqTgnA8FAe7hpvqkxt5DzgiHaBF44AjrVYYZh14Kz1zm362fq5RKrsdVcTywgdeKFfPa8H2m9aJwjrmf47MBSvk",
+    "EDuG2yZsT6thk1AnNUNNmvKCwbEWe5WxRbq4bNyxrbinqcSCAfigukaLvv9PDuwMesxQpNFR8Ra2udUyvGv4L58",
+    "52uLe6eiiPGLrKWCRef8oCKpNErkjEkQUDUhG81X5ikU8YqvNuqRB9ZeKPZm73xSEwS6jNiCYypBWMWgrpX4yuNB",
+    "Ch8MLzTyiNzKSwpxdHrp953XMiN3HBFWabuJnHFv6x5Bt1BTbBpSwEVf4t1LFmthqw7hmXYwcS7kA7Mf7gfbK5G",
+    "2hg9haY2dUA6vxcoWK6Pdf4W97PoEpTf8S36Z4PVSXBRMEe8HBxQDBphgAU45NhnfL6exB17bv6jNdcmBAEMLJY4"
+  ],
+  "unreadable": [],
+  "training": {
+    "discriminatorBytes": 8,
+    "distinctDiscriminators": 4,
+    "encoding": "anchor",
+    "encodingConfident": true,
+    "instructionSamples": 257,
+    "instructionsNamed": 7,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 4227,
+    "seedDerivationsTried": 21662361,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 364,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "result": {
+    "transactions": 31,
+    "instructions": 39,
+    "matched": 32,
+    "coverage": 0.8205128205128205,
+    "runtimeEvents": 0,
+    "signaturesVerified": 32,
+    "pdaVerified": 71,
+    "pdaUnresolved": 0,
+    "opaqueArguments": 32,
+    "failures": [
+      {
+        "signature": "2khusjdA4c6Fm5L2h6ixx7Y8bVJGHGizNX8PasRAM9tsetyNPRZKXpYDo4e2j8sdTSxsjq4N3WtCBTSZZmZwmVXA",
+        "slot": 454577043,
+        "n": "5",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "4iwwmxYdZNTJfZpv8xdw5Tq5iQtL4bdky91XsxwwwVtPjUtppAvxCVk6YBwBL7aaPND3N5ftPdbAJnFNHp5iPQaL",
+        "slot": 454577181,
+        "n": "4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "5aydjX3BvFWWh2HTCACzgCzwRSLAJSJTcuyAZzWvZfuUyMEuhTgR7vd6XZYJEtZ83WMf7u9vMnV58CuZbp1gxeYA",
+        "slot": 454577199,
+        "n": "4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "3jPzWgUvcXRwMseiWRWuCmjqPB9vaSoyoSnet4NndhndmJ6nZaqmWBDdrGp5LphknmyT9wV1UJ1A6N7TNoqZKbeF",
+        "slot": 454577234,
+        "n": "4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "VjP4LMtR4qEu5W7pXVg1byLRaDpJYuN6E5sR9QWbe7hrEga3GHxdJYzLgp3bDTrEqkRTPLf7k4iwSNJyZ7i7PHN",
+        "slot": 454577234,
+        "n": "5",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "DKHgs5WBNQSKE7wAHv9PkRxaADszAjSc5sjQWnYTeyvQqHkBELZy99rJinQMkJWx56ASn4ppbRUkKg6xPpjVvUU",
+        "slot": 454577346,
+        "n": "4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      },
+      {
+        "signature": "35gQyrLpaS6DZHMEzXBUqfA3vv7xqJYN2jkzb4Sd2yyq6cGhLmJMApLEtMrMfeK9yuQTFAwiG6eNkKCoSycgKXAe",
+        "slot": 454577386,
+        "n": "4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "c360ed6c44a2dbe6",
+        "bytes": 27,
+        "accounts": 20
+      }
+    ],
+    "decoded": [
+      {
+        "signature": "24XyqLEgYAJGPMPejUAvizFdH8UcL2gdSbAtoT7PbiuFkuEmYpnRMVUw4BnUZzNcNejsLK3D6HB1Niw8MKyoAfXY",
+        "slot": 454577038,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "52aec76a0000000000e1f5050000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DXuWLG2LLk4CvJuz5NkpH4iLGVQtxGQLaCLPHjG2Cjoh"
+          },
+          {
+            "name": "account_1",
+            "address": "Gc34bcRTakGA9WZH3NqLvTbRUPxG6Tehd27ghG2UJFV1"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2khusjdA4c6Fm5L2h6ixx7Y8bVJGHGizNX8PasRAM9tsetyNPRZKXpYDo4e2j8sdTSxsjq4N3WtCBTSZZmZwmVXA",
+        "slot": 454577043,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "53aec76a0000000020a107000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "54K7JJPdFhkwdje5BorSN5V5LfdUQH72U42U4xhQXFyP"
+          },
+          {
+            "name": "account_1",
+            "address": "7WvxZufdeRGnzFNjEeeeUMKh9eSRP1JmzaGVnaBZsbQh"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4jwVU8APMxoArVBZUxhQ1Kk4pKhmTciZQYfFTob6zWKV3rtsfgEAKFpgpxm3ZuWcTEmJaXQWPjFMxzEfiw7iRmWr",
+        "slot": 454577048,
+        "n": "3",
+        "instruction": "ix_417f09b1e7ec6950",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "417f09b1e7ec6950",
+        "argsHex": "4dcc6b6aa40e0000be1cd76f00000000640000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "ADR2siyXuAZwqqJixh2K7V6GiWCqkZw8szBCAF1nrkaC"
+          },
+          {
+            "name": "account_1",
+            "address": "FbVmnLdPFy7xdt4156nSzLQEpzjVBfCx26BgkBcQpUuq"
+          },
+          {
+            "name": "account_2",
+            "address": "B9d8mcA4A1rajQ7YWb882pQbHvPHPXAamSu1gFAg7JtB"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "8TXcx9UtiAwc3dUnBJzSGaiKjAeRkgEzipo1ppQupump"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ"
+          },
+          {
+            "name": "account_13",
+            "address": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC"
+          },
+          {
+            "name": "account_14",
+            "address": "5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"
+          },
+          {
+            "name": "account_15",
+            "address": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd"
+          },
+          {
+            "name": "account_16",
+            "address": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "name": "account_17",
+            "address": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "name": "account_18",
+            "address": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "name": "account_19",
+            "address": "Dd4SBgYQQS8hhSxeuVyTPK5dxAVYtRRPg5jz2EwZn5J2"
+          },
+          {
+            "name": "account_20",
+            "address": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "name": "account_21",
+            "address": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "name": "account_22",
+            "address": "DJYiBBfF4nyR2CyLckVRjRPV8b5sRw21H6sosnmTCZjF"
+          },
+          {
+            "name": "account_23",
+            "address": "6Vyzf2hbZrULUZS2fD3DXFjXdNoUWFdfvqzrRgL7KLBa"
+          },
+          {
+            "name": "account_24",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_25",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_26",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_27",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "FbVmnLdPFy7xdt4156nSzLQEpzjVBfCx26BgkBcQpUuq",
+            "observed": "FbVmnLdPFy7xdt4156nSzLQEpzjVBfCx26BgkBcQpUuq"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "B9d8mcA4A1rajQ7YWb882pQbHvPHPXAamSu1gFAg7JtB",
+            "observed": "B9d8mcA4A1rajQ7YWb882pQbHvPHPXAamSu1gFAg7JtB"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC",
+            "observed": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd",
+            "observed": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd"
+          },
+          {
+            "account": "account_16",
+            "verdict": "verified",
+            "expected": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3",
+            "observed": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ",
+            "observed": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT",
+            "observed": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay",
+            "observed": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "account": "account_21",
+            "verdict": "verified",
+            "expected": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q",
+            "observed": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "account": "account_22",
+            "verdict": "verified",
+            "expected": "DJYiBBfF4nyR2CyLckVRjRPV8b5sRw21H6sosnmTCZjF",
+            "observed": "DJYiBBfF4nyR2CyLckVRjRPV8b5sRw21H6sosnmTCZjF"
+          },
+          {
+            "account": "account_23",
+            "verdict": "verified",
+            "expected": "6Vyzf2hbZrULUZS2fD3DXFjXdNoUWFdfvqzrRgL7KLBa",
+            "observed": "6Vyzf2hbZrULUZS2fD3DXFjXdNoUWFdfvqzrRgL7KLBa"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "PVbR55gFPfc3sAwkCoFGZ7XX5MomRTtjPAdJ2FB7Gfo4j4ffsysBQeANESAZLm9zToChChYzuPx3dRZsAVugzqF",
+        "slot": 454577049,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "55aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "C7uEUaNJjaYgJeYqq8cgJQHQEuYmYas5QoSQeqejs7pP"
+          },
+          {
+            "name": "account_1",
+            "address": "Hc5c4Nadj3jHtea4HmhRDc857g2xNRmfSChZiy91S8Y4"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5scbg6KsfJajnUtrMV8YYEcQmXmnTD3dVmZKSWnMxCNHJuCXvbWS4d6Rc6Lz9L12gJXeCLgSJ6cWxm2Y9KdWArNp",
+        "slot": 454577051,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "55aec76a00000000005a62020000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DXuWLG2LLk4CvJuz5NkpH4iLGVQtxGQLaCLPHjG2Cjoh"
+          },
+          {
+            "name": "account_1",
+            "address": "2TgyDCTxpqjU8QVz4E6abfsTZYYYkEnwF6eTsMGHJaYS"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "z4G9KaXHS3pbCg4PSbEGnpsy2K9uG5iWQ5bVtNGjJdy8iNzzNv1tBFG8YRWxCDQFwPH4FQbCZ5ZMohqgUDchYix",
+        "slot": 454577052,
+        "n": "4",
+        "instruction": "ix_417f09b1e7ec6950",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "417f09b1e7ec6950",
+        "argsHex": "1d7a63dcbd0700009b2c643800000000640000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Ht6bERjESG3TgqMT4ceJEJLZsmTkmR1Z1WZFtQvddZFZ"
+          },
+          {
+            "name": "account_1",
+            "address": "ENYMQRgwgeMUiTeMYzG4Rwm2DeWBHN3bXk8pP2bKSqy"
+          },
+          {
+            "name": "account_2",
+            "address": "EwD8q9ajseMUCZ7TQyRYCB1ppCTJXmTUgyRR5CMmnuuE"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "8TXcx9UtiAwc3dUnBJzSGaiKjAeRkgEzipo1ppQupump"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ"
+          },
+          {
+            "name": "account_13",
+            "address": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC"
+          },
+          {
+            "name": "account_14",
+            "address": "5cjcW9wExnJJiqgLjq7DEG75Pm6JBgE1hNv4B2vHXUW6"
+          },
+          {
+            "name": "account_15",
+            "address": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd"
+          },
+          {
+            "name": "account_16",
+            "address": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "name": "account_17",
+            "address": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "name": "account_18",
+            "address": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "name": "account_19",
+            "address": "Dd4SBgYQQS8hhSxeuVyTPK5dxAVYtRRPg5jz2EwZn5J2"
+          },
+          {
+            "name": "account_20",
+            "address": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "name": "account_21",
+            "address": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "name": "account_22",
+            "address": "5SvgRbrcZV2TzBWG4tmSXhcKeCJhVuwXt7Kquc2FNGmN"
+          },
+          {
+            "name": "account_23",
+            "address": "DibyViXu7wjycJsTeFF9LANiU2eeFS8VHa8nqwjLhREb"
+          },
+          {
+            "name": "account_24",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_25",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_26",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_27",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "ENYMQRgwgeMUiTeMYzG4Rwm2DeWBHN3bXk8pP2bKSqy",
+            "observed": "ENYMQRgwgeMUiTeMYzG4Rwm2DeWBHN3bXk8pP2bKSqy"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "EwD8q9ajseMUCZ7TQyRYCB1ppCTJXmTUgyRR5CMmnuuE",
+            "observed": "EwD8q9ajseMUCZ7TQyRYCB1ppCTJXmTUgyRR5CMmnuuE"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC",
+            "observed": "7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd",
+            "observed": "GYH1Gae1wJytMSvMvw8JVcv7nuAbxi8i9erNVbERnzXd"
+          },
+          {
+            "account": "account_16",
+            "verdict": "verified",
+            "expected": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3",
+            "observed": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ",
+            "observed": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT",
+            "observed": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay",
+            "observed": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "account": "account_21",
+            "verdict": "verified",
+            "expected": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q",
+            "observed": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "account": "account_22",
+            "verdict": "verified",
+            "expected": "5SvgRbrcZV2TzBWG4tmSXhcKeCJhVuwXt7Kquc2FNGmN",
+            "observed": "5SvgRbrcZV2TzBWG4tmSXhcKeCJhVuwXt7Kquc2FNGmN"
+          },
+          {
+            "account": "account_23",
+            "verdict": "verified",
+            "expected": "DibyViXu7wjycJsTeFF9LANiU2eeFS8VHa8nqwjLhREb",
+            "observed": "DibyViXu7wjycJsTeFF9LANiU2eeFS8VHa8nqwjLhREb"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4mKmUA2gpMNPvZSogZgFEhERrdS5J3c3M8boiWr74SMMXJyWneWokZ35oW942Ng2GrzZzwA85t8hZGeZxBp2YAwz",
+        "slot": 454577056,
+        "n": "3",
+        "instruction": "ix_417f09b1e7ec6950",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "417f09b1e7ec6950",
+        "argsHex": "2ed82cff860100004596e90a00000000640000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "6aNL9e1dtZRrykZDS2pjWzaZowWyThC1q6NCwFFWLYPA"
+          },
+          {
+            "name": "account_1",
+            "address": "3TRzGauvCuwPox45UTMpZPNn9x5ZroA33jk9X9tGkocP"
+          },
+          {
+            "name": "account_2",
+            "address": "2BGeH9QwyaWBfxuRZuva8eAS4KziRVHrMrbsesS8HdES"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "8TXcx9UtiAwc3dUnBJzSGaiKjAeRkgEzipo1ppQupump"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV"
+          },
+          {
+            "name": "account_13",
+            "address": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "name": "account_14",
+            "address": "9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"
+          },
+          {
+            "name": "account_15",
+            "address": "GAFuhgcd328SkkBYHpfadzmef9hTGAFRCi9QoCnsZQug"
+          },
+          {
+            "name": "account_16",
+            "address": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "name": "account_17",
+            "address": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "name": "account_18",
+            "address": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "name": "account_19",
+            "address": "Dd4SBgYQQS8hhSxeuVyTPK5dxAVYtRRPg5jz2EwZn5J2"
+          },
+          {
+            "name": "account_20",
+            "address": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "name": "account_21",
+            "address": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "name": "account_22",
+            "address": "8kbpMfBVVu6qPMVvK8dG7viSSZrkKJt6U1r11fuLN5hR"
+          },
+          {
+            "name": "account_23",
+            "address": "3iUWYX78bmqQxSErvdVex2e9CfCS5WncW3fzHiTCogsC"
+          },
+          {
+            "name": "account_24",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_25",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_26",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_27",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "3TRzGauvCuwPox45UTMpZPNn9x5ZroA33jk9X9tGkocP",
+            "observed": "3TRzGauvCuwPox45UTMpZPNn9x5ZroA33jk9X9tGkocP"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "2BGeH9QwyaWBfxuRZuva8eAS4KziRVHrMrbsesS8HdES",
+            "observed": "2BGeH9QwyaWBfxuRZuva8eAS4KziRVHrMrbsesS8HdES"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb",
+            "observed": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "GAFuhgcd328SkkBYHpfadzmef9hTGAFRCi9QoCnsZQug",
+            "observed": "GAFuhgcd328SkkBYHpfadzmef9hTGAFRCi9QoCnsZQug"
+          },
+          {
+            "account": "account_16",
+            "verdict": "verified",
+            "expected": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3",
+            "observed": "C4AQaw5A6NTjzXtad2aveSDjajXY5Kc2QjR2qPMJY8g3"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ",
+            "observed": "UBmn2pqFxoCWMu7bAhNeKRgf6HKsszq6pUBDCUiZTrQ"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT",
+            "observed": "6upvtYRRVe7XfusaXWfGcjRm7ti9zJRxLnsgEQ38BKfT"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay",
+            "observed": "CyzkyZmozyADHW2KXka46jp9fwtxaKDi2Si11CBCSgay"
+          },
+          {
+            "account": "account_21",
+            "verdict": "verified",
+            "expected": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q",
+            "observed": "5K6mgZAEq5TbdYgDGPYJFff7YNo4Ho2uyp5CrowVjF9q"
+          },
+          {
+            "account": "account_22",
+            "verdict": "verified",
+            "expected": "8kbpMfBVVu6qPMVvK8dG7viSSZrkKJt6U1r11fuLN5hR",
+            "observed": "8kbpMfBVVu6qPMVvK8dG7viSSZrkKJt6U1r11fuLN5hR"
+          },
+          {
+            "account": "account_23",
+            "verdict": "verified",
+            "expected": "3iUWYX78bmqQxSErvdVex2e9CfCS5WncW3fzHiTCogsC",
+            "observed": "3iUWYX78bmqQxSErvdVex2e9CfCS5WncW3fzHiTCogsC"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5BGvsR1kP8sfxUgbhAaxdaDkTE1F4fqrKZPeVcwnpB7zSLEisxYakB5SJ47qyjsQ2rAHEYGzopo8NA4zWmpmLUao",
+        "slot": 454577060,
+        "n": "4",
+        "instruction": "two_hop_swap#30",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 4 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "c360ed6c44a2dbe6",
+        "argsHex": "f728f1df2d12000050056500000000000801030000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gh74DVeyG3uD8ZyDdBHhbrX6xpPSafAUTvFakTShfQBT"
+          },
+          {
+            "name": "account_1",
+            "address": "ER3aWr9J22r4JPs9cNojgNbsFQ5EFSnwRH6MUKxPEbU5"
+          },
+          {
+            "name": "account_2",
+            "address": "2uNgvgtdkaiTsaUtLdRbDS2tQ3thVUG8CGzKR2twjMXM"
+          },
+          {
+            "name": "account_3",
+            "address": "7HtjmhQkxAiqVmdazzf83EvuLMTs3ro8FtaPa6h2EKuq"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_6",
+            "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
+          },
+          {
+            "name": "account_7",
+            "address": "4gimZy23FecVjn8ieZaTGSSzod6kkXfA7hgmtoSCjzu9"
+          },
+          {
+            "name": "account_8",
+            "address": "ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw"
+          },
+          {
+            "name": "account_9",
+            "address": "HYpdNEfsN8cY11okjDepBWrVgJxND7LQo7ZUebD3pump"
+          },
+          {
+            "name": "account_10",
+            "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+          },
+          {
+            "name": "account_11",
+            "address": "E9BrbnFZFktmK6MAXZiqiRrVvhFDtMHY3VjdFQnVCgVa"
+          },
+          {
+            "name": "account_12",
+            "address": "9nUfZZj9zFhtTpnKHtiT9cquF4hnioFHF8oN65N5fdTi"
+          },
+          {
+            "name": "account_13",
+            "address": "GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS"
+          },
+          {
+            "name": "account_14",
+            "address": "41xY1DU1zzo893bEg2HzTFxPVVM84UvDCNsQm6aKRq8Z"
+          },
+          {
+            "name": "account_15",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_16",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_17",
+            "address": "GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR"
+          },
+          {
+            "name": "account_18",
+            "address": "Aw35Y8bdHSg3cQzERd7UPCSfWCcuTFj15iHrt5YQ2YDp"
+          },
+          {
+            "name": "account_19",
+            "address": "G891zgf2au4WMLfMqrEQYjPUR6ErDng54nSHrGpfi2ug"
+          },
+          {
+            "name": "account_20",
+            "address": "5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx"
+          },
+          {
+            "name": "account_21",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_22",
+            "address": "Eu7UtgxxtGibrfoRPGazBD5Bdmr6ngXer3TqCjfgHKjU"
+          },
+          {
+            "name": "account_23",
+            "address": "9M4giFFMxmFGXtc3feFzRai56WbBqehoSeRE5GK7gf7"
+          },
+          {
+            "name": "account_24",
+            "address": "DxvbV1rR2hmFJ2gYGXmz7jnMPsvf39M1BWd3Ejshd3Zj"
+          },
+          {
+            "name": "account_25",
+            "address": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
+          },
+          {
+            "name": "account_26",
+            "address": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2"
+          },
+          {
+            "name": "account_27",
+            "address": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"
+          },
+          {
+            "name": "account_28",
+            "address": "DQyrAcCrDXQ7NeoqGgDCZwBvWDcYmFCjSb9JtteuvPpz"
+          },
+          {
+            "name": "account_29",
+            "address": "HLmqeL62xR1QoZ1HKKbXRrdN1p3phKpxRMb2VVopvBBz"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5BGvsR1kP8sfxUgbhAaxdaDkTE1F4fqrKZPeVcwnpB7zSLEisxYakB5SJ47qyjsQ2rAHEYGzopo8NA4zWmpmLUao",
+        "slot": 454577060,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "58aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gh74DVeyG3uD8ZyDdBHhbrX6xpPSafAUTvFakTShfQBT"
+          },
+          {
+            "name": "account_1",
+            "address": "7HtjmhQkxAiqVmdazzf83EvuLMTs3ro8FtaPa6h2EKuq"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2BJWMposVyczbZQTNbWvyhxcQTrBTB5WmfsTydmpc4QTB6ujkBJc2K74BtSH93HPaxHt6P3ShiU4aYa9djAcLS21",
+        "slot": 454577064,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "59aec76a00000000809698000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "HCUNZrDxWcf2y5FBVuHC5jFayRZu4KhLS2L5FbRUcdxy"
+          },
+          {
+            "name": "account_1",
+            "address": "2dwnvuJjsJbDCV6yM2GE2BYRnDG2fuDsPuskkVmey3cy"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5BZ2CaAqqtRasoB7LRqtidx8WzpNSRqMVp9UPSSdNUSB8rELvxa9nrYHmmxxaWpsEfJoScSf6gLrWDB1bHurbHgP",
+        "slot": 454577088,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "60aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DfMxre4cKmvogbLrPigxmibVTTQDuzjdXojWzjCXXhzj"
+          },
+          {
+            "name": "account_1",
+            "address": "C6ELbti5bKjr1ugHBww9ZrqTmD7NdCK4GtRrKgR9XUon"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "RbVauRurNdPVrc6eJwDa3FSL7jjKwXMvAdqGJeFHxxrUM1uFSNVcERbu17U9dachQoS1nW9dYJP7ePKSgANKZaC",
+        "slot": 454577144,
+        "n": "2",
+        "instruction": "ix_417f09b1e7ec6950",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "417f09b1e7ec6950",
+        "argsHex": "7f3fd37a48000000b0af620200000000640000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Aa2rTXVo3dpox3kK2qUUhUwg4DQgS2Sg88sFkuTfWF71"
+          },
+          {
+            "name": "account_1",
+            "address": "3nSsXpdGWqTBnzPZnj2d4peuiKkdEwh94vi6f6xmrDRU"
+          },
+          {
+            "name": "account_2",
+            "address": "3jQDVZnMaA6YCUYMnjynX2ENTAEhigyNAMrrUhkojXig"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "C2PEi8xEXm23ALZ1ELemYHiqGvjrCdz5RFPUbSbjFSVr"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV"
+          },
+          {
+            "name": "account_13",
+            "address": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "name": "account_14",
+            "address": "GXPFM2caqTtQYC2cJ5yJRi9VDkpsYZXzYdwYpGnLmtDL"
+          },
+          {
+            "name": "account_15",
+            "address": "AktftA98kSWAxn6kVSoqBXBELUArjKu2H9WmKB48ULFY"
+          },
+          {
+            "name": "account_16",
+            "address": "44GxzsikKS55XTwbz8R1nsB77u6heYYZMyijgeiPwK4h"
+          },
+          {
+            "name": "account_17",
+            "address": "GYcJy64iyZKHfcz87fjToCxhFzhv24xEDcrTha9BaF6i"
+          },
+          {
+            "name": "account_18",
+            "address": "3eHRxy1UwQzHVG7ovkBAEcTnfaaenxD1LNomAPY8FQp1"
+          },
+          {
+            "name": "account_19",
+            "address": "5s5FebTNKgYdaJRscDEmPZCg8PC3kgZDVdPs9vSsi65D"
+          },
+          {
+            "name": "account_20",
+            "address": "67ZuAXUS9SE15FVEHAyzExC2B57AehhQAUieHcKyHwJv"
+          },
+          {
+            "name": "account_21",
+            "address": "5r9X6YpbP7Xsn5arD4bGkEuSSccXyf5xhM4kudXgPpTh"
+          },
+          {
+            "name": "account_22",
+            "address": "FZpU5z6Cv7pgpUh1fKUMBiPrX6p8JJyaBmifct6DeSXT"
+          },
+          {
+            "name": "account_23",
+            "address": "7jQUXM9PBwUpTFd5Gctv16AWQ6boXZW7Kcdy9dVSqyuM"
+          },
+          {
+            "name": "account_24",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_25",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_26",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_27",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "3nSsXpdGWqTBnzPZnj2d4peuiKkdEwh94vi6f6xmrDRU",
+            "observed": "3nSsXpdGWqTBnzPZnj2d4peuiKkdEwh94vi6f6xmrDRU"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "3jQDVZnMaA6YCUYMnjynX2ENTAEhigyNAMrrUhkojXig",
+            "observed": "3jQDVZnMaA6YCUYMnjynX2ENTAEhigyNAMrrUhkojXig"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb",
+            "observed": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "AktftA98kSWAxn6kVSoqBXBELUArjKu2H9WmKB48ULFY",
+            "observed": "AktftA98kSWAxn6kVSoqBXBELUArjKu2H9WmKB48ULFY"
+          },
+          {
+            "account": "account_16",
+            "verdict": "verified",
+            "expected": "44GxzsikKS55XTwbz8R1nsB77u6heYYZMyijgeiPwK4h",
+            "observed": "44GxzsikKS55XTwbz8R1nsB77u6heYYZMyijgeiPwK4h"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "GYcJy64iyZKHfcz87fjToCxhFzhv24xEDcrTha9BaF6i",
+            "observed": "GYcJy64iyZKHfcz87fjToCxhFzhv24xEDcrTha9BaF6i"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "3eHRxy1UwQzHVG7ovkBAEcTnfaaenxD1LNomAPY8FQp1",
+            "observed": "3eHRxy1UwQzHVG7ovkBAEcTnfaaenxD1LNomAPY8FQp1"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "67ZuAXUS9SE15FVEHAyzExC2B57AehhQAUieHcKyHwJv",
+            "observed": "67ZuAXUS9SE15FVEHAyzExC2B57AehhQAUieHcKyHwJv"
+          },
+          {
+            "account": "account_21",
+            "verdict": "verified",
+            "expected": "5r9X6YpbP7Xsn5arD4bGkEuSSccXyf5xhM4kudXgPpTh",
+            "observed": "5r9X6YpbP7Xsn5arD4bGkEuSSccXyf5xhM4kudXgPpTh"
+          },
+          {
+            "account": "account_22",
+            "verdict": "verified",
+            "expected": "FZpU5z6Cv7pgpUh1fKUMBiPrX6p8JJyaBmifct6DeSXT",
+            "observed": "FZpU5z6Cv7pgpUh1fKUMBiPrX6p8JJyaBmifct6DeSXT"
+          },
+          {
+            "account": "account_23",
+            "verdict": "verified",
+            "expected": "7jQUXM9PBwUpTFd5Gctv16AWQ6boXZW7Kcdy9dVSqyuM",
+            "observed": "7jQUXM9PBwUpTFd5Gctv16AWQ6boXZW7Kcdy9dVSqyuM"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3rHD3hdCGEDr1pxWwxLgkHnuActJbMWxkUVkhfnmkQU2NDmWkm7GnqXaocEtGVYHSEYZn1fmKh4SiRTrpjeQWhi9",
+        "slot": 454577158,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "71aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "FCLS6aETwkGRYPUtiJrSXfwj43ELczkaYFyTBya5u16s"
+          },
+          {
+            "name": "account_1",
+            "address": "5oXV3UE2gEbCpWtHHpvgumXC82L1o83S57sLtxaWtZN9"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4iwwmxYdZNTJfZpv8xdw5Tq5iQtL4bdky91XsxwwwVtPjUtppAvxCVk6YBwBL7aaPND3N5ftPdbAJnFNHp5iPQaL",
+        "slot": 454577181,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "78aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "GjGhvk8AdrQQnyhfGcaF3TNLo8tngc42QELQMoBkTGaD"
+          },
+          {
+            "name": "account_1",
+            "address": "FZJbL78KvnEA5KW5tBcNJgoWuEg2hpcaXSBHj9295chR"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "e1PAU53QAGrEJN5P63MVQpgpg3QauSa46HXjNC8h4EYwHU6427jJ6dB8kYCDu3RrXokEQFYsh5nq6W8MvnRTZeq",
+        "slot": 454577195,
+        "n": "4",
+        "instruction": "pump_buy_v2",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 1 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "1b4f0265289c23b3",
+        "argsHex": "e08cc00e00000000ea289ac5e3010000a02526000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "8eUmJvANsdEaxZDi1NTspb27KDGEL7tm7Byq4V7gmJWY"
+          },
+          {
+            "name": "account_1",
+            "address": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD"
+          },
+          {
+            "name": "account_2",
+            "address": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "7QfognN1xfcKkQzqTeeN5TJTqdxBPjiaW4X9T63pump"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX"
+          },
+          {
+            "name": "account_13",
+            "address": "X5QPJcpph4mBAJDzc4hRziFftSbcygV59kRb2Fu6Je1"
+          },
+          {
+            "name": "account_14",
+            "address": "5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD"
+          },
+          {
+            "name": "account_15",
+            "address": "HjQjngTDqoHE6aaGhUqfz9aQ7WZcBRjy5xB8PScLSr8i"
+          },
+          {
+            "name": "account_16",
+            "address": "4n4vWGJrWKdHzmDwXLamWW8thAF3PNk9bc4iP5wZ7UMB"
+          },
+          {
+            "name": "account_17",
+            "address": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm"
+          },
+          {
+            "name": "account_18",
+            "address": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb"
+          },
+          {
+            "name": "account_19",
+            "address": "5vy1zHh1fryavJCKri1txb6LK6p4oqJT298YTEqkjqN2"
+          },
+          {
+            "name": "account_20",
+            "address": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg"
+          },
+          {
+            "name": "account_21",
+            "address": "8LGi3roPFG74qkVtiiy9mtTnZJ9n7Rs79Tv9MSYLMLBi"
+          },
+          {
+            "name": "account_22",
+            "address": "Hq2wp8uJ9jCPsYgNHex8RtqdvMPfVGoYwjvF1ATiwn2Y"
+          },
+          {
+            "name": "account_23",
+            "address": "4Lhy3pHmj9HhZez8AtusHDo18KC9y3EZEArvMEPhKF7u"
+          },
+          {
+            "name": "account_24",
+            "address": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx"
+          },
+          {
+            "name": "account_25",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_26",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_27",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_28",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD",
+            "observed": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY",
+            "observed": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "X5QPJcpph4mBAJDzc4hRziFftSbcygV59kRb2Fu6Je1",
+            "observed": "X5QPJcpph4mBAJDzc4hRziFftSbcygV59kRb2Fu6Je1"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "HjQjngTDqoHE6aaGhUqfz9aQ7WZcBRjy5xB8PScLSr8i",
+            "observed": "HjQjngTDqoHE6aaGhUqfz9aQ7WZcBRjy5xB8PScLSr8i"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm",
+            "observed": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb",
+            "observed": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg",
+            "observed": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg"
+          },
+          {
+            "account": "account_24",
+            "verdict": "verified",
+            "expected": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx",
+            "observed": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5aydjX3BvFWWh2HTCACzgCzwRSLAJSJTcuyAZzWvZfuUyMEuhTgR7vd6XZYJEtZ83WMf7u9vMnV58CuZbp1gxeYA",
+        "slot": 454577199,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "7caec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9QJpiAKndH7WBPzi7Tfm9R4neeFmbJoo7RR36iiu3Rvv"
+          },
+          {
+            "name": "account_1",
+            "address": "6dmJ6nih66TxUsaejdJjTqQxkaGhzwFinsoSMQw8AFnB"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3jPzWgUvcXRwMseiWRWuCmjqPB9vaSoyoSnet4NndhndmJ6nZaqmWBDdrGp5LphknmyT9wV1UJ1A6N7TNoqZKbeF",
+        "slot": 454577234,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "86aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9QJpiAKndH7WBPzi7Tfm9R4neeFmbJoo7RR36iiu3Rvv"
+          },
+          {
+            "name": "account_1",
+            "address": "2PY58v5tXLNbfzPu5B9wkjc5x3QqAGeJH7JQA3vxuMce"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "VjP4LMtR4qEu5W7pXVg1byLRaDpJYuN6E5sR9QWbe7hrEga3GHxdJYzLgp3bDTrEqkRTPLf7k4iwSNJyZ7i7PHN",
+        "slot": 454577234,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "86aec76a0000000020a107000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "5JpYS6VQXzgUCEeqkgQZBT1B8MiLM6m9ArWxZzqHG9pv"
+          },
+          {
+            "name": "account_1",
+            "address": "4wx8XnLyDdFxn8FmCjGmJT1MnhnCjURUirq23utkvziz"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2jSiz2W2948S6PJHMRXq731r3DHpH9drH2YQvEnACnA6hBryK31d3WviynCzCvGmb6G6Y8Q7whBcs4x11YZq8NQE",
+        "slot": 454577255,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "8baec76a00000000e09304000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "FCLS6aETwkGRYPUtiJrSXfwj43ELczkaYFyTBya5u16s"
+          },
+          {
+            "name": "account_1",
+            "address": "2xjCnYYeMxTb7UiRLRysaxtdJFzaQ84N2Jg1hF4as38W"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "26ZFgydRwq7dt8wXL58rZaUsqp1PvrfYERaSKUUsQvZUTJu6Sdywor53om4ARVBSwd1nTDcU1zoCKyZ7mPbh53q4",
+        "slot": 454577262,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "8daec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9QJpiAKndH7WBPzi7Tfm9R4neeFmbJoo7RR36iiu3Rvv"
+          },
+          {
+            "name": "account_1",
+            "address": "Fs8g2qDkKFxRZDVz6tnuW4Bry3nLRVzbmhyKdTJbntRs"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4Kg1cCBwphfcZyeLPr6xZ91UfZ6bQwbWTY9nUusXmBzCZSLYXoCPjYUDsP3ToACtbR2h6Ag5yHdw5gTd4t45Vc2i",
+        "slot": 454577290,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "94aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "8UqjpzhYKmRJv5S2p9rGcWygBVHBJkzmDJUCPKh6T2KY"
+          },
+          {
+            "name": "account_1",
+            "address": "4uQRfZ97uRYGdgM8tfXtrBhscQWYv81aZBp24sC5RPRb"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3KALp1XX8Jg3anZWyaHjdKAYPr4YvHqzi8b9CPqjb5WxnvGkTZoaczh51yZXED2sCxF5ddWcUv6iCxZqLT3dJskQ",
+        "slot": 454577292,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "94aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "67jpWTSxo1f5dqaE2NYUKGVBDdHiBtTu5LJravJ7MvGs"
+          },
+          {
+            "name": "account_1",
+            "address": "Gb5sEkSp9XTdSBhb4WAcD1L3zH2zyREXzyVhgZAZMPX9"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3MZMPKqQmfgSdTxrYREhqAFup267UkMhniLZHzREKTjdfWWi8r3RRqY1YpQieCkgW2ey1qn22ADSWzdN4t6QHdWU",
+        "slot": 454577304,
+        "n": "4",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "98aec76a00000000e80300000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DmBxXPcCKEKjgtQh8CEYfjvmWKPST3LxHZoXdLw11wV3"
+          },
+          {
+            "name": "account_1",
+            "address": "9wWDAtkb62HRXQhFwmX1idD2oDrCcywDgrxqRwmLZQ7U"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "FTA7p1FxgM5Y2YiDiLF261bynvYpruWbAJsEdZMxaUrNc2HYdYxuB6GKKYpUDSZ2nz6s3tSfLpR2PgVdBagq5o1",
+        "slot": 454577311,
+        "n": "5",
+        "instruction": "pump_buy_v2",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 1 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "1b4f0265289c23b3",
+        "argsHex": "8033023b0000000064f5d49b98030000809698000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "3SXty9M8FNLEVBTMpH2B8cv7CZvXVR7kNa8eMGjJdUW5"
+          },
+          {
+            "name": "account_1",
+            "address": "EPxdqaqyHfaCNZ9Cu4Hxxe6pU1qrRDBWk6zoL3Aj6Ynf"
+          },
+          {
+            "name": "account_2",
+            "address": "HDZCQx53jQL2mK9o66c6PdzGCwamamYCVmp3CxQbbow"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "H9onzxHRFboSh1bhuyLzAmJvLp8zadrU4Fw9xxDA9WCF"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV"
+          },
+          {
+            "name": "account_13",
+            "address": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "name": "account_14",
+            "address": "EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL"
+          },
+          {
+            "name": "account_15",
+            "address": "CA7v8gHfbquYXyDnDx6QxWW8hmL1H7X6Y2RYDrGLnuck"
+          },
+          {
+            "name": "account_16",
+            "address": "J2yibu4wabuXc1Zdq14sKqrct2Krgd7ULKk53YPdDaBc"
+          },
+          {
+            "name": "account_17",
+            "address": "9uVKZiL1pNZeGGhvgNuYjt7xtG1KSXrzaQVMZs24ahNR"
+          },
+          {
+            "name": "account_18",
+            "address": "BpQGmocU6sxhSCbhK5EcCHWJ3CxgpXCzLpM5Y1g17S8L"
+          },
+          {
+            "name": "account_19",
+            "address": "8ZNSBVK2C1vVBctLh41Ht59photXzcWbawq7VCikeXUZ"
+          },
+          {
+            "name": "account_20",
+            "address": "8r6R1zGFPnJ2JLuyefpFRHEmG2b2hieXsBeJ5epVammx"
+          },
+          {
+            "name": "account_21",
+            "address": "4zSD54K4FLzTcUs4Z4ZtyLf1RKkvjuVrgJpcB3RivhQw"
+          },
+          {
+            "name": "account_22",
+            "address": "Hq2wp8uJ9jCPsYgNHex8RtqdvMPfVGoYwjvF1ATiwn2Y"
+          },
+          {
+            "name": "account_23",
+            "address": "AT6gjxYLDiowvntG3NMLiNpwdyjZd6rj3mgasFyhJLFc"
+          },
+          {
+            "name": "account_24",
+            "address": "7MrEALFWda4YE4h192RC5eb9HWuwaz7xeH7me47wCGUf"
+          },
+          {
+            "name": "account_25",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_26",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_27",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_28",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "EPxdqaqyHfaCNZ9Cu4Hxxe6pU1qrRDBWk6zoL3Aj6Ynf",
+            "observed": "EPxdqaqyHfaCNZ9Cu4Hxxe6pU1qrRDBWk6zoL3Aj6Ynf"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "HDZCQx53jQL2mK9o66c6PdzGCwamamYCVmp3CxQbbow",
+            "observed": "HDZCQx53jQL2mK9o66c6PdzGCwamamYCVmp3CxQbbow"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb",
+            "observed": "94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "CA7v8gHfbquYXyDnDx6QxWW8hmL1H7X6Y2RYDrGLnuck",
+            "observed": "CA7v8gHfbquYXyDnDx6QxWW8hmL1H7X6Y2RYDrGLnuck"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "9uVKZiL1pNZeGGhvgNuYjt7xtG1KSXrzaQVMZs24ahNR",
+            "observed": "9uVKZiL1pNZeGGhvgNuYjt7xtG1KSXrzaQVMZs24ahNR"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "BpQGmocU6sxhSCbhK5EcCHWJ3CxgpXCzLpM5Y1g17S8L",
+            "observed": "BpQGmocU6sxhSCbhK5EcCHWJ3CxgpXCzLpM5Y1g17S8L"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "8r6R1zGFPnJ2JLuyefpFRHEmG2b2hieXsBeJ5epVammx",
+            "observed": "8r6R1zGFPnJ2JLuyefpFRHEmG2b2hieXsBeJ5epVammx"
+          },
+          {
+            "account": "account_24",
+            "verdict": "verified",
+            "expected": "7MrEALFWda4YE4h192RC5eb9HWuwaz7xeH7me47wCGUf",
+            "observed": "7MrEALFWda4YE4h192RC5eb9HWuwaz7xeH7me47wCGUf"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "7r459gZXFvUQj2mkXyVsjSNYJy2YpUetFBSA4AAEpZ2VNTqKPFuwuCoorsHsBtxFZL8MqCCnUJUsmcNZdegshcR",
+        "slot": 454577314,
+        "n": "2",
+        "instruction": "ix_417f09b1e7ec6950",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "417f09b1e7ec6950",
+        "argsHex": "7b5db524390200009627820400000000640000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "8eUmJvANsdEaxZDi1NTspb27KDGEL7tm7Byq4V7gmJWY"
+          },
+          {
+            "name": "account_1",
+            "address": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD"
+          },
+          {
+            "name": "account_2",
+            "address": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          {
+            "name": "account_4",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_5",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_6",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_7",
+            "address": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          },
+          {
+            "name": "account_8",
+            "address": "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"
+          },
+          {
+            "name": "account_9",
+            "address": "7QfognN1xfcKkQzqTeeN5TJTqdxBPjiaW4X9T63pump"
+          },
+          {
+            "name": "account_10",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_11",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "account_12",
+            "address": "FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz"
+          },
+          {
+            "name": "account_13",
+            "address": "7xQYoUjUJF1Kg6WVczoTAkaNhn5syQYcbvjmFrhjWpx"
+          },
+          {
+            "name": "account_14",
+            "address": "3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR"
+          },
+          {
+            "name": "account_15",
+            "address": "6rVkF4HSgy1jrnC3HogfRgPHrq4CtLg5f11URpsC4i9D"
+          },
+          {
+            "name": "account_16",
+            "address": "4n4vWGJrWKdHzmDwXLamWW8thAF3PNk9bc4iP5wZ7UMB"
+          },
+          {
+            "name": "account_17",
+            "address": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm"
+          },
+          {
+            "name": "account_18",
+            "address": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb"
+          },
+          {
+            "name": "account_19",
+            "address": "5vy1zHh1fryavJCKri1txb6LK6p4oqJT298YTEqkjqN2"
+          },
+          {
+            "name": "account_20",
+            "address": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg"
+          },
+          {
+            "name": "account_21",
+            "address": "8LGi3roPFG74qkVtiiy9mtTnZJ9n7Rs79Tv9MSYLMLBi"
+          },
+          {
+            "name": "account_22",
+            "address": "4Lhy3pHmj9HhZez8AtusHDo18KC9y3EZEArvMEPhKF7u"
+          },
+          {
+            "name": "account_23",
+            "address": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx"
+          },
+          {
+            "name": "account_24",
+            "address": "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"
+          },
+          {
+            "name": "account_25",
+            "address": "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"
+          },
+          {
+            "name": "account_26",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "account_27",
+            "address": "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1"
+          }
+        ],
+        "pdaRecipes": [
+          {
+            "account": "account_1",
+            "verdict": "verified",
+            "expected": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD",
+            "observed": "7QsmrM9eB5XuoYFtjSZWKLJHVXFuuFpViUMnVTSpRWjD"
+          },
+          {
+            "account": "account_2",
+            "verdict": "verified",
+            "expected": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY",
+            "observed": "5fryssA1MyE9rgonNVcDC3QH6H76cUecfsZM4JAEkXQY"
+          },
+          {
+            "account": "account_13",
+            "verdict": "verified",
+            "expected": "7xQYoUjUJF1Kg6WVczoTAkaNhn5syQYcbvjmFrhjWpx",
+            "observed": "7xQYoUjUJF1Kg6WVczoTAkaNhn5syQYcbvjmFrhjWpx"
+          },
+          {
+            "account": "account_15",
+            "verdict": "verified",
+            "expected": "6rVkF4HSgy1jrnC3HogfRgPHrq4CtLg5f11URpsC4i9D",
+            "observed": "6rVkF4HSgy1jrnC3HogfRgPHrq4CtLg5f11URpsC4i9D"
+          },
+          {
+            "account": "account_16",
+            "verdict": "verified",
+            "expected": "4n4vWGJrWKdHzmDwXLamWW8thAF3PNk9bc4iP5wZ7UMB",
+            "observed": "4n4vWGJrWKdHzmDwXLamWW8thAF3PNk9bc4iP5wZ7UMB"
+          },
+          {
+            "account": "account_17",
+            "verdict": "verified",
+            "expected": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm",
+            "observed": "9VgHJ8JKhiu47cCA654bZkin4jSvLmbq1wUPhymJkTm"
+          },
+          {
+            "account": "account_18",
+            "verdict": "verified",
+            "expected": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb",
+            "observed": "GGD4L7rk5JugZSnbeCfbrvv1g8Efr3Z6FMGKsHwCCwvb"
+          },
+          {
+            "account": "account_20",
+            "verdict": "verified",
+            "expected": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg",
+            "observed": "3gur7F1RE3x2B2CWYVZg37BMXyd21qsMKpVz7gFQvGMg"
+          },
+          {
+            "account": "account_21",
+            "verdict": "verified",
+            "expected": "8LGi3roPFG74qkVtiiy9mtTnZJ9n7Rs79Tv9MSYLMLBi",
+            "observed": "8LGi3roPFG74qkVtiiy9mtTnZJ9n7Rs79Tv9MSYLMLBi"
+          },
+          {
+            "account": "account_22",
+            "verdict": "verified",
+            "expected": "4Lhy3pHmj9HhZez8AtusHDo18KC9y3EZEArvMEPhKF7u",
+            "observed": "4Lhy3pHmj9HhZez8AtusHDo18KC9y3EZEArvMEPhKF7u"
+          },
+          {
+            "account": "account_23",
+            "verdict": "verified",
+            "expected": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx",
+            "observed": "FVF82WNd86r7k2jD1Biu8htH4WA7in6W4ZMoCFdkALKx"
+          }
+        ],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "21GFCU5MV4Cwx9EhnnWNDnnMvqvF3Q9LZ6TkGp5P862SsyTvVKukTRv87rK7GvPtjgSGhNFvnjewtCvywjuvt9aY",
+        "slot": 454577336,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "a1aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "5EB9JCBuugTCH2hQSTjkz1nf1VUohkYmk4mkB7QHtbLb"
+          },
+          {
+            "name": "account_1",
+            "address": "AGUyjs66J91WYaRMwcR4Lt8XTzBpy45DEPZKGEGALA86"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "DKHgs5WBNQSKE7wAHv9PkRxaADszAjSc5sjQWnYTeyvQqHkBELZy99rJinQMkJWx56ASn4ppbRUkKg6xPpjVvUU",
+        "slot": 454577346,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "a3aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9QJpiAKndH7WBPzi7Tfm9R4neeFmbJoo7RR36iiu3Rvv"
+          },
+          {
+            "name": "account_1",
+            "address": "2y244bcBnZuAjgZQjnzvLP2L6S96PS3XPALTzpQXLDFW"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "35gQyrLpaS6DZHMEzXBUqfA3vv7xqJYN2jkzb4Sd2yyq6cGhLmJMApLEtMrMfeK9yuQTFAwiG6eNkKCoSycgKXAe",
+        "slot": 454577386,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "adaec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "5JpYS6VQXzgUCEeqkgQZBT1B8MiLM6m9ArWxZzqHG9pv"
+          },
+          {
+            "name": "account_1",
+            "address": "4a9bxX36mpnGQsYUWDfWmCjw92VFwor2wogzvM7sEnmd"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "33V8fwW7AayHdETsK9Jua8kUPgoYqkLw71nKc8TQnGarH7nszwidqnLJf6QRBcGVjV5LkBKepdcFH2Wc2NfeZSau",
+        "slot": 454577388,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "aeaec76a00000000809698000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "C7uEUaNJjaYgJeYqq8cgJQHQEuYmYas5QoSQeqejs7pP"
+          },
+          {
+            "name": "account_1",
+            "address": "FhiDveWsMH5phaZbZoWgi2XiRzwyqzxfGPsP6dwoRJHH"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2iFQFdgE6hjstyZRcSxdMhEMAmBestEyyxxxAMf3HNKmLpG8LRtLhwJ69Z99zFwAd6NBwqWkrgmPpuqk3gDebCRi",
+        "slot": 454577390,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "afaec76a00000000a08601000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "FDJrnQLnFV99syvqh4LQxSQeH46wvCkLkeEQDnWhJTqH"
+          },
+          {
+            "name": "account_1",
+            "address": "CfUMmSxpefLmLM4JKtY45YRdxk9ngnGJXPKnmrrXdMUo"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5xudZPXP2pp9gGihBg2qcgxQPhtTnKPon2sfXpmtA97wDAETV9b53nTqWgTmC5xNQjNstCc8Efg7mtwM5jsJDoXN",
+        "slot": 454577407,
+        "n": "6",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "b3aec76a00000000405489000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "C7uEUaNJjaYgJeYqq8cgJQHQEuYmYas5QoSQeqejs7pP"
+          },
+          {
+            "name": "account_1",
+            "address": "AfGN22c9MBXTKsoQUduxdJipy2b1oT9Zb6oHdG33DBnH"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5gaLLmLfmfxqhCMdkaQy2ST9aNH4DcMXvAXHKrmNetXMHTKfc6XMsUkLhE1VnfYs6w2rrKGYxvya63PVnQimjdu2",
+        "slot": 454577481,
+        "n": "5",
+        "instruction": "collect_fee",
+        "nameSource": "openzoo sonar rainbow table — this discriminator is declared by 5 published IDL(s); the name is theirs, the shape below is this program's",
+        "selectorHex": "3cadf767045d8230",
+        "argsHex": "c7aec76a00000000640000000000000001",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "54K7JJPdFhkwdje5BorSN5V5LfdUQH72U42U4xhQXFyP"
+          },
+          {
+            "name": "account_1",
+            "address": "468aUiwvqGVmxULt5We2qg8paV8ePdbuN8mZYgCHaEX6"
+          },
+          {
+            "name": "account_2",
+            "address": "AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      }
+    ],
+    "notInvoked": [
+      {
+        "signature": "3Y4UTf3VyK43RfEhjaFNYpyFMyehWqPvzKjZjDhVBBDKinvqWYLK8ZrG2ELgzYqVFjzvQ1eT6t2LMwPXPEtLjCf8",
+        "slot": 454577437
+      }
+    ],
+    "counterCorrections": [],
+    "legacyCounter": {
+      "tested": 39,
+      "matched": 32,
+      "note": "The pre-fix counter, which also scored Anchor event self-CPIs as misses"
+    },
+    "scope": "Held-out structural decoding: instruction selectors, ordered accounts, payload lengths, independently derived PDAs and signed wire bytes. Opaque argument semantics are explicitly unresolved."
+  },
+  "reproducible": "node server/scripts/composer-heldout.ts --replay docs/heldout/BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+  "limits": [
+    "RPC metadata is a provider observation; transaction signatures are independently verified.",
+    "This verifies structural reconstruction. Unnamed arguments remain opaque; no semantics or profit guarantee is asserted.",
+    "The frozen interface is never amended to fit the held-out batch. Every selected receipt and every failure is retained."
+  ]
+}

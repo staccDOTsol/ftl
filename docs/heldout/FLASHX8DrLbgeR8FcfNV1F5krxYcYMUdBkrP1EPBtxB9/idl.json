@@ -1,0 +1,2149 @@
+{
+  "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+  "cached": true,
+  "caveats": [
+    "a name shown here comes from another program that declared the same discriminator, not from this one — treat it as a strong hint, not a fact. `ix_<hex>` means no published IDL anywhere declares it.",
+    "an account marked `constant` was the same address in every sample, which usually means a fixed global — but a program used by only one caller will look that way too.",
+    "argument layout is NOT decoded. `argsHex` below is the observed bytes after the discriminator — pass them back verbatim as `argsHex` on the instruction spec. Without that the transaction carries the right accounts and an EMPTY payload, which the program will reject."
+  ],
+  "evidence": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 2,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 357,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": false,
+    "seedCandidates": 3958,
+    "seedDerivationsTried": 169467234,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 90,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "howToUse": "pass this whole object as `idl` to /tx/build or /tx/batch. Account names are positional (`account_0`...) because transactions do not carry names; anything with a `pda` block is derived for you, the rest you supply.",
+  "instructions": [
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 116 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 116 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+          "evidence": "identical in all 116 samples",
+          "name": "account_5",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_6",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 64249 combinations)",
+          "name": "account_7",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                12,
+                20,
+                222,
+                252,
+                130,
+                94,
+                198,
+                118,
+                148,
+                37,
+                8,
+                24,
+                187,
+                101,
+                64,
+                101,
+                244,
+                41,
+                141,
+                49,
+                86,
+                213,
+                113,
+                180,
+                212,
+                248,
+                9,
+                12,
+                24,
+                233,
+                168,
+                99
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  97,
+                  116,
+                  111,
+                  114,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_6"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 611 combinations)",
+          "name": "account_8",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_7"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_10",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw",
+          "evidence": "identical in all 116 samples",
+          "name": "account_11",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_12",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "11111111111111111111111111111111",
+            "mintIsAccount": "account_3",
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "11112L4rLendYa7sEBwtwrUUHoZQxKtnuuSEoSBewBV",
+            "ownerIsAccount": null,
+            "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          "writable": false
+        },
+        {
+          "address": "So11111111111111111111111111111111111111112",
+          "evidence": "identical in all 116 samples",
+          "name": "account_13",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 108 combinations)",
+          "name": "account_14",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_1"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  238,
+                  117,
+                  143,
+                  222,
+                  24,
+                  66,
+                  93,
+                  188,
+                  228,
+                  108,
+                  205,
+                  218,
+                  182,
+                  26,
+                  252,
+                  77,
+                  131,
+                  185,
+                  13,
+                  39,
+                  254,
+                  189,
+                  249,
+                  40,
+                  216,
+                  161,
+                  139,
+                  252
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_12"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_15",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 780 combinations)",
+          "name": "account_16",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_9"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  238,
+                  117,
+                  143,
+                  222,
+                  24,
+                  66,
+                  93,
+                  188,
+                  228,
+                  108,
+                  205,
+                  218,
+                  182,
+                  26,
+                  252,
+                  77,
+                  131,
+                  185,
+                  13,
+                  39,
+                  254,
+                  189,
+                  249,
+                  40,
+                  216,
+                  161,
+                  139,
+                  252
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_12"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 781 combinations)",
+          "name": "account_17",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_9"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_18",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 1539 combinations)",
+          "name": "account_19",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_18"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "evidence": "identical in all 116 samples",
+          "name": "account_20",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 116 samples",
+          "name": "account_21",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 116 samples",
+          "name": "account_22",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+          "evidence": "identical in all 116 samples",
+          "name": "account_23",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR",
+          "evidence": "identical in all 116 samples",
+          "name": "account_24",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+          "evidence": "identical in all 116 samples",
+          "name": "account_25",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 2211 combinations)",
+          "name": "account_26",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_27"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_27",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_28",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_29",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_30",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_31",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_32",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_33",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 116/116 samples (searched 2799 combinations)",
+          "name": "account_34",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_33"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 116 samples",
+          "name": "account_35",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 116 samples",
+          "name": "account_36",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_37",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 116 samples",
+          "name": "account_38",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_39",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_40",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_41",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_42",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 116 samples",
+          "name": "account_43",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        22
+      ],
+      "args": [],
+      "argsHex": [
+        "b882010000000000d60ca8020000000000021f003200",
+        "856037284c00000019448b060000000001021f003200",
+        "b882010000000000d60ca8020000000000021f003200"
+      ],
+      "discriminator": [
+        0
+      ],
+      "exampleSignatures": [
+        "5freHPmQdvDfSdUNVCkTDXz6XUBgo8Qb9tTQzioJqVNTDEaxCprFTiJb7hkUM16HsGQ18JRahXJnjeTWpLjwhpi9",
+        "3LVvc3DQ5MC16Dj7oerwVTDiCr1rabAR3xSq9ZDB4EGmgZ939MBr5h8FkGvbkUnGiENpYYf9ZMR2GpavL5BAkSZu",
+        "5oeernieUSzQW6zMHbSLaoGGfoSvc8joNzJuH6xakh9jKcxtn26cCSVfHD3ABzQkCubqincgV8hKamLsAAdQQEuZ"
+      ],
+      "name": "ix_00",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 250,
+      "shapeNote": "116 of 250 samples had 44 accounts; the rest differed (likely optional accounts) and were not used to describe this shape"
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "So11111111111111111111111111111111111111112",
+          "evidence": "identical in all 207 samples",
+          "name": "account_2",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 207 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 207 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "argBytes": [
+        9
+      ],
+      "args": [],
+      "argsHex": [
+        "b882010000000000fd",
+        "0000000000000000fe",
+        "0000000000000000fa"
+      ],
+      "discriminator": [
+        1
+      ],
+      "exampleSignatures": [
+        "5freHPmQdvDfSdUNVCkTDXz6XUBgo8Qb9tTQzioJqVNTDEaxCprFTiJb7hkUM16HsGQ18JRahXJnjeTWpLjwhpi9",
+        "3FqZcmcNevVZvs9Y8yk5WNnNVAc4dPxZg4f2BNZc1tdrP1WYsho6dDBWeJKdENvWmt3GZM4wokvp5YQRk9rjmjeW",
+        "3LVvc3DQ5MC16Dj7oerwVTDiCr1rabAR3xSq9ZDB4EGmgZ939MBr5h8FkGvbkUnGiENpYYf9ZMR2GpavL5BAkSZu"
+      ],
+      "name": "ix_01",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 207,
+      "shapeNote": "all 207 samples had 5 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "5W1j1nV8vxhqkHADyV4ycyfrsg22uFxFoQkwryWwpump",
+            "mintIsAccount": "account_12",
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "H449WEyohZgVYgZKRpfXY8EEAgwAdo2w28FadjxqvnbJ",
+            "ownerIsAccount": "account_1",
+            "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 27 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 27 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+          "evidence": "identical in all 27 samples",
+          "name": "account_5",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_6",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 71817 combinations)",
+          "name": "account_7",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                12,
+                20,
+                222,
+                252,
+                130,
+                94,
+                198,
+                118,
+                148,
+                37,
+                8,
+                24,
+                187,
+                101,
+                64,
+                101,
+                244,
+                41,
+                141,
+                49,
+                86,
+                213,
+                113,
+                180,
+                212,
+                248,
+                9,
+                12,
+                24,
+                233,
+                168,
+                99
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  97,
+                  116,
+                  111,
+                  114,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_6"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 611 combinations)",
+          "name": "account_8",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_7"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_10",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw",
+          "evidence": "identical in all 27 samples",
+          "name": "account_11",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_12",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "11111111111111111111111111111111",
+            "mintIsAccount": "account_3",
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "11113CCoKpBZE2WQnyBpiof9GabwPNGeY4FCxDuSeT",
+            "ownerIsAccount": null,
+            "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+          },
+          "writable": false
+        },
+        {
+          "address": "So11111111111111111111111111111111111111112",
+          "evidence": "identical in all 27 samples",
+          "name": "account_13",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 108 combinations)",
+          "name": "account_14",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_1"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  238,
+                  117,
+                  143,
+                  222,
+                  24,
+                  66,
+                  93,
+                  188,
+                  228,
+                  108,
+                  205,
+                  218,
+                  182,
+                  26,
+                  252,
+                  77,
+                  131,
+                  185,
+                  13,
+                  39,
+                  254,
+                  189,
+                  249,
+                  40,
+                  216,
+                  161,
+                  139,
+                  252
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_12"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_15",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 780 combinations)",
+          "name": "account_16",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_9"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  238,
+                  117,
+                  143,
+                  222,
+                  24,
+                  66,
+                  93,
+                  188,
+                  228,
+                  108,
+                  205,
+                  218,
+                  182,
+                  26,
+                  252,
+                  77,
+                  131,
+                  185,
+                  13,
+                  39,
+                  254,
+                  189,
+                  249,
+                  40,
+                  216,
+                  161,
+                  139,
+                  252
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_12"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 781 combinations)",
+          "name": "account_17",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_9"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_18",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 1539 combinations)",
+          "name": "account_19",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_18"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          "evidence": "identical in all 27 samples",
+          "name": "account_20",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 27 samples",
+          "name": "account_21",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 27 samples",
+          "name": "account_22",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+          "evidence": "identical in all 27 samples",
+          "name": "account_23",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR",
+          "evidence": "identical in all 27 samples",
+          "name": "account_24",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+          "evidence": "identical in all 27 samples",
+          "name": "account_25",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 2211 combinations)",
+          "name": "account_26",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_27"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_27",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_28",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_29",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_30",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "So11111111111111111111111111111111111111112",
+            "mintIsAccount": "account_13",
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "6TTJWtxm7aegVNpCSBaYXerxt6En8wFA2JvbnQg1UCtr",
+            "ownerIsAccount": "account_31",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_31",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_32",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_33",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "seed recipe reproduces this address in 27/27 samples (searched 2799 combinations)",
+          "name": "account_34",
+          "pda": {
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            },
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "account_33"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_13"
+              }
+            ]
+          },
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 27 samples",
+          "name": "account_35",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 27 samples",
+          "name": "account_36",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_37",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 27 samples",
+          "name": "account_38",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_39",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_40",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_41",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_42",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+          "evidence": "identical in all 27 samples",
+          "name": "account_43",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        22
+      ],
+      "args": [],
+      "argsHex": [
+        "eac2200000000000a00400000000000001021f003200",
+        "eac2200000000000730400000000000001021f003200",
+        "35feef0411000000039d20000000000001021f00223c"
+      ],
+      "direction": "both directions: this selector serves buys AND sells. Only a buy can be replayed from a wallet with no inventory.",
+      "discriminator": [
+        0
+      ],
+      "exampleSignatures": [
+        "4NsM79HP7B2kX4SDNXw8wsm1JBY7WpTN3R2Ks3zuaNBP4JyuDyatdSv3FsMHvqNuuGNUUubNEdoqDZnP89BHhSVn",
+        "7tLjBCFTcZCAM9PDre39QeYmL2oeUhfb3bea2NkhykqfjGzEW5Ehq15aAfX4kuMQ5VsTop1e8ZVpkbVuiMG4zbp",
+        "2Dn4AogJc4oMfwAsKABtmH2zffSSVyDXCB5DKFmtBc8pggeqEhJ5QpzKPu6QtSMNqvfsyhx1zPwcNXrhZZ8yssBD"
+      ],
+      "name": "ix_00#44",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 27,
+      "samplesGained": 9,
+      "samplesLost": 18,
+      "shapeNote": "selector 00 appears with several account counts; this is the 44-account route. They are different paths through the program, not noise."
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "probe": {
+            "exists": true,
+            "note": "sampled from one observed transaction; a different caller supplies a different address here",
+            "ownerProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "sampled": "5QLNuCtpTeP3h4a2ZWQaNHbsoCw2BbzYFn3MxJvGDyNc"
+          },
+          "signer": false,
+          "tokenAccount": {
+            "mint": "B1z6pRq2hHMLKZJacPc4LPY9yEpg6enXdreHT3Pna89D",
+            "mintIsAccount": "account_2",
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "2HZwAUPzdr6L8qAKrXzPYgbo1tY3Au7Cx2bTbaBjE46v",
+            "ownerIsAccount": "account_1",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "address": "2HZwAUPzdr6L8qAKrXzPYgbo1tY3Au7Cx2bTbaBjE46v",
+          "evidence": "identical in all 2 samples",
+          "name": "account_1",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "probe": {
+            "exists": true,
+            "note": "sampled from one observed transaction; a different caller supplies a different address here",
+            "ownerProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "sampled": "B1z6pRq2hHMLKZJacPc4LPY9yEpg6enXdreHT3Pna89D"
+          },
+          "signer": false,
+          "tokenAccount": {
+            "mint": "1111eAvYu2awWLVS6XqgajQYzDMUBmQNdfdj7LwU9b",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "Cr9zkoEzHmcYKLXa3XQKx72vBeAStqSqVFQXa22pjBju",
+            "ownerIsAccount": null,
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": false
+        },
+        {
+          "address": "11111111111111111111111111111111",
+          "evidence": "identical in all 2 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 2 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "argBytes": [
+        1
+      ],
+      "args": [],
+      "argsHex": [
+        "fc",
+        "fe"
+      ],
+      "discriminator": [
+        3
+      ],
+      "exampleSignatures": [
+        "4yfrahPqs9jS9YwWrcA2d7sfD65YXDxiEb6TjK1KqvgyzADvrUiSaeVRh1zN1JTyapQ8CPtH6iv36ZUQN73WsEdd",
+        "4yfrahPqs9jS9YwWrcA2d7sfD65YXDxiEb6TjK1KqvgyzADvrUiSaeVRh1zN1JTyapQ8CPtH6iv36ZUQN73WsEdd"
+      ],
+      "name": "ix_03",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 2,
+      "shapeNote": "all 2 samples had 5 accounts"
+    }
+  ],
+  "metadata": {
+    "name": "learned",
+    "source": "reconstructed from landed transactions",
+    "spec": "0.1.0"
+  },
+  "truncated": null
+}

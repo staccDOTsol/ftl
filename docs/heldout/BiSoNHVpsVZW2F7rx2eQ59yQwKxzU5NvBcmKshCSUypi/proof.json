@@ -1,0 +1,1741 @@
+{
+  "version": 1,
+  "program": "BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi",
+  "frozenAt": "2026-10-08T14:49:34.926Z",
+  "frozenAfterSlot": 454576312,
+  "idlSha256": "f9f46478d6e103bd36decd3b227fc46c02735c0a51a1dfbaa710e33580442341",
+  "publishedIdl": {
+    "exists": false,
+    "anchorIdlAccount": "6WXqJfCHxFvrPfcdgjooFgBuVCdFyqzNEP35GAXo3L7V",
+    "independentlyChecked": true,
+    "checkedAtSlot": 454576309,
+    "composerHttpStatus": 400
+  },
+  "programAccount": {
+    "executable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "checkedAtSlot": 454576309,
+    "accountDataSha256": "1ed68264f4729fa01b410c517100089d17d89384e34d2985e4fe608e34d0332f"
+  },
+  "catalogs": [
+    {
+      "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+      "url": "https://idl.solana.com/api/idl?programId=BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi",
+      "checkedAt": "2026-10-08T14:49:34.723Z",
+      "httpStatus": 404,
+      "verdict": "missing",
+      "response": {
+        "error": "No IDL found for this program (checked PMP and Anchor)"
+      }
+    },
+    {
+      "name": "SolanaFM IDL metadata catalog",
+      "url": "https://api.solana.fm/v0/programs/meta/BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi",
+      "checkedAt": "2026-10-08T14:49:34.813Z",
+      "httpStatus": 502,
+      "verdict": "unavailable",
+      "response": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>solana.fm | 502: Bad gateway</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" con"
+    }
+  ],
+  "catalogControl": {
+    "program": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "checks": [
+      {
+        "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+        "url": "https://idl.solana.com/api/idl?programId=JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:49:34.473Z",
+        "httpStatus": 200,
+        "verdict": "listed"
+      },
+      {
+        "name": "SolanaFM IDL metadata catalog",
+        "url": "https://api.solana.fm/v0/programs/meta/JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:49:34.602Z",
+        "httpStatus": 502,
+        "verdict": "unavailable"
+      }
+    ]
+  },
+  "composer": "https://the-composer-svc.fly.dev",
+  "serviceReportedEvidence": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 7,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 244,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 3984,
+    "seedDerivationsTried": 3489208,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 118,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "provenanceLimit": "This records the artifact returned by the live service. It does not prove authorship, inference method or learner source availability.",
+  "receiptsSha256": "3c4639e2d092423cc56ffc2547375c40bcbdc8795c723afdd77e08923a92be42",
+  "requestedTransactions": 32,
+  "failedListed": [
+    "2uiibUS6MeR6AzLmQq78UwZC9w9XGYbbRYjuBd7CnZbXSYQXcSo6VchyGnNgxu6zwxn22h5saj6MZSXmso8Y7HEP",
+    "54mCsvgGsWvei2PXgqXHGQcnnZDa4F5wngXK2qnAeLcJkqDJrrreTifWFYLS756sitqFoRB5isfi9oHHXiPFFTFV",
+    "3Xca6in9F2wd4R4HYASbdGT4rP3M5ut2DVAuU7nwn1DDPzSVPpGPgR7Qvz272N6Tact1qkF6mtH6485UeTugRhWY",
+    "2x8grJKF9Br7S4rzChyqY52HKGw9VLXYfgRDX6qrVon4ftwqP4X8nHtXLsRSUrMFL5UYZUJjX8A5ntAFtFE3E2CZ",
+    "2GZE1CEnW1fpCbbWJhDMdUGXwfVVemrd9yjpWpuzjiQUL44VEqmeVawLsQmCuSvPZZfYcXKU1HCrocDTZuP9cVZS",
+    "4FPjSCYCFpzBSmKr4J4pQba9AMm74eTJCrRFvSnLhSzFuEihv76f4igRiHuc1EYWkrvwZP6N77p71sCuYFMVxGzc",
+    "66K6qKu3XDUhDZcNf3VYAjKfiT1GPmbkPviDjuhNrLaczZ2r1HQjtK4cziahtgENYgfmDGy8uUm91namw5P8HgNX",
+    "jiDy4W8m3qim6S9QSD6iW8dRSYs1t1YjEhathdXzQkFxT9EjeLMPWmT4rKRNYHDR9FTHiGwcFuLXUgwDkdq32BF",
+    "5bLMC67xCiy4QB8ZdDYYyfVhXKqYcj7Ppi3kLm1QLewVmkcmNcKD5h8xZdAMbaSLU8zLkkwzvBMYaJRzGtuXeVp5",
+    "XWu7rNkQCSGh9mTLcr6U1XiEo6CHL2CzzhbJrX4JZq9qzLay8twR9wuJsJN4YhdubpHQVdrAQ3Tmy14eRoyqcbZ",
+    "4639gBBGciSewto18UJwzPAyQvDeCPJgYr3myMDGah8sB8W6px6A6XZNR26zxoq755596sQ5nfGBWehrpQjyj2Uy",
+    "3BVoLZ3V5SFSFaKk2wKFvTKvWiad3QbydNyvuHR7ghLXk6whDW1hrUN6QdTQkhSvuPpTNCdZo7DFgKDgGoNWcwY6",
+    "3AaQzaV6851pgZRLbHcLmKC6HMBLb3NPXuN9RwE2gJzE7KtfVQpWabP2jTQBnDLvsXNd1rfgEBDikPP726UgL4aR",
+    "WnMQcU4omc3jREgbPTAeRr8x9QaRzkocdyxWzEFAfigMfhVNQstrTJbyHzeRPMhGrQy19aorsQnjG18FjdGosg4",
+    "4uwG1TycCWxsZtaN4MSfA7SxzMRsvwjQKpvNDQ2C78DyDTMkVTKktrEpWqot9GYDwzhBibZPoX9XdChzgVPp2D5X",
+    "49UshSpFiCSpjC3XMBfwQ26kWauWA1ZzgLma91uM6BDm5mMjfvwmk7U5C14GELAs1UDtYXdiKD5vbkrThpdxLdwT",
+    "51NxBZ5mPU66ubS78X9khD7bhqE7sG9CgtukSbgnRiABGyef7BKCLMM4rgLTrdpjZmw319fLCJ3eXvst6js94zHi",
+    "5kvmP6o4SXPAS3Z2WHiuSonB23CiFn1Drw3sewJfY84zZcUWBeVy6vTvyRA9BW1CZzbs4RSBiUQypDYnFaAP47Vc",
+    "3kSeZ9HPMUjXDGDHSMR2HM75gARbNEQwPsmkdcMaZa2E5kpitwpy5ocfoQjw8qsEdLxxLXrdAa5QMaEUTvAWMZb6",
+    "7W9sRE9xCbAebKRSojv9Zsk4TUxX9PPRAtifi9pbhaq7geSVkGSh7kAX6jjS5PZjzD14DZB8ndBgPD47Az5Pvm6",
+    "5rbK7C1vLbrXQKpxty7KFp83hyiapk8BZ8xTBRXtKsL4RkVrYjb2nBywuVDK7EMJc65ARjuJz3XtLzu39Naho64M",
+    "WdSaWtinuvjFdbJCBEAwZmKStrrdCisdu1ipGBL9kVXEU7C3Po3mP7reQocuNhws9Lbv7WUXjPwaU1RB5vttohr",
+    "2uzA7LYeQP2hjM86xTn3FCteYGsY1yBR3wAgzsR5T7VGAALxEzLT2FJq9vWfsX3JKanvkKKHG5179dpNc8YgF5dG",
+    "kPLAUtyuazVsWctt3kBfR7qRyBymbYDn6XCkhBGsHEZmbz9NJPxYwpNZ7TVuE1EafMYjFi18TFkny6dZ72Dc4Z1",
+    "2vhMzxZsZDStrTQEGhNKsyLyQ9TE3QRjRDWYHy3WT9tKNpP2KYYE34qsznjPtwSF2CJshztAFWojuyfCNLQ11a4Q",
+    "3sM6qeSieEZbXNFbftcKG42Mooxk1CqQG6DHPBpLiNvqUtdwL2sVptKvFae76NPeSayU4EjNECFVJjnd3ahxuoyK"
+  ],
+  "unreadable": [],
+  "training": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 7,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 244,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 3984,
+    "seedDerivationsTried": 3489208,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 118,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "result": {
+    "transactions": 30,
+    "instructions": 30,
+    "matched": 29,
+    "coverage": 0.9666666666666667,
+    "runtimeEvents": 0,
+    "signaturesVerified": 38,
+    "pdaVerified": 0,
+    "pdaUnresolved": 0,
+    "opaqueArguments": 29,
+    "failures": [
+      {
+        "signature": "ZnsDFF4ZWkvYJVPCpiKdvjJwVXb1y3XJqhHDHeSjcpSrKKamkYxTXLV8aQbBGt9fjr8JZZXnhgHk2s6WQsiWJTa",
+        "slot": 454576409,
+        "n": "2.2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "02",
+        "bytes": 18,
+        "accounts": 10
+      }
+    ],
+    "decoded": [
+      {
+        "signature": "2hMRCfydPDG8jG5krYYDsaz2NBaZp1cc5t5DZC4jfBm9Dr8sRqZfA7TcjcPCeZrBuXY9zoouCsw8C2dNmsmDTPvd",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "054cb5286295dc180000000000e8a59bc420ce98000000000000000010271027ac3b0000b43b00009ed63b8a0c000000699fac266295dc180000000000b0cfd556ec83a40000000000000000102710274340000046400000092da8442100000083c988266295dc180000000000a099999999c55f0100000000000000102710276589000071890000fcc92243f1ffffff1e7436226295dc18000000000000d34d6210a8d1020000000000000010271027dc190100f21901000cbd4127f6ffffffe974f8216295dc180000000000a0efa7c64b2f75010000000000000010271027c5910000c9910000c341f2cf010000009150c8216295dc180000000000e81da7e848e4c7000000000000000010271027124e00001d4e0000c5b76348f4ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffda1f841f6295dc1800000000006c2bf697dde250000000000000000010271027951f00009a1f0000b3015f2e01000000e99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffff51644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffff1276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_3",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_4",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_5",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_6",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_7",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_8",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_9",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_10",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_11",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_12",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_13",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2omqmw7EgSBVA3wsdJFYVRa9dRqBjufEwbwoSCBeBjWz199KKLh6y1vNKGbjzwNb2xsSUR7vjk7BQT6qBhWfQa2E",
+        "slot": 454576409,
+        "n": "2.5",
+        "instruction": "ix_07",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "07",
+        "argsHex": "50d5af0c0000000000000000000000000100",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "8Lt9yYunMRBfdkAx7RTNTvbbtsRxt7HhaR48enEX7iwm"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "5HYqprzhs5d8gcXUzQUJ3khFbjJf8w4K7MMctdZ1mHUi"
+          },
+          {
+            "name": "account_5",
+            "address": "Bet7fuo7pHZaE1sFQKUxw8MUuFSQ7rBEiDxGVRVWN2LQ"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d"
+          },
+          {
+            "name": "account_9",
+            "address": "4cG31VNF9TzFinNc7BmnjhFvGjxkY3sCETVMtMgbrhPs"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3DdHDs6ZerqVFpCGawoVi3xvrsFHcAxAy1KC6DZ5we4URePd3qteJNCEHsftEwRpz3g1wfLoSaUgU3psvrWKJgkm",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1b",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1b",
+        "argsHex": "3149352b6295dc18000000000080fccf065a8be2090000001949181b02000200000000006b689f216295dc18000000000000c08e860d82ca420100001949181b02000200c000000058aa781c6295dc1800000000001c285549f7de55000000001949181bc800c80040010000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "7RrqWam5ri2Yu6fUtiCp2dwqaydjJYMXz6HtCnQPGbDY"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "AfaA4CE8C2DWSHANCqvU9RWrxRiXCV7KKVSw4cHi68Wn"
+          },
+          {
+            "name": "account_3",
+            "address": "2vPjbPRnz7V1SLGr56CmLLc7JspzfSfccWp3Th5KbrMJ"
+          },
+          {
+            "name": "account_4",
+            "address": "DSzgmzz1Ms4qshdeCpE2uWenXXyNbkikw3bzfJRAv7JF"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3FtftDPac73sGbNdqEKoy4sfDCVyRxVAafhhRbroiqwbanv96jysDuUKoEJFKpCe8aamWKgbgbaZRrzUTjwro1Vw",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "c24503236295dc1800000000005011363cbdc65f0100000000000000102710276589000071890000fcc92243f1ffffff1e7436226295dc18000000000000d34d6210a8d1020000000000000010271027dc190100f21901000cbd4127f6ffffffe974f8216295dc180000000000a0efa7c64b2f75010000000000000010271027c5910000c9910000c341f2cf010000009150c8216295dc180000000000e81da7e848e4c7000000000000000010271027124e00001d4e0000c5b76348f4ffffffda1f841f6295dc1800000000006c2bf697dde250000000000000000010271027951f00009a1f0000b3015f2e01000000e99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffff53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b00009ed63b8a0c00000051644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffffb4b3c01a6295dc180000000000d05d4bc80783a40000000000000000102710274340000046400000092da844210000001276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff4dbb31146295dc180000000000009f3c2cd46a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_3",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_4",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_5",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_6",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_7",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_8",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_9",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_10",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_11",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_12",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_13",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3RTAfXApRQpJcrpoSy72QMNspvsUU7VcTcSp2RE6Hq76VLPWtCCi5QFU8K23kEmELJf8RGSV5b2Sgr9LRb2VMPkv",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "c24503236295dc1800000000005011363cbdc65f0100000000000000102710276589000071890000fcc92243f1ffffff1e7436226295dc18000000000000d34d6210a8d1020000000000000010271027dc190100f21901000cbd4127f6ffffffe974f8216295dc180000000000a0efa7c64b2f75010000000000000010271027c5910000c9910000c341f2cf010000009150c8216295dc180000000000e81da7e848e4c7000000000000000010271027124e00001d4e0000c5b76348f4ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffda1f841f6295dc1800000000006c2bf697dde250000000000000000010271027951f00009a1f0000b3015f2e01000000e99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffff53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b00009ed63b8a0c00000051644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffffb4b3c01a6295dc180000000000d05d4bc80783a40000000000000000102710274340000046400000092da844210000001276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_3",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_4",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_5",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_6",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_7",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_8",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_9",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_10",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_11",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_12",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_13",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "41ZMTcS7uhJeDTNLFzSK1cQ9jHC7iq5LTUHFwsfLPpLrhFZVygTYRuv1YP5SXSQL6L8rktmfryE6UzktHq9Hueb2",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "8ac3a41f6295dc18000000000020265305a3b2d1020000000000000010271027e0190100f21901000cbd4127f6ffffff53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b00009ed63b8a0c000000744a7a1d6295dc180000000000c09defa7c6e1c7000000000000000010271027124e00001c4e0000c5b76348f4ffffff51644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffffb4b3c01a6295dc180000000000d05d4bc80783a40000000000000000102710274340000046400000092da84421000000c0b5f2176295dc180000000000c09f1a2fddc85f0100000000000000102710276589000072890000fcc92243f1ffffff1276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff4010b3146295dc18000000000090a0f831e6ce02010000000000000010271027156500001d650000d668cfe1f3ffffff08289a146295dc1800000000009006f016483075010000000000000010271027c5910000c9910000c341f2cf010000004dbb31146295dc180000000000009f3c2cd46a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffc1dde9136295dc18000000000050598638d6c1ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffffe18644106295dc1800000000005427a089b0e250000000000000000010271027951f00009a1f0000b3015f2e01000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_3",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_4",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_5",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_6",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_7",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_8",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_9",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_10",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_11",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_12",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_13",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4b22AJw6LevAJN5mE1sR7tfW1561eeWfQBgvmPS1Potmz1wZkYYLVpnRjf8KJYVKBagQnLmbbVdbcXm1aYEk6oyF",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1b",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1b",
+        "argsHex": "58aa781c6295dc1800000000001c285549f7de55000000001849181bc800c8004001000097bb05156295dc18000000000000e07059e40acd420100001849181b02000200c00000004288670d6295dc1800000000008038cbafc69be2090000001849181b0200020000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "7RrqWam5ri2Yu6fUtiCp2dwqaydjJYMXz6HtCnQPGbDY"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "DSzgmzz1Ms4qshdeCpE2uWenXXyNbkikw3bzfJRAv7JF"
+          },
+          {
+            "name": "account_3",
+            "address": "2vPjbPRnz7V1SLGr56CmLLc7JspzfSfccWp3Th5KbrMJ"
+          },
+          {
+            "name": "account_4",
+            "address": "AfaA4CE8C2DWSHANCqvU9RWrxRiXCV7KKVSw4cHi68Wn"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4LVqmRbMiwDFeVEnHd9xj9GvS718bEFuMTDdptPWGsm2Y6YhNoPP1MwzuA2FXLyZjs62nrCDhshaoVBQDYiKyMuu",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#4",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "0325ac266295dc1800000000005d8fc2f528620c000000000000000032003200d6040000d9040000f966672f18000000f97e771d6295dc1800000000a0e4f21fd2a7bb02000000000000000032003200100100001301000002c54dd0ffffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "CRpVXnj48ecKmgdAD1azDAZN92khBEeTFNChu4XWJfVA"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "Hv8FoJFsrQhoyrR6Lcz4KFcpqNHU1Kxj2yaFDKU6vJdp"
+          },
+          {
+            "name": "account_3",
+            "address": "GU7Auyn3cMxtuZX8N3ezhKztgJ1bqqpuUk19KWXqnYwv"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4qGTtXnvXK5tVWCRcnbXh2GoxtQ9Nnir9V8Ym8MbWADn1WY89d1zCpBeMY51NiN5gAVLT8FzTr3bLXc5StEvG8Jn",
+        "slot": 454576409,
+        "n": "3.0",
+        "instruction": "ix_07",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "07",
+        "argsHex": "005a62020000000000000000000000000104",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "HYEuFrEshx2rVhLj3trU7WsCnw3y3zb3Ns4bXoFjFcb"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "4HQ2zaYkqP3P5BkY6hK3NxhCjXdK6WrvW6XYvZWPHAH1"
+          },
+          {
+            "name": "account_5",
+            "address": "CvQD1UTmPYX7nzsheJ9sdbsYALeBGzZU7xSZV6a3fESH"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d"
+          },
+          {
+            "name": "account_9",
+            "address": "4cG31VNF9TzFinNc7BmnjhFvGjxkY3sCETVMtMgbrhPs"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5Aajo6tfP7nhUiBuLezrUxR3qZ1NPTJm28nNSu37DdysPei7EujvDUNSLCv4MAqCufmMePjWgBMyDaLPYc196VxY",
+        "slot": 454576409,
+        "n": "3.9",
+        "instruction": "ix_02",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "02",
+        "argsHex": "60e71b0600000000000000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "7tqvxysP8pthzHwKgrdTpeEhxNFMNtHTMaU6W2urvkZ9"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "DqypsBUnZSzonJoqzA6gRT1WUghToSvP6SBkc9BtLsSm"
+          },
+          {
+            "name": "account_5",
+            "address": "9TyFnPnhmx1cGoGJL7tEgRvzxSNw13qBQSG7t77w7BNq"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "Sysvar1nstructions1111111111111111111111111"
+          },
+          {
+            "name": "account_9",
+            "address": "J1to1yufRnoWn81KYg1XkTWzmKjnYSnmE2VY8DGUJ9Qv"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5Ab8QNmY6o3LCRo6jri2PDoZ4n3FVajnT8MJfWRhe4zDVjuhZi7s1JQbHRDXqJenVNQLUqqbh3x7GRyoZczBdCXF",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "70ffc1216295dc180000000000c08bdb68009fd1020000000000000010271027dc190100e71901000cbd4127f6ffffffda1f841f6295dc1800000000006c2bf697dde250000000000000000010271027951f00009a1f0000b3015f2e01000000e99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffff53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b00009ed63b8a0c000000744a7a1d6295dc180000000000c09defa7c6e1c7000000000000000010271027124e00001c4e0000c5b76348f4ffffff51644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffffb4b3c01a6295dc180000000000d05d4bc80783a40000000000000000102710274340000046400000092da84421000000c0b5f2176295dc180000000000c09f1a2fddc85f0100000000000000102710276589000072890000fcc92243f1ffffff1276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff08289a146295dc1800000000009006f016483075010000000000000010271027c5910000c9910000c341f2cf010000004dbb31146295dc180000000000009f3c2cd46a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_3",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_4",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_5",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_6",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_7",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_8",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_9",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_10",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_11",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_12",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_13",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5BJ9RgnkxujDTuDrVCrV4f1WmtXHytoaDEs2EwjVqZNVRehPvFv3ZnFCXQ4yv1PsxtTfGdLbbU92Rb4fYgr3GAGD",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "699fac266295dc180000000000b0cfd556ec83a40000000000000000102710274340000046400000092da8442100000083c988266295dc180000000000a099999999c55f0100000000000000102710276589000071890000fcc92243f1ffffff1e7436226295dc18000000000000d34d6210a8d1020000000000000010271027dc190100f21901000cbd4127f6ffffffe974f8216295dc180000000000a0efa7c64b2f75010000000000000010271027c5910000c9910000c341f2cf010000009150c8216295dc180000000000e81da7e848e4c7000000000000000010271027124e00001d4e0000c5b76348f4ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffda1f841f6295dc1800000000006c2bf697dde250000000000000000010271027951f00009a1f0000b3015f2e01000000e99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffff53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b00009ed63b8a0c00000051644a1c6295dc180000000000d0915cfe439a51010000000000000010271027dd830000e3830000334d9e44f4ffffff1276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df7cb3bff7ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_3",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_4",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_5",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_6",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_7",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_8",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_9",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_10",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_11",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_12",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_13",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5MA5BgZmoztUHCnBnZbbpwvcYWkyPiviJxZGFNPtAK3AwojyLjAY5FxDzLE7pmFmUKmr5aaPdkXhqiuRrQdkpULX",
+        "slot": 454576409,
+        "n": "4.8",
+        "instruction": "ix_07",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "07",
+        "argsHex": "787458020000000000000000000000000104",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "C6FoDh43VuGYXPLLoW1XRrerbaasHFiXAEnNcmXbhWPn"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "6FRmEbMZcNH7cf5gAvMN42stqBuX9B54DdmNbJ7g51Jr"
+          },
+          {
+            "name": "account_5",
+            "address": "BZ5vPu1PyJrm6fWVH6X3N9QjVRhwgSCDmBjxSjvwLW6b"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d"
+          },
+          {
+            "name": "account_9",
+            "address": "4cG31VNF9TzFinNc7BmnjhFvGjxkY3sCETVMtMgbrhPs"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5N3RxdxZN3N1v1GPqCEBTctKrVo2kzzn59joLYTa8iZuzigCmWNHayTbsQzCPepsCqqwhXKeb9FtmG93hrNAcv1f",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "14",
+        "argsHex": "f3852e226295dc18000000000028180f214e6b70000000001949181b01000200f3852e226295dc18000000000090cb2a14177970000000001949181b02000200f3852e226295dc180000000000542b5789f38570000000001949181b02000200",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gs7aQqWznF4F2hb26kt3NdMnM3RTnNcgpWMc9NLJaj6y"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_3",
+            "address": "FJnaiidSLXFweWkgbinxEHRykVHsnkzDcYbNDR3RF5LN"
+          },
+          {
+            "name": "account_4",
+            "address": "6b5LxeDVxqCGAhZjjjgieGP71c5GBt2cBwiafCFX6NMU"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5otzCGrKchxNfyGcM8R8Sdk8xfNnKEQKtXk1r9KZxonh1AZsXmDUSy8Lkjjoo6vi4sdxMTVosso8yJbFTd8zphYT",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "14",
+        "argsHex": "3010c2266295dc18000000000030d469e2df6c70000000001949181b010002003010c2266295dc1800000000007407c906a97a70000000001949181b020002003010c2266295dc180000000000d4beeba9858770000000001949181b02000200",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gs7aQqWznF4F2hb26kt3NdMnM3RTnNcgpWMc9NLJaj6y"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_3",
+            "address": "FJnaiidSLXFweWkgbinxEHRykVHsnkzDcYbNDR3RF5LN"
+          },
+          {
+            "name": "account_4",
+            "address": "6b5LxeDVxqCGAhZjjjgieGP71c5GBt2cBwiafCFX6NMU"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "aie2BdNovzD6ni1fFHHMXoSxoPUjFykPQKwRH2ziXMPb4AWu8KEXHHeLKq9xN92yLfjuhoWj36XUiVUaqonu4eD",
+        "slot": 454576409,
+        "n": "2.8",
+        "instruction": "ix_02",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "02",
+        "argsHex": "3ff5701b00000000000000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "8ziSYQedeeRUvHHxf11yu2s9eDCVvLfX3Tdo2zB9TaA7"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "5fRH3aU3o1QH5VP1guXUmZN95xBdSEZCk7ccru4vp1N7"
+          },
+          {
+            "name": "account_5",
+            "address": "6xaDnUhFtynM1pUc8K4j6rLC5y2GxNLtR2C1kWgGiuEc"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "Sysvar1nstructions1111111111111111111111111"
+          },
+          {
+            "name": "account_9",
+            "address": "J1to1yufRnoWn81KYg1XkTWzmKjnYSnmE2VY8DGUJ9Qv"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "EmGFV1LPzU1ZcXmHiWCCZPEGc47xKZtQse3ep4xQpSm5Xah9YChyGjqjHX3yYjVn1uRiF7RK7wxX34smP52Msfs",
+        "slot": 454576409,
+        "n": "3.4",
+        "instruction": "ix_07",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "07",
+        "argsHex": "a6fb660d0000000000000000000000000104",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "C6FoDh43VuGYXPLLoW1XRrerbaasHFiXAEnNcmXbhWPn"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "6FRmEbMZcNH7cf5gAvMN42stqBuX9B54DdmNbJ7g51Jr"
+          },
+          {
+            "name": "account_5",
+            "address": "BZ5vPu1PyJrm6fWVH6X3N9QjVRhwgSCDmBjxSjvwLW6b"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d"
+          },
+          {
+            "name": "account_9",
+            "address": "4cG31VNF9TzFinNc7BmnjhFvGjxkY3sCETVMtMgbrhPs"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "hvUzP9UyPrGdH6GJaeL7WbuuZgcm9hpLta6QC1osJsUxv8VojpXZgKhjdEn8QKxSxbQcm3fa1XTY3AVD9aZShDk",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "53af921d6295dc180000000000006f8104c5cd98000000000000000010271027ac3b0000b53b0000debef1c40c000000b4b3c01a6295dc180000000000d05d4bc80783a4000000000000000010271027434000004640000009e5d1bc21000000c0b5f2176295dc180000000000c09f1a2fddc85f0100000000000000102710276589000072890000fc95d91ff1ffffff1276eb176295dc180000000000acadd85f762047000000000000000010271027c81b0000c91b0000df5da9c5f7ffffff52353a156295dc180000000000802f4ca60ab6d1020000000000000010271027e0190100f31901000ce61f2ff6ffffff4010b3146295dc18000000000090a0f831e6ce02010000000000000010271027156500001d65000056e05de8f3ffffff08289a146295dc1800000000009006f016483075010000000000000010271027c5910000c9910000c3a6bfed010000004dbb31146295dc180000000000009f3c2cd46a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffc1dde9136295dc18000000000050598638d6c1ec0000000000000000102710277a5c00007c5c000075b3d7a0f7ffffffcc144b126295dc18000000000070d712f2419b51010000000000000010271027dd830000e3830000334d9e44f4ffffffb24c70106295dc180000000000c0caa145b6e3c7000000000000000010271027124e00001c4e0000c5b76348f4ffffffe18644106295dc1800000000005427a089b0e250000000000000000010271027951f00009a1f000033f2593101000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_3",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_4",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_5",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_6",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_7",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_8",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_9",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_10",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_11",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_12",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_13",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "S3W7PqcuuwodvssTKbEjvwR74qhpeeX65tdQnmkCYP1eKVF6tJsgLEwPF1sC9pVP9vCnv1TXQWikGik3acWFCiM",
+        "slot": 454576409,
+        "n": "0",
+        "instruction": "ix_14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "14",
+        "argsHex": "868d3f2b6295dc180000000000ac59030ccc6d70000000001949181b01000200868d3f2b6295dc18000000000054ed574d957b70000000001949181b02000200868d3f2b6295dc180000000000b8367f0b728870000000001949181b02000200",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gs7aQqWznF4F2hb26kt3NdMnM3RTnNcgpWMc9NLJaj6y"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_3",
+            "address": "FJnaiidSLXFweWkgbinxEHRykVHsnkzDcYbNDR3RF5LN"
+          },
+          {
+            "name": "account_4",
+            "address": "6b5LxeDVxqCGAhZjjjgieGP71c5GBt2cBwiafCFX6NMU"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "251V8aoQ9WWxLcqXTGdmwYUP8KeW977jfPY4VRUeqy1deBryHKpyPeNBQyPzwuZRzjxqmjpZUNw86VmRVzwUXNWZ",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#4",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "9c4b19346295dc180000000080789ca22339620c000000000000000032003200d6040000d9040000f966672f18000000eed5a32e6295dc180000000000bc051214a7bb02000000000000000032003200100100001301000002c54dd0ffffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "CRpVXnj48ecKmgdAD1azDAZN92khBEeTFNChu4XWJfVA"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "Hv8FoJFsrQhoyrR6Lcz4KFcpqNHU1Kxj2yaFDKU6vJdp"
+          },
+          {
+            "name": "account_3",
+            "address": "GU7Auyn3cMxtuZX8N3ezhKztgJ1bqqpuUk19KWXqnYwv"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2GhdryzT72gdinGwtBG3ccV6JtmfmMnpDhmFf4AquYFhhhWBVNxoJ62TbRLT5yAZWxr344JPf9ckgAtFHGDiqzHR",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "1b9bfc296295dc18000000000000cceec9c39a51010000000000000010271027dd830000e3830000b3cb3b30f4ffffff1b9bfc296295dc180000000000ac13d044d8e250000000000000000010271027951f00009a1f0000b3015f2e01000000054cb5286295dc180000000000e8a59bc420ce98000000000000000010271027ac3b0000b43b00009e1687d60c000000699fac266295dc180000000000b0cfd556ec83a40000000000000000102710274340000046400000094cb23e2100000083c988266295dc180000000000a099999999c55f01000000000000001027102765890000718900007c9b134cf1ffffff0c7357246295dc18000000000004098a1f631f47000000000000000010271027c81b0000c91b0000df9bbdb9f7ffffff1e7436226295dc18000000000000d34d6210a8d1020000000000000010271027dc190100f21901000ca1eadbf5ffffffe974f8216295dc180000000000a0efa7c64b2f75010000000000000010271027c5910000c9910000c30022f0010000009150c8216295dc180000000000e81da7e848e4c7000000000000000010271027124e00001d4e0000054feb43f4ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffe99f3f1e6295dc180000000000b0bdc11726cf02010000000000000010271027156500001d650000d668cfe1f3ffffff5693c11d6295dc18000000000038894160e5c0ec0000000000000000102710277a5c00007c5c0000f546b4b5f7ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_3",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_4",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_5",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_6",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_7",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_8",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_9",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_10",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_11",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_12",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_13",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2SfequUBS2pwdMkJY9tcSZ22hEBmp7zM5p6CSqRMdrsF6RQ7yschpDaBHDWU2d5KBjaQJiYTn7oJ6Y5wqTrdpvNX",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "b83543306295dc1800000000008095438b6cc75f010000000000000010271027658900006d8900007c9b134cf1ffffffe753ac2f6295dc180000000000d059f5b9da3675010000000000000010271027c5910000cb910000c30022f0010000007e74222e6295dc180000000000105839b4c8c898000000000000000010271027aa3b0000b33b00009e1687d60c000000c71af32b6295dc180000000000304ca60a46e1c7000000000000000010271027124e00001d4e0000054feb43f4ffffff0c33692b6295dc18000000000060984c158cce02010000000000000010271027156500001d650000d668cfe1f3ffffff1b9bfc296295dc18000000000000cceec9c39a51010000000000000010271027dd830000e3830000b3cb3b30f4ffffff1b9bfc296295dc180000000000ac13d044d8e250000000000000000010271027951f00009a1f0000b3015f2e010000001b9bfc296295dc1800000000002083c0caa1c1ec0000000000000000102710277a5c00007c5c0000f546b4b5f7ffffff699fac266295dc180000000000b0cfd556ec83a40000000000000000102710274340000046400000094cb23e21000000b42982246295dc180000000000c0feb27bf2a8d1020000000000000010271027dc190100f21901000ca1eadbf5ffffff0c7357246295dc18000000000004098a1f631f47000000000000000010271027c81b0000c91b0000df9bbdb9f7ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_3",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_4",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_5",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_6",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_7",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_8",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_9",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_10",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_11",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_12",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_13",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3324PdSbshwoWXPWRRPbgJeiqM39gWSqrUo1tsikiSPYjCu65hKoqgX8jb52dRtW22PMcmDwnhJEKPQKXWk1YV1c",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "471b1b336295dc1800000000004082e2c798c75f01000000000000001027102765890000718900007c9b134cf1ffffffe86a2b326295dc180000000000c8e53fa4df82a40000000000000000102710274340000046400000094cb23e210000005068d4316295dc180000000000c059f5b9da6a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffdc6aa0316295dc180000000000704df38e53c898000000000000000010271027aa3b0000b43b00009e1687d60c0000008211b2306295dc180000000000f853e3a59bb8ec000000000000000010271027775c0000795c0000f546b4b5f7ffffffe753ac2f6295dc180000000000d059f5b9da3675010000000000000010271027c5910000cb910000c30022f001000000c71af32b6295dc180000000000304ca60a46e1c7000000000000000010271027124e00001d4e0000054feb43f4ffffff0c33692b6295dc18000000000060984c158cce02010000000000000010271027156500001d650000d668cfe1f3ffffff1b9bfc296295dc18000000000000cceec9c39a51010000000000000010271027dd830000e3830000b3cb3b30f4ffffff1b9bfc296295dc180000000000ac13d044d8e250000000000000000010271027951f00009a1f0000b3015f2e01000000b42982246295dc180000000000c0feb27bf2a8d1020000000000000010271027dc190100f21901000ca1eadbf5ffffff0c7357246295dc18000000000004098a1f631f47000000000000000010271027c81b0000c91b0000df9bbdb9f7ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_3",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_4",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_5",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_6",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_7",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_8",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_9",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_10",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_11",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_12",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_13",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "39u6PYT4kgRTVZ4jM8HeadCzARbTJ1UKZhs1izZGa6kSKUQrRBA5bCFTswa16AwzQ2Ws6jf4ZaHTsV7MWcSCJsHm",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1b",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1b",
+        "argsHex": "1503de346295dc18000000000000a015df820dcb420100001a49181b02000200c0000000d0ba8b326295dc18000000000000c432cfc57be2090000001a49181b0200020000000000bcddfd2b6295dc1800000000007058a3c756de55000000001a49181bc800c80040010000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "7RrqWam5ri2Yu6fUtiCp2dwqaydjJYMXz6HtCnQPGbDY"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "2vPjbPRnz7V1SLGr56CmLLc7JspzfSfccWp3Th5KbrMJ"
+          },
+          {
+            "name": "account_3",
+            "address": "AfaA4CE8C2DWSHANCqvU9RWrxRiXCV7KKVSw4cHi68Wn"
+          },
+          {
+            "name": "account_4",
+            "address": "DSzgmzz1Ms4qshdeCpE2uWenXXyNbkikw3bzfJRAv7JF"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3BWG2oW9ZALg3kdehykTXmd5raUyQhCZtqrPYhSC5oEPeNrmn98jPFhMvPDJiydzSr866Ky2aGkhit8m9rxzgeec",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "dc6aa0316295dc180000000000704df38e53c898000000000000000010271027aa3b0000b43b00009e1687d60c0000008211b2306295dc180000000000f853e3a59bb8ec000000000000000010271027775c0000795c0000f546b4b5f7ffffff2e5c96306295dc180000000000107a36ab3ec75f01000000000000001027102765890000718900007c9b134cf1ffffffe753ac2f6295dc180000000000d059f5b9da3675010000000000000010271027c5910000cb910000c30022f001000000c71af32b6295dc180000000000304ca60a46e1c7000000000000000010271027124e00001d4e0000054feb43f4ffffff0c33692b6295dc18000000000060984c158cce02010000000000000010271027156500001d650000d668cfe1f3ffffff1b9bfc296295dc18000000000000cceec9c39a51010000000000000010271027dd830000e3830000b3cb3b30f4ffffff1b9bfc296295dc180000000000ac13d044d8e250000000000000000010271027951f00009a1f0000b3015f2e01000000699fac266295dc180000000000b0cfd556ec83a40000000000000000102710274340000046400000094cb23e21000000b42982246295dc180000000000c0feb27bf2a8d1020000000000000010271027dc190100f21901000ca1eadbf5ffffff0c7357246295dc18000000000004098a1f631f47000000000000000010271027c81b0000c91b0000df9bbdb9f7ffffffc69a75216295dc18000000000060a1d634ef681302000000000000001027102788cf00009bcf0000c73f6f8af6ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_3",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_4",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_5",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_6",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_7",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_8",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_9",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_10",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_11",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          },
+          {
+            "name": "account_12",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_13",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3FmNxoFV4d5UF2vgj6vGeaSzGiSkjST2jJptfuL3qF1FsGgYaqmdLdbaPBmn9LJ3t95KECJnYTj1nymaEu9JRfsA",
+        "slot": 454576410,
+        "n": "3.7",
+        "instruction": "ix_02",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "02",
+        "argsHex": "412a380100000000000000000000000000",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "7x4VcEX8aLd3kFsNWULTp1qFgVtDwyWSxpTGQkoMM6XX"
+          },
+          {
+            "name": "account_5",
+            "address": "59v2cSbCsnyaWymLnsq6TWzE6cEN5KJYNTBNrcP4smRH"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "Sysvar1nstructions1111111111111111111111111"
+          },
+          {
+            "name": "account_9",
+            "address": "J1to1yufRnoWn81KYg1XkTWzmKjnYSnmE2VY8DGUJ9Qv"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3p28ZR2vY9SoJP6grEGSAMfCvaP2uVUsfeM5zXP3p2EAh83UyKpeqcr9kFL5J99zoCbD4RPbjaSkcrZKYP2z3P2v",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_1c#14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "1c",
+        "argsHex": "9a36d3356295dc180000000000e07a14ae4781a40000000000000000102710274240000043400000094cb23e21000000471b1b336295dc1800000000004082e2c798c75f01000000000000001027102765890000718900007c9b134cf1ffffff5068d4316295dc180000000000c059f5b9da6a1302000000000000001027102788cf00009bcf0000c73f6f8af6ffffffdc6aa0316295dc180000000000704df38e53c898000000000000000010271027aa3b0000b43b00009e1687d60c000000ad161d316295dc1800000000009ca223b9fc1f47000000000000000010271027c81b0000c91b0000df9bbdb9f7ffffff8211b2306295dc180000000000f853e3a59bb8ec000000000000000010271027775c0000795c0000f546b4b5f7ffffffe753ac2f6295dc180000000000d059f5b9da3675010000000000000010271027c5910000cb910000c30022f001000000c71af32b6295dc180000000000304ca60a46e1c7000000000000000010271027124e00001d4e0000054feb43f4ffffff0c33692b6295dc18000000000060984c158cce02010000000000000010271027156500001d650000d668cfe1f3ffffff1b9bfc296295dc18000000000000cceec9c39a51010000000000000010271027dd830000e3830000b3cb3b30f4ffffff1b9bfc296295dc180000000000ac13d044d8e250000000000000000010271027951f00009a1f0000b3015f2e01000000b42982246295dc180000000000c0feb27bf2a8d1020000000000000010271027dc190100f21901000ca1eadbf5ffffff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY"
+          },
+          {
+            "name": "account_3",
+            "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT"
+          },
+          {
+            "name": "account_4",
+            "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP"
+          },
+          {
+            "name": "account_5",
+            "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p"
+          },
+          {
+            "name": "account_6",
+            "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL"
+          },
+          {
+            "name": "account_7",
+            "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx"
+          },
+          {
+            "name": "account_8",
+            "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg"
+          },
+          {
+            "name": "account_9",
+            "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk"
+          },
+          {
+            "name": "account_10",
+            "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu"
+          },
+          {
+            "name": "account_11",
+            "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H"
+          },
+          {
+            "name": "account_12",
+            "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn"
+          },
+          {
+            "name": "account_13",
+            "address": "6ALkS1Dp4E4wfgA3t25JnK8RUvPhV7YWtk5uTZytnEDo"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5j8HrgAtv2MK23CtVVtPdYbbWpS5UwRNwvJpN85a3ArLuRxTsvtf7XfTeZ5xyRyE75R6CKszkiS8QAYzsFaXmfyZ",
+        "slot": 454576410,
+        "n": "0",
+        "instruction": "ix_14",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "14",
+        "argsHex": "e42a9a376295dc180000000000b037d92b426e70000000001a49181b01000200e42a9a376295dc180000000000f8d5a97b0b7c70000000001a49181b02000200e42a9a376295dc18000000000090ab5447e88870000000001a49181b02000200",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gs7aQqWznF4F2hb26kt3NdMnM3RTnNcgpWMc9NLJaj6y"
+          },
+          {
+            "name": "account_1",
+            "address": "SysvarC1ock11111111111111111111111111111111"
+          },
+          {
+            "name": "account_2",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_3",
+            "address": "FJnaiidSLXFweWkgbinxEHRykVHsnkzDcYbNDR3RF5LN"
+          },
+          {
+            "name": "account_4",
+            "address": "6b5LxeDVxqCGAhZjjjgieGP71c5GBt2cBwiafCFX6NMU"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5ohoCVoibtg753UptPDMtRRqkVRDRin4GLczEbY2bwMjPoFPwGLoRnms5oWwnyq9YS3JvkY65oVTjPMMPzFMajD5",
+        "slot": 454576410,
+        "n": "0.5",
+        "instruction": "ix_07",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "07",
+        "argsHex": "97cc6e030000000000000000000000000100",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "4PXZxJNnAmTBTgLqqchNRqvwRBH5bAu3jz8VSeisnVzB"
+          },
+          {
+            "name": "account_1",
+            "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo"
+          },
+          {
+            "name": "account_2",
+            "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4"
+          },
+          {
+            "name": "account_3",
+            "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU"
+          },
+          {
+            "name": "account_4",
+            "address": "Gy2d2YAzAceHS4PbRVppz1CFRgCucaMFZY4hXWR3SQT5"
+          },
+          {
+            "name": "account_5",
+            "address": "6GezT3u4jkacNE5SXMzwRyNNn1UeRjDW3SPahzAgcxiN"
+          },
+          {
+            "name": "account_6",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_7",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_8",
+            "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d"
+          },
+          {
+            "name": "account_9",
+            "address": "4cG31VNF9TzFinNc7BmnjhFvGjxkY3sCETVMtMgbrhPs"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      }
+    ],
+    "notInvoked": [
+      {
+        "signature": "2Xt63XHjK52ePTSTk8Asz2Etgyk7uivHwHSqew8xtD69J6ssDbAxyQ96kW2F5i3nCqqRAESzbZBL9w8AssUkGFtS",
+        "slot": 454576409
+      },
+      {
+        "signature": "4fYdTG25h5H7G7nRPPmdY27edgQV2TLbbLh8MwmuvhjDNbZzcfHefGaaB5fRjfn96aDD7eA6oXgYRJ2uycje4Jq3",
+        "slot": 454576409
+      }
+    ],
+    "counterCorrections": [],
+    "legacyCounter": {
+      "tested": 30,
+      "matched": 29,
+      "note": "The pre-fix counter, which also scored Anchor event self-CPIs as misses"
+    },
+    "scope": "Held-out structural decoding: instruction selectors, ordered accounts, payload lengths, independently derived PDAs and signed wire bytes. Opaque argument semantics are explicitly unresolved."
+  },
+  "reproducible": "node server/scripts/composer-heldout.ts --replay docs/heldout/BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi",
+  "limits": [
+    "RPC metadata is a provider observation; transaction signatures are independently verified.",
+    "This verifies structural reconstruction. Unnamed arguments remain opaque; no semantics or profit guarantee is asserted.",
+    "The frozen interface is never amended to fit the held-out batch. Every selected receipt and every failure is retained."
+  ]
+}

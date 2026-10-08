@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "program": "BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+  "frozenAt": "2026-10-08T14:52:49.583Z",
+  "frozenAfterSlot": 454577034,
+  "idlSha256": "b7acd8fd254e0973a39e13823e5a27f2e6ae54ef158fb34aadebce9896938140",
+  "publishedIdl": {
+    "exists": false,
+    "anchorIdlAccount": "CSNywR3HTefMJBHg97HhHwXx3r9mdtjj92RBqhFN6ZuN",
+    "independentlyChecked": true,
+    "checkedAtSlot": 454577031,
+    "composerHttpStatus": 400
+  },
+  "programAccount": {
+    "executable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "checkedAtSlot": 454577031,
+    "accountDataSha256": "087cb292b7c2b6073792e3d8045e5ab3a0a693a0115caf1194e68086569bff7f"
+  },
+  "catalogs": [
+    {
+      "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+      "url": "https://idl.solana.com/api/idl?programId=BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+      "checkedAt": "2026-10-08T14:52:49.422Z",
+      "httpStatus": 404,
+      "verdict": "missing",
+      "response": {
+        "error": "No IDL found for this program (checked PMP and Anchor)"
+      }
+    },
+    {
+      "name": "SolanaFM IDL metadata catalog",
+      "url": "https://api.solana.fm/v0/programs/meta/BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW",
+      "checkedAt": "2026-10-08T14:52:49.505Z",
+      "httpStatus": 502,
+      "verdict": "unavailable",
+      "response": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>solana.fm | 502: Bad gateway</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" con"
+    }
+  ],
+  "catalogControl": {
+    "program": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "checks": [
+      {
+        "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+        "url": "https://idl.solana.com/api/idl?programId=JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:52:49.058Z",
+        "httpStatus": 200,
+        "verdict": "listed"
+      },
+      {
+        "name": "SolanaFM IDL metadata catalog",
+        "url": "https://api.solana.fm/v0/programs/meta/JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:52:49.290Z",
+        "httpStatus": 502,
+        "verdict": "unavailable"
+      }
+    ]
+  },
+  "composer": "https://the-composer-svc.fly.dev",
+  "serviceReportedEvidence": {
+    "discriminatorBytes": 8,
+    "distinctDiscriminators": 4,
+    "encoding": "anchor",
+    "encodingConfident": true,
+    "instructionSamples": 257,
+    "instructionsNamed": 7,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 4227,
+    "seedDerivationsTried": 21662361,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 364,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "provenanceLimit": "This records the artifact returned by the live service. It does not prove authorship, inference method or learner source availability."
+}

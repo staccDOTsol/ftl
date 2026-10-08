@@ -1,0 +1,991 @@
+{
+  "address": "BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi",
+  "cached": true,
+  "caveats": [
+    "a name shown here comes from another program that declared the same discriminator, not from this one — treat it as a strong hint, not a fact. `ix_<hex>` means no published IDL anywhere declares it.",
+    "an account marked `constant` was the same address in every sample, which usually means a fixed global — but a program used by only one caller will look that way too.",
+    "argument layout is NOT decoded. `argsHex` below is the observed bytes after the discriminator — pass them back verbatim as `argsHex` on the instruction spec. Without that the transaction carries the right accounts and an EMPTY payload, which the program will reject."
+  ],
+  "evidence": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 7,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 244,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": true,
+    "seedCandidates": 3984,
+    "seedDerivationsTried": 3489208,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 118,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "howToUse": "pass this whole object as `idl` to /tx/build or /tx/batch. Account names are positional (`account_0`...) because transactions do not carry names; anything with a `pda` block is derived for you, the rest you supply.",
+  "instructions": [
+    {
+      "accounts": [
+        {
+          "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu",
+          "evidence": "identical in all 115 samples",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "evidence": "identical in all 115 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_5",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_6",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_7",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_8",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_10",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_11",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_12",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_13",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        576
+      ],
+      "args": [],
+      "argsHex": [
+        "c378f154d192dc180000000000b069de718aff46000000000000000010271027bb1b0000bc1b00009fd2e931fdfffffffa7b2e54d192dc180000000000405eba490c7a02010000000000000010271027f3640000fa640000d5e81cfcfaffffffd5fa9151d192dc18000000000030d49ae61d0f5f0100000000000000102710271b890000248900007c146a7bf7ffffff74423150d192dc180000000000bcb88d06f04950000000000000000010271027551f0000631f0000f31ee31f01000000083da84fd192dc18000000000070ac8bdb686cc8000000000000000010271027434e0000534e000085e9c070faffffff5ad1e54ed192dc1800000000002061c3d32badd0020000000000000010271027741901008519010036a495b4f8ffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000001a49534dd192dc180000000000403cbd5296c9120200000000000000102710274fcf00005fcf000009044cc2fcffffff3560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f03000000",
+        "90075a52d192dc18000000000098438b6ce7fc46000000000000000010271027b91b0000bb1b00009fd2e931fdffffff74423150d192dc180000000000bcb88d06f04950000000000000000010271027551f0000631f0000f31ee31f01000000083da84fd192dc18000000000070ac8bdb686cc8000000000000000010271027434e0000534e000085e9c070faffffff5ad1e54ed192dc1800000000002061c3d32badd0020000000000000010271027741901008519010036a495b4f8ffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000001a49534dd192dc180000000000403cbd5296c9120200000000000000102710274fcf00005fcf000009044cc2fcffffff3560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f03000000b411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffff",
+        "083da84fd192dc18000000000070ac8bdb686cc8000000000000000010271027434e0000534e000085e9c070faffffff5ad1e54ed192dc1800000000002061c3d32badd0020000000000000010271027741901008519010036a495b4f8ffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000003560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        28
+      ],
+      "exampleSignatures": [
+        "2Nr9ix75CtxhhAMJLTkQcQspZ4MEvkQ26j76cDELFL22TrPpXJmckLsrNvExC1vJioRYvsKQLgHqinZ5bqv4AWdP",
+        "5yYifL5x6PEz7Mvfnv68MPKvMH4HHpshD9ngZLMoL7gWXzYYHmtYYSQAi9hBA2hACoDaY6vMn6M6uQK5ZbeanvSx",
+        "26Dj4uBrYrrHuUqbpX1ZeTU1pwgp7Tq8C27u11d6Za3r25S9BDB17fBi6pSJTBTnidW5wsXPpwQqwEmGeEianBYg"
+      ],
+      "name": "ix_1c#14",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 115,
+      "samplesGained": 0,
+      "samplesLost": 115,
+      "shapeNote": "selector 1c appears with several account counts; this is the 14-account route. They are different paths through the program, not noise."
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "So11111111111111111111111111111111111111112",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo",
+            "ownerIsAccount": "account_1",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo",
+            "ownerIsAccount": "account_1",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_5",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "84DjGHUVwCRTNhe2y8JJYs4dRSjKwP31DYasEXvjbQQV",
+            "ownerIsAccount": "account_0",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 26 samples",
+          "name": "account_6",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 26 samples",
+          "name": "account_7",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d",
+          "evidence": "identical in all 26 samples",
+          "name": "account_8",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "argBytes": [
+        18
+      ],
+      "args": [],
+      "argsHex": [
+        "c967ca000000000000000000000000000100",
+        "2e9cc0010000000000000000000000000100",
+        "a9560e010000000000000000000000000000"
+      ],
+      "direction": "both directions: this selector serves buys AND sells. Only a buy can be replayed from a wallet with no inventory.",
+      "discriminator": [
+        7
+      ],
+      "exampleSignatures": [
+        "338V39BqfCCfVpKej61ED4Pq5sfimGx2VqZ5CfJA7ik3Kdh3BBcuR7sgT2Rztp28oWpYTNSPZLRe9mMqE3mY7JKi",
+        "5sKiqhjetgVgVyecqPMqWq2BTFVynurb2BUAgPqRW1hyUSgjboD1NRrazgAZnK2bcnMsg5KcqwVgz5qxxjx7eAAw",
+        "2vkJcWDwgrVZjrTRbtnA67mK3qfa4f97UPYXNhdr44dAserM6HEiBDpyZM2Gjctm3xunrtiuZky1rG3ZZeu1bntS"
+      ],
+      "name": "ix_07",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 26,
+      "samplesGained": 17,
+      "samplesLost": 9,
+      "shapeNote": "all 26 samples had 10 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "address": "Gs7aQqWznF4F2hb26kt3NdMnM3RTnNcgpWMc9NLJaj6y",
+          "evidence": "identical in all 24 samples",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "evidence": "identical in all 24 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo",
+          "evidence": "identical in all 24 samples",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FJnaiidSLXFweWkgbinxEHRykVHsnkzDcYbNDR3RF5LN",
+          "evidence": "identical in all 24 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "6b5LxeDVxqCGAhZjjjgieGP71c5GBt2cBwiafCFX6NMU",
+          "evidence": "identical in all 24 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        96
+      ],
+      "args": [],
+      "argsHex": [
+        "08266d49d192dc18000000000038ded80a1f3a70000000002520181b0100020008266d49d192dc180000000000ec762dfa054a70000000002520181b0200020008266d49d192dc180000000000380ee8b3f55770000000002520181b02000200",
+        "97e1cf45d192dc1800000000009c3f023a6d3a70000000002420181b0200020097e1cf45d192dc18000000000054e86a34544a70000000002420181b0200020097e1cf45d192dc1800000000006c16fe9a3c5870000000002420181b02000200",
+        "bd8dad42d192dc180000000000b432b3ef273d70000000002420181b02000100bd8dad42d192dc180000000000bcec1c4d0f4d70000000002420181b02000200bd8dad42d192dc180000000000386c460af85a70000000002420181b02000200"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        20
+      ],
+      "exampleSignatures": [
+        "3Xo94iNdph1BWEPi9xwJGU2PWC1m5Y1ReeezNW5rVt6pSBi6pfn3accLU6DeBMxa4zqoQ4x4GeAWv7BuVcyvRjZD",
+        "5RRtYQfoq53fLJUTbaFf5Z8RTZgUScKVUFn8WBHLQbrCVm1jZweqvcA9FP9mbsxfiKdp16TBNwLyVqGqVZRTh5ac",
+        "4ypTMupTe8UFrL3XDQbE1qwSkMr1p5zvjScAYEG4a2NGxHGVVTbB7U2nnvr6YoQiBFUFCyAa9BiadtYdcnUWcidv"
+      ],
+      "name": "ix_14",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 24,
+      "samplesGained": 0,
+      "samplesLost": 24,
+      "shapeNote": "all 24 samples had 5 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        250,
+        259,
+        410,
+        419,
+        464
+      ],
+      "args": [],
+      "argsHex": [
+        "b3000d00330000000040e59c3012000000d0ed902e0000000000000012000000ffffffffc0ffffff000000001e000000feffffff9fffffff0000000046000000fdffffff26ffffff0000000064000000fcffffff00ffffff120000000000000001000000400000001e000000000000000200000061000000460000000000000003000000da00000064000000000000000400000000010000020000000200000000000000000000002120181b00000000000000004d0000000000002e002e0080000203000300c20100000201010a0000000082000000fbffffffb3feffff00000000fa000000faffffff00ebffff0000000090010000f9ffffff00ceffff00000000c4090000f8ffffff009cffff0000000064190000f7ffffff0038ffff8200000000000000050000004d010000fa00000000000000060000000015000090010000000000000700000000320000c409000000000000080000000064000064190000000000000900000000c80000000000000000000000000000000000000000000000000000000000000000000000000128beb00e000000000300093d00000333020700000000000000000800000000000000000900000005000000050a00000008000000080b000000080000000801",
+        "e60080001a0000000030ef7dba02000000743ba40b0000000000000012000000ffffffffc0ffffff000000001e000000feffffff9fffffff0000000046000000fdffffff8dffffff0000000064000000fcffffff80ffffff120000000000000001000000400000001e0000000000000002000000610000004600000000000000030000007300000064000000000000000400000080000000020000000200000000000000000000002120181b00000000000400004d000000000000e600e60080000203000300c60100000201010a0000000082000000fbffffff66ffffff00000000fa000000faffffff00ecffff0000000090010000f9ffffff00ceffff00000000c4090000f8ffffff009cffff0000000064190000f7ffffff0038ffff8200000000000000050000009a000000fa00000000000000060000000014000090010000000000000700000000320000c409000000000000080000000064000064190000000000000900000000c80000000000000000000000000000000000000000000000000000000000000000000000000128beb00e000000000390d00300000333020700000000000000000800000000000000000900000005000000050a00000008000000080b000000080000000801",
+        "0001330040000000007083d05d06000000e87648170000000000000012000000ffffffffc0ffffff000000001e000000feffffff9fffffff0000000046000000fdffffff8dffffff0000000064000000fcffffff80ffffff120000000000000001000000400000001e0000000000000002000000610000004600000000000000030000007300000064000000000000000400000080000000020000000200000000000000000000002120181b00000000000000004d0000000000000001000180000203000300c30100000201010a0000000082000000fbffffff66ffffff00000000fa000000faffffff00ecffff0000000090010000f9ffffff00ceffff00000000c4090000f8ffffff009cffff0000000064190000f7ffffff0038ffff8200000000000000050000009a000000fa00000000000000060000000014000090010000000000000700000000320000c409000000000000080000000064000064190000000000000900000000c80000000000000000000000000000000000000000000000000000000000000000000000000128beb00e000000000340d10c000003330201"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        16
+      ],
+      "exampleSignatures": [
+        "2YZaTPCh2jbNdpMGgbj5m98jMCqctr3i7TYaRhWzSRn1dKuzev4hNN9FUyfHobjZbD1eBrAamr6Y1n18RKW4BN8S",
+        "5YgGHg6Syc59vqranmPXQkSspCRkRGVn2kzDeA7tW2kCqn9axcVPgsoFFinHLbGWDghii3Bvb9zhcq4irXpdeXVF",
+        "3cubYH6bBNU4BU9e5NvyPKiyB4oT1gAgJZ7WVzE41jz8HHZApGeSPcLYWvxHmhCeD8fFGPBaRZohyMLLcGWwPc57"
+      ],
+      "name": "ix_10",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 23,
+      "samplesGained": 0,
+      "samplesLost": 23,
+      "shapeNote": "all 23 samples had 2 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "address": "7RrqWam5ri2Yu6fUtiCp2dwqaydjJYMXz6HtCnQPGbDY",
+          "evidence": "identical in all 18 samples",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "evidence": "identical in all 18 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        108
+      ],
+      "args": [],
+      "argsHex": [
+        "0f7ab34dd192dc18000000000000709b6ba7e003410100002520181b020002000000c000fa56e249d192dc1800000000004c3635887dca55000000002520181bc800c80000000002765ae246d192dc18000000000080ac69e1e108db090000002520181b0200020000060000",
+        "21560246d192dc1800000000000c53cad808ca55000000002420181bc800c800000000025b32d145d192dc18000000000000e0ebb705cd07410100002420181b020002000000c000a172cf45d192dc180000000000801f0ecc2b1fdb090000002420181b0200020000060000",
+        "a172cf45d192dc180000000000801f0ecc2b1fdb090000002420181b0200020000060000c235c345d192dc1800000000000090c493f78509410100002420181b020002000000c000e550f73dd192dc1800000000005ceacb2e72cc55000000002420181bc800c80000000002"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        27
+      ],
+      "exampleSignatures": [
+        "3kKZ3bo7YKNEMgHyjSxtPF2963eZEXUBTGbGtFsScfVAVWSVmrTihvKMhKQaQmEbs8QXpXDK3xDYAHetMsvuphF5",
+        "5BK8RYQsDToHbos2yBejB4HtCjMpMAPDmqoBQxEHEnLhXR2FrXGxcuDQEoo1oEQMd5KxWsvRdq63ayyVnNX9tTsG",
+        "2jYM8N6nUHsoy3mU9XxZH2E4PqkohKY3dLAgjWeJAedTuQXcDKofpJfcTvVcHePA2Ro8YAK1jY4ugK9DAczu7FEC"
+      ],
+      "name": "ix_1b",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 18,
+      "samplesGained": 0,
+      "samplesLost": 18,
+      "shapeNote": "all 18 samples had 5 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo",
+          "evidence": "identical in all 15 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4",
+          "evidence": "identical in all 15 samples",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU",
+          "evidence": "identical in all 15 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "So11111111111111111111111111111111111111112",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "GJvewfRjqTUPtx6WsBSUnaFbdgXwgXnWfpDyLm65T4YA",
+            "ownerIsAccount": "account_0",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_5",
+          "signer": false,
+          "tokenAccount": {
+            "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "mintIsAccount": null,
+            "note": "this is a token account, not a derived address. If you change the account it belongs to, you must change this one to match.",
+            "owner": "GJvewfRjqTUPtx6WsBSUnaFbdgXwgXnWfpDyLm65T4YA",
+            "ownerIsAccount": "account_0",
+            "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          "writable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 15 samples",
+          "name": "account_6",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 15 samples",
+          "name": "account_7",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "Sysvar1nstructions1111111111111111111111111",
+          "evidence": "identical in all 15 samples",
+          "name": "account_8",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "J1to1yufRnoWn81KYg1XkTWzmKjnYSnmE2VY8DGUJ9Qv",
+          "evidence": "identical in all 15 samples",
+          "name": "account_9",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "argBytes": [
+        17
+      ],
+      "args": [],
+      "argsHex": [
+        "9e6b2d0401000000000000000000000000",
+        "44c33b0401000000000000000000000000",
+        "9ed23c0300000000000000000000000000"
+      ],
+      "direction": "both directions: this selector serves buys AND sells. Only a buy can be replayed from a wallet with no inventory.",
+      "discriminator": [
+        2
+      ],
+      "exampleSignatures": [
+        "66iq8v3B3mVFS8agCRxb124YGqVk5ENok3R3c2cmR9m7ifju1AjF8XeiPam1KFVbRWUsVBU1sekF94GoHykKvu7P",
+        "sNhuo2Vmerv4X5CungyGdDA5EjpCCCS2yBzkPma2M4vw5hFp1qGqJeYuQqDv4ZVTjL8nR88pD9ZMdzky1DiKDVe",
+        "3ppfFZ68cczjqG6ogADzCgMeEYgtYuj16gpXP4zUPjRiT9HKdFCTzJKmhcvbUbfSzrN1h24LCKnFNcXTAbtQQ8rF"
+      ],
+      "name": "ix_02",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 15,
+      "samplesGained": 12,
+      "samplesLost": 3,
+      "shapeNote": "all 15 samples had 10 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "address": "CRpVXnj48ecKmgdAD1azDAZN92khBEeTFNChu4XWJfVA",
+          "evidence": "identical in all 15 samples",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "evidence": "identical in all 15 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        96
+      ],
+      "args": [],
+      "argsHex": [
+        "ed10544dd192dc1800000000009487855a73b50b00000000000000003200320090040000950400007943de0a190000007ecd423fd192dc180000000000de02098a1fb7020000000000000000320032000c010000130100008292d965ffffffff",
+        "80bd5840d192dc18000000008002bc051274b50b00000000000000003200320090040000950400007943de0a19000000d6a92834d192dc1800000000e0c56d34801fb7020000000000000000320032000c010000130100008292d965ffffffff",
+        "cb5c8a35d192dc180000000000e63fa4df5eb50b00000000000000003200320090040000950400007943de0a19000000739e2b21d192dc18000000002075029a081bb7020000000000000000320032000c010000130100008292d965ffffffff"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        28
+      ],
+      "exampleSignatures": [
+        "2NJNtUHK4F5tGt5nF89H9CPTMwCN5qkg5s5Nu3uYGtyWms8k7vXhBNWjB9r1dF4F3inAaycKBxFvGzKbA7ejUrd5",
+        "4o1bKqQNvS1vSKadSi2JtZs61Dedad67fqXDEhKwAspDNyKvvtCNvLrbtTPrr51GNBQ9M1LLqG8c93o7EUQZ8mr5",
+        "2RaD7MRzX9ZZoPDEUEYR7apvQiKGHH1xLDNuVHbsCLDx7h9bvrKxjusWjzaCvHYjT5FJtCjopL3QF1Gs1cvH2h2d"
+      ],
+      "name": "ix_1c#4",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 15,
+      "samplesGained": 0,
+      "samplesLost": 15,
+      "shapeNote": "selector 1c appears with several account counts; this is the 4-account route. They are different paths through the program, not noise."
+    },
+    {
+      "accounts": [
+        {
+          "address": "ARu4n5mFdZogZAravu7CcizaojWnS6oqka37gdLT5SZn",
+          "evidence": "identical in all 3 samples",
+          "name": "account_0",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo",
+          "evidence": "identical in all 3 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "ATRsNGv2nDw7hSMfkUTBoVUDsFDwN7po7KbecyiGWNB4",
+          "evidence": "identical in all 3 samples",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "2Y7HATmn9aJBcxCskE5V2U2epmjvkZmB51zTJBbhj4cU",
+          "evidence": "identical in all 3 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "DT2krA8vSP96D68nH86eAztZHVM18YB5i4gDXjLBDXm7",
+          "evidence": "identical in all 3 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "8XrtGP8RG33AnrN2yJ6H3gnXPNQ3dYXKqM72bpzhcsd6",
+          "evidence": "identical in all 3 samples",
+          "name": "account_5",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 3 samples",
+          "name": "account_6",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+          "evidence": "identical in all 3 samples",
+          "name": "account_7",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "Sysvar1nstructions1111111111111111111111111",
+          "evidence": "identical in all 3 samples",
+          "name": "account_8",
+          "signer": false,
+          "writable": false
+        }
+      ],
+      "argBytes": [
+        152
+      ],
+      "args": [],
+      "argsHex": [
+        "0c001c280000000090a2c76a00000000082a44bbbfd808003de18b040000000000000000000000008c19fdf26753f9374d12f5c15a3b1589c800def1394b7974322cce975dd637911920181b000000003f784739a53c1bad33db996aa98448682ce77c1e258a114b1ff8d107fd5935df7f378f8465523e00cb95d2d7ad8f38f1b5cf74f5c722d916e32273d51c6c91430100000000000000",
+        "348e0700000000008ba2c76a00000000ccde070000000000d01f46000000000035000100000000008c19fdf26753f9374d12f5c15a3b1589c800def1394b7974322cce975dd637910720181b000000004c0bccce3975c110af7eb8bbaebca762484c3f09531769d321aaeb903702dc7408a45904979436898ff677db8c0e1ccca0f90fa21fb7d306ad70a3b2d799e26e0000000000000000",
+        "80b08300000000008fa2c76a00000000005e9700000000000b65bd5b0000000013010000000000008c19fdf26753f9374d12f5c15a3b1589c800def1394b7974322cce975dd637911520181b00000000e8f91c5854b37eee80bf5cd684d49e8aab0ba2be1fb3618f5a57dc88752232c56e46d4fbc66b7a3913663e63085f4a16f2e7da550ab5febf4968370b02312f230100000000000000"
+      ],
+      "direction": "both directions: this selector serves buys AND sells. Only a buy can be replayed from a wallet with no inventory.",
+      "discriminator": [
+        19
+      ],
+      "exampleSignatures": [
+        "2TbCUaPJnGJcVMwq9ygNpZToQh8drmm7JnRnoQ7nAmdBhF6G3VpwkXE1KPj5NiqxLWNwgGKKKUB4yay5773TLstS",
+        "5NRXrJ63WyNRYYX8L4xJZmmzy3dUTgj8XfMsj8Cg1HLyRKeRw8ne3FeQjvu4r1o34GF53roCf4uCQVyQEM2ezmeX",
+        "5yJopG3i3Ppzobsrsr6U5WFgoCtbHaaSpSKUvajB1AwTwf2ctzKqBJst8Px2ABsjDtusrG9S9tw8i51CEDzBMcn6"
+      ],
+      "name": "ix_13",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 3,
+      "samplesGained": 1,
+      "samplesLost": 2,
+      "shapeNote": "all 3 samples had 9 accounts"
+    },
+    {
+      "accounts": [
+        {
+          "address": "BA1Tgcs5ExvKAFCSYfSDwnXxK7C7U8hYNfNS4tYCqrSu",
+          "evidence": "identical in all 3 samples",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "address": "SysvarC1ock11111111111111111111111111111111",
+          "evidence": "identical in all 3 samples",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "address": "Ai4y1Yyrs5jUaa2s25oXTeoLjYaSGKGxQ3tziszm4cXk",
+          "evidence": "identical in all 3 samples",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "9JTz2BdfaRAtVkQxJhvVjErrEcDxTEUjYJmBYuzDRm9p",
+          "evidence": "identical in all 3 samples",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "HMEpJVXNmaxSNebepQGPAXokeiKuRfWHBYjye25Ffk7H",
+          "evidence": "identical in all 3 samples",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "5hAeoLceGTzGr3Bya6SxTvgAvmbQdJaGo24Ayj31yXcx",
+          "evidence": "identical in all 3 samples",
+          "name": "account_5",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "7vy1jooEWAfzamkXCCPiezAgZW9ESmZhAogfc5vQjHSY",
+          "evidence": "identical in all 3 samples",
+          "name": "account_6",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "CbgawEjzXT6GZ7FHmBfFQuFtm6YZ3L3b2qU3LxG6v1Wg",
+          "evidence": "identical in all 3 samples",
+          "name": "account_7",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "GQNF81naL8kCc6PMsstoinoeMoqvbhcN2QCHfaVN5fzL",
+          "evidence": "identical in all 3 samples",
+          "name": "account_8",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "D1EaoSF6WvQTthFijsvgpmkbMidJQQUCJnZefV2yj3Wu",
+          "evidence": "identical in all 3 samples",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "CDriMGg78NesHTHtGdwZMorFcBZXt594AhZfEzFziGtT",
+          "evidence": "identical in all 3 samples",
+          "name": "account_10",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FzwBDKbg2bSQjQNaKm9GedTxxnJ5t3zDqCvNDg6rAWJn",
+          "evidence": "identical in all 3 samples",
+          "name": "account_11",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "address": "FZ6EKCRP1iqZzwtc6rLFFgbaSFkoNvdw5dA7Ef3gRXbP",
+          "evidence": "identical in all 3 samples",
+          "name": "account_12",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        528
+      ],
+      "args": [],
+      "argsHex": [
+        "083da84fd192dc18000000000070ac8bdb686cc8000000000000000010271027434e0000534e000085e9c070faffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000003560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff",
+        "a71af94dd192dc18000000000040355eba496cc8000000000000000010271027434e0000524e000085e9c070faffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000003560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff",
+        "a61af94dd192dc18000000000040355eba496cc8000000000000000010271027434e0000534e000085e9c070faffffffe12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000003560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        28
+      ],
+      "exampleSignatures": [
+        "3G6Au7aHytPie8DmmPGhH5HyamwichbrDJZBgrau6PkFPxm9K9N6CFtQJ9GHhMYcFXUaFZg4iGFKybBEavKVQqJQ",
+        "4YPduvv2LP3dbymKtxvUWVhUiw9jH1sMkxSHBNJvrP58GUrsNcSDv1BSyEoAYLAz4RCYFLcJftcnNEawUmfogL1k",
+        "2ex8ZKDHsXwJ3F8Ptoev4fgUfv8kJttdx68HTY6dTmWfQTNkaQgH5DseCrfmpEKwPaod1S4SsRUxFG7uHyTiXSa"
+      ],
+      "name": "ix_1c#13",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 3,
+      "samplesGained": 0,
+      "samplesLost": 3,
+      "shapeNote": "selector 1c appears with several account counts; this is the 13-account route. They are different paths through the program, not noise."
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_5",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_6",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_7",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_8",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_10",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        432
+      ],
+      "args": [],
+      "argsHex": [
+        "3560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        28
+      ],
+      "exampleSignatures": [
+        "2RB8UZBUjcTddRkDwPS5zkYPVuav4Jbqhz4KGytKPDiwsvEF1NTdAsAmvkx4o5Yrv3VAHBMKwLSJDKtvrbYoHMBu"
+      ],
+      "name": "ix_1c#11",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 1,
+      "samplesGained": 0,
+      "samplesLost": 1,
+      "shapeNote": "selector 1c appears with several account counts; this is the 11-account route. They are different paths through the program, not noise."
+    },
+    {
+      "accounts": [
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_0",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_1",
+          "signer": false,
+          "writable": false
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_2",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_3",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_4",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_5",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_6",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_7",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_8",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_9",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_10",
+          "signer": false,
+          "writable": true
+        },
+        {
+          "evidence": "varies across samples and no seed recipe reproduced it — caller must supply",
+          "name": "account_11",
+          "signer": false,
+          "writable": true
+        }
+      ],
+      "argBytes": [
+        480
+      ],
+      "args": [],
+      "argsHex": [
+        "e12d564dd192dc180000000000786891ed7ce9950000000000000000102710278c3a0000933a00005e97c02e120000003560524dd192dc180000000000f09e3c2cd43651010000000000000010271027b8830000bb830000f3a1c92604000000f7b3184ad192dc18000000000050cf66d5e762ea0000000000000000102710278e5b0000905b00004307cfec050000001d83124ad192dc1800000000004070ce88d2eca5000000000000000010271027cd400000d2400000899dda9318000000ad85b047d192dc180000000000b08bdb6800fb730100000000000000102710274891000053910000434fff1f0300000088b53b47d192dc180000000000e8d9acfa5cfd46000000000000000010271027b91b0000bb1b00009fd2e931fdffffffb411d245d192dc18000000000000e561a1d67c02010000000000000010271027f5640000fa640000d5e81cfcfaffffff8e0b7845d192dc1800000000009006f01648105f0100000000000000102710271b890000248900007c146a7bf7ffffffaa8a6445d192dc18000000000094f6065f984a50000000000000000010271027551f0000631f0000f31ee31f01000000bd9da242d192dc180000000000000ebe3099ca120200000000000000102710274fcf00005fcf000009044cc2fcffffff"
+      ],
+      "direction": "the payer lost tokens in every sample — a sell. A wallet that does not already hold the token cannot replay this.",
+      "discriminator": [
+        28
+      ],
+      "exampleSignatures": [
+        "3N3Mx1KTwKcUWZkoEUwBUzQ9fprZs2WE4N2KUX4jhRxeMmANnxXAgrwFSEvDRQSWEjrWZrVWAPjfX38fURa8ccJu"
+      ],
+      "name": "ix_1c#12",
+      "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+      "observedIn": 1,
+      "samplesGained": 0,
+      "samplesLost": 1,
+      "shapeNote": "selector 1c appears with several account counts; this is the 12-account route. They are different paths through the program, not noise."
+    }
+  ],
+  "metadata": {
+    "name": "learned",
+    "source": "reconstructed from landed transactions",
+    "spec": "0.1.0"
+  },
+  "truncated": "the PDA seed search hit its budget: some accounts reported as caller-supplied may in fact be derivable. Raise `seedBudget`."
+}

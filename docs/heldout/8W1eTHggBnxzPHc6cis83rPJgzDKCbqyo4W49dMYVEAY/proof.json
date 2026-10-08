@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "program": "8W1eTHggBnxzPHc6cis83rPJgzDKCbqyo4W49dMYVEAY",
+  "frozenAt": "2026-10-08T14:51:59.351Z",
+  "frozenAfterSlot": 454576847,
+  "idlSha256": "ca69360356da7676a90044d044a0002fbca9def1b23b0926540f8666a00f94e9",
+  "publishedIdl": {
+    "exists": false,
+    "anchorIdlAccount": "HgLASmuTKpmoAcrEC8fSASjCqdTQWXKMoiLNkm6R1UGF",
+    "independentlyChecked": true,
+    "checkedAtSlot": 454576836,
+    "composerHttpStatus": 400
+  },
+  "programAccount": {
+    "executable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "checkedAtSlot": 454576836,
+    "accountDataSha256": "7f4e4844158c8f51849af742cded4c88b51df376f1d5d1d93e0c3494000485ca"
+  },
+  "catalogs": [
+    {
+      "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+      "url": "https://idl.solana.com/api/idl?programId=8W1eTHggBnxzPHc6cis83rPJgzDKCbqyo4W49dMYVEAY",
+      "checkedAt": "2026-10-08T14:51:57.170Z",
+      "httpStatus": 404,
+      "verdict": "missing",
+      "response": {
+        "error": "No IDL found for this program (checked PMP and Anchor)"
+      }
+    },
+    {
+      "name": "SolanaFM IDL metadata catalog",
+      "url": "https://api.solana.fm/v0/programs/meta/8W1eTHggBnxzPHc6cis83rPJgzDKCbqyo4W49dMYVEAY",
+      "checkedAt": "2026-10-08T14:51:57.245Z",
+      "httpStatus": 502,
+      "verdict": "unavailable",
+      "response": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>solana.fm | 502: Bad gateway</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" con"
+    }
+  ],
+  "catalogControl": {
+    "program": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "checks": [
+      {
+        "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+        "url": "https://idl.solana.com/api/idl?programId=JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:51:56.904Z",
+        "httpStatus": 200,
+        "verdict": "listed"
+      },
+      {
+        "name": "SolanaFM IDL metadata catalog",
+        "url": "https://api.solana.fm/v0/programs/meta/JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:51:57.048Z",
+        "httpStatus": 502,
+        "verdict": "unavailable"
+      }
+    ]
+  },
+  "composer": "https://the-composer-svc.fly.dev",
+  "serviceReportedEvidence": {
+    "discriminatorBytes": 8,
+    "distinctDiscriminators": 132,
+    "encoding": "anchor",
+    "encodingConfident": true,
+    "instructionSamples": 250,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": false,
+    "seedCandidates": 4871,
+    "seedDerivationsTried": 0,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 1003,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "provenanceLimit": "This records the artifact returned by the live service. It does not prove authorship, inference method or learner source availability.",
+  "receiptsSha256": "763cab7ebfa9514bf53d6177448e1a0828c35aba5a0ed5b209c6ccdb2ee3120d",
+  "requestedTransactions": 32,
+  "failedListed": [],
+  "unreadable": [],
+  "training": {
+    "discriminatorBytes": 8,
+    "distinctDiscriminators": 132,
+    "encoding": "anchor",
+    "encodingConfident": true,
+    "instructionSamples": 250,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": false,
+    "seedCandidates": 4871,
+    "seedDerivationsTried": 0,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 1003,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "result": {
+    "transactions": 32,
+    "instructions": 32,
+    "matched": 0,
+    "coverage": 0,
+    "runtimeEvents": 0,
+    "signaturesVerified": 32,
+    "pdaVerified": 0,
+    "pdaUnresolved": 0,
+    "opaqueArguments": 0,
+    "failures": [
+      {
+        "signature": "2i15u9Bg1wo7aNnTzQ2YQujV7HuHuJrzTo9zTtU2mLHtUo6QTwrgT7V5ocWYtg2wFqpVvgVVmWj8i2vknjr17Bqr",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "8d54926d01960a4f",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "2ZuZYUUvUh8b975YnEgGSb6yu8i8YnDHT6nPy2zBefKGnoPvT82KxT9YZSrVszeH4jxf9Xf9cHWFvBsRStRpgb9Z",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "5b73c44c29450276",
+        "bytes": 32,
+        "accounts": 59
+      },
+      {
+        "signature": "3D9X1RxhaU3raBpNdc2PMzUz1E8VSBiyRvusG9cQs7pHkmvet4TReQzg97bKabZcLbyDktxrNmSXow5mrQbsY1eg",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "353fa717f70297ef",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "3DkDgwjJEVgdMr36ELEMgkBEpRTGsu6xg8KCryhsPmn3Vg4GyL8UeLDPi22JtGDdF7Qm3gST5yDMkgcUPJJoLMoE",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a9da1af84fff1275",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "3PutAkjQT7dd5tRgf6QN9ANTGYRmBZ372PG4WZbkT57TXn4d2Cn2s2sp3UNU5cwZGq7dmLJnJRNbpzbjEBAFLH6o",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "10ddd71e686955e2",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "3WBW7GXppWcCiAa36QkAc8crqSFFDCFGTrqqohKZh8TYTrnAJrik2ftAq4Au4RhRi3wEo54waWfmRRSdswDTqaQ9",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "941d450b85c7fa28",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "3X2YVHPSrezrNxw9pMBUgSk2szWPUztLg7ycLqXPyBHniiEn6JRSM6Hbkc6T8v85xakpKN52EVghEPWj5yuHxW4j",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "16b87d5da873a4b6",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "478TFxFbb2fdYkci9quWs5o5XWznkRGp9ZHP5sgsSPNbwdCJsk3Mf1J4pmYmKjE3GRKJWXxVMh8emPSasWi5bor4",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "efa5fc17acc840d7",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "4GDPj22HHnHdvQvBD5zh4buPYpWuWp2uArRhrepsNnakHTA2irqTvjj2FjPgdLaWtznsqzvyyWfYSu137T29GYyC",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "1bfc55202c727a37",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "4TkE3KiDHnmTcMnDaweNJhdoWv5WaK5XdN2dq3Rwd7w7Vc25HMEEfGuHk5vgGy8jo4qmLAWtnXGf6K8vVNc4NZzB",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "353fa717f70297ef",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "4zko4eZnWp9zLEsnE1MgivfinQVmwciZhTXGZaF87Db66VZty21fYfb4UmLoBsThkpbydebMhQozf18hqUM9qAeU",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "ccb9f4967061738a",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "52N3vC7ab9HacpVDzCTMQUZcrTHjKkTfiWbtBXmvWV1hNJJfW7586a7Zn8YMStwsfMdzeUiXbLrc3NZAFjZKiMvh",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "31b17b02173b105a",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "5pk8J5mWpY6C8bFdsRPS9DRnhmyGDnbicUafXYYZWMHckrEsCr12UYtP5YWNM3c1yvMZp4brQ5vSrBonVXrhiWq7",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "4aa5373fdb233177",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "5Spk2nnHeM7SQ87kkAqKVtQRcq5qmxS9DiPx8xkzH2qUW3mYkJ5jQN4HfP9eNLijFDNYaDw35uJwk9f8WYxtyqb3",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "851cdaa51685e575",
+        "bytes": 32,
+        "accounts": 59
+      },
+      {
+        "signature": "5XGtYPcLLQ1DZCo8NEx4g1oQiA3eBQi5hLxRLZCxbJ2HWhtyUjAQbxZeNDuejVrsPL7YysEWX81w8uzx6k3s7VCJ",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a9da1af84fff1275",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "65x2CD5DhoYi8wmeiurJSDYvV167FeXjY126rdEn6X6R3dK6YpoYdbzC7RQ6kGjM6YXYWPX524C7gwsokSpktqx5",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a7f1fe794335ae70",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "66QQPWEDG6d2STApY3HiTEVToi4kAWokiHhsatVYRH9kjghmedYeiTprAeBCAewX298gqQCcMmUFkigsogGTTopL",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "940c6f6a291b65d7",
+        "bytes": 32,
+        "accounts": 59
+      },
+      {
+        "signature": "AxMn5ZitjmA787WKoyCDvjji6Qa2DHue4sqN3Za4z74qM8NVZ2bUGRRmMfmfX1WiuCPPS629aDu24CGnampiiSA",
+        "slot": 454576848,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "1bfc55202c727a37",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "y6vCwVq5PANps21vUKjxZ2DNTk6MhwZU3UkbJP59kuw58mvymFm8f1J9vxPHrwaNPsu1stUYe1ERrxTtTpnhurq",
+        "slot": 454576848,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "509e50da4e7aaafc",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "2JDAdjbF1UPH8VGjgubHU4PdkiQTHhWZvfPxc5YUoX4FJwAwfKsTAVTaMZQrAJACLuEzkyeoP8z5Y8JkNXDiA3nV",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "353fa717f70297ef",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "3ekad9jULHhHFdTsqU5vDk23aCvFpcY8ZUvCYKGreHWPXCJs5jmzqMWrGqWCTeiGemM34gZnJsDE2AtJWHctkizD",
+        "slot": 454576849,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "4b9aab10850acf5e",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "3to5P5kYSLx7Dxu4xaUeVzuumS8xUeeujJLhPksrvhoJdaGtvsGKiyQYtFnKvYQGmR9BDnXoD8y24LkYdzrhLohZ",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a9da1af84fff1275",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "3V94nP8kRaXp8UBAAsaTJ6thUUvLCF2zyYJPhRxnRPswG4YTx5f9xFUyYkbZsiAETB8N5Z6Yu3iPjAR3P3hUiXKc",
+        "slot": 454576849,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a606a9b7469be8d9",
+        "bytes": 32,
+        "accounts": 59
+      },
+      {
+        "signature": "3ZNfk2KNLTHYsTzGAbdCivm73PTNQHHu8rrngTgst6pWjCpqcqG8jXF3cNHoUM9XkKgrdWLnQX5EBKrjahAvhQct",
+        "slot": 454576849,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "1c4de421d84d27e5",
+        "bytes": 36,
+        "accounts": 43
+      },
+      {
+        "signature": "4bHT7Y57iWXLQ88hzkHaznKgoiVPctHKzE1P8SWishwhZYoHhkVWSSTYYzgEbuTBUFvMqYRi7Gx5EohdZ5W7tomW",
+        "slot": 454576849,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "32a307e2b161919a",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "5FLp82CS3e12xd49zx2waBLnWCWmhkSAk3uumcgreAnMoYVTSNzwUT9owoJS8AuVCuhUnB9ai7Amab6dy6Nkzs5R",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "1bfc55202c727a37",
+        "bytes": 33,
+        "accounts": 68
+      },
+      {
+        "signature": "5RRGQcqBKFJegKrtFLbn7h9qJjw7oSSde24HRAQgZmY1R14BeE9MAU11yvawpoHPFT5vVsh6r6B9xo7bKgAtbZS1",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "ccb9f4967061738a",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "5VcdUoW5RHZjUU8Un4Md2apQHAYAg42XQkMs8eV6mXyp6nLXyKnxjtwSnXCbUHa7FP1DztThXuMZDXxMJX3fuhat",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "a9da1af84fff1275",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "Wi5S6GntZdc7gGtetb1Aj1qrVULS2hnF1k7RMK4ngn3BQjTAqV6MAwAsBXd3fU7NaJXoUXCdMKyrJtrRjGv8qTM",
+        "slot": 454576849,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "851cdaa51685e575",
+        "bytes": 32,
+        "accounts": 59
+      },
+      {
+        "signature": "2JWfDGqPmZMcybgyMJ9AuUMJ2rzQNBTF2qu3dTX4DLfQ6dxTjXutDSuPyxMzSWBGHW1Rizm9s48pkhWhuvJmQniu",
+        "slot": 454576850,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "eee5293511a3c8e9",
+        "bytes": 36,
+        "accounts": 53
+      },
+      {
+        "signature": "4eKMjHpA9ocBEWtrwPTY487PDzpMeraHTVMRgjZvUhG1Dqyv6nPYriDxYBNJPXW3WUq5ws4uCgisYFsZdKYmwDw8",
+        "slot": 454576850,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "d07762c1f8c178c5",
+        "bytes": 32,
+        "accounts": 57
+      },
+      {
+        "signature": "4GpuH1hFGtARCYhtizhmRbXDXT9kdwM4rukAAomZR4fPX1cG6UwZ2jgUmPkdtBGHXDkEuRT8PZuESrgL2fz1EggM",
+        "slot": 454576850,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "ccb9f4967061738a",
+        "bytes": 32,
+        "accounts": 57
+      }
+    ],
+    "decoded": [],
+    "notInvoked": [],
+    "counterCorrections": [],
+    "legacyCounter": {
+      "tested": 32,
+      "matched": 0,
+      "note": "The pre-fix counter, which also scored Anchor event self-CPIs as misses"
+    },
+    "scope": "Held-out structural decoding: instruction selectors, ordered accounts, payload lengths, independently derived PDAs and signed wire bytes. Opaque argument semantics are explicitly unresolved."
+  },
+  "reproducible": "node server/scripts/composer-heldout.ts --replay docs/heldout/8W1eTHggBnxzPHc6cis83rPJgzDKCbqyo4W49dMYVEAY",
+  "limits": [
+    "RPC metadata is a provider observation; transaction signatures are independently verified.",
+    "This verifies structural reconstruction. Unnamed arguments remain opaque; no semantics or profit guarantee is asserted.",
+    "The frozen interface is never amended to fit the held-out batch. Every selected receipt and every failure is retained."
+  ]
+}

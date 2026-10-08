@@ -1,0 +1,1585 @@
+{
+  "version": 1,
+  "program": "FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+  "frozenAt": "2026-10-08T14:51:07.249Z",
+  "frozenAfterSlot": 454576653,
+  "idlSha256": "7baabece33d84b62108123e762b6ab5aed7cfefde87c08c4d019e12767c7fc4c",
+  "publishedIdl": {
+    "exists": false,
+    "anchorIdlAccount": "FGpkJUbnAsQekywugpeCZk7WiR3jYc32DtQiY7tJ3jgL",
+    "independentlyChecked": true,
+    "checkedAtSlot": 454576649,
+    "composerHttpStatus": 400
+  },
+  "programAccount": {
+    "executable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "checkedAtSlot": 454576649,
+    "accountDataSha256": "808d3e031b721e55fe166fc1d7803127e592331d24f8940fbdc569bdf5dd309c"
+  },
+  "catalogs": [
+    {
+      "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+      "url": "https://idl.solana.com/api/idl?programId=FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+      "checkedAt": "2026-10-08T14:51:07.037Z",
+      "httpStatus": 404,
+      "verdict": "missing",
+      "response": {
+        "error": "No IDL found for this program (checked PMP and Anchor)"
+      }
+    },
+    {
+      "name": "SolanaFM IDL metadata catalog",
+      "url": "https://api.solana.fm/v0/programs/meta/FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+      "checkedAt": "2026-10-08T14:51:07.096Z",
+      "httpStatus": 502,
+      "verdict": "unavailable",
+      "response": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!--<![endif]-->\n<head>\n\n<title>solana.fm | 502: Bad gateway</title>\n<meta charset=\"UTF-8\" />\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n<meta http-equiv=\"X-UA-Compatible\" con"
+    }
+  ],
+  "catalogControl": {
+    "program": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "checks": [
+      {
+        "name": "Solana Foundation (canonical PMP, fallback PMP, Anchor)",
+        "url": "https://idl.solana.com/api/idl?programId=JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:51:06.804Z",
+        "httpStatus": 200,
+        "verdict": "listed"
+      },
+      {
+        "name": "SolanaFM IDL metadata catalog",
+        "url": "https://api.solana.fm/v0/programs/meta/JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+        "checkedAt": "2026-10-08T14:51:06.917Z",
+        "httpStatus": 502,
+        "verdict": "unavailable"
+      }
+    ]
+  },
+  "composer": "https://the-composer-svc.fly.dev",
+  "serviceReportedEvidence": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 2,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 357,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": false,
+    "seedCandidates": 3958,
+    "seedDerivationsTried": 169467234,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 90,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "provenanceLimit": "This records the artifact returned by the live service. It does not prove authorship, inference method or learner source availability.",
+  "receiptsSha256": "dbca793ddc19ca5b84f319aa48d5b9c6f78177f71238b62a639100184a503997",
+  "requestedTransactions": 32,
+  "failedListed": [
+    "5VtTGsy52GK2pabgPbAgen6nUXkBqsxmbyZWuCNJvgh7C8Nom2BufP6pcuj6txec3c6j7kHbVBuUzkAiBXpsAwgn",
+    "WypH9PKX1XSUVoZYcSsEidKUbqnU5vsfLU9v2WBHBtaPXUP6Qypho7caY2wipG2xXaZQeraA1MtRKnVJrsyTK51",
+    "2Cfaw4Aq8ms6XmshY6wqtYDrVvKUFv1eWAMVTphw3XJMNigaNZcQqjyDLfPbsyh4w37J65yYF6om8e5QjYCFcyhX",
+    "47VfrpZn61nusCKug3scS7nKABZAyUkNSb6CFfkAv9Q5Kjz7X9qXJ8BR1sjhydmTFBaoJUHRjkw4aYgajEFv6KsH",
+    "2USF5k8yQVDE1pEJmTcUkW87MdbRXLmMTzSwD61TaJMpNC893kHmUU6pGbrKEcUGMcf6ncNHwdS5VvLg4ai33HzJ",
+    "5TDNayJz7K6ynQsdnAgDM8kSEXnNHVikCCMZYkcnvSL2Fqtx4rcagBm6kBH8E1TumWqqt2dfG1fCNNym591a88J5",
+    "5BS8Tdy4j5DFz3redYXVmfxV8c38guBbtYQ8Zdwn9jbh5TQFQvPe8p1m2semm7AhvTGUPSrKFPPJsfUicF7Xzmrr",
+    "2afUcC2wndTdEudgoLdNmZidsneaSjQNH7VkAuR1QumNjEkR3PmdhnkhWG2zeo9SmZMwt67DWz7hC6UyFKNTrvHD",
+    "229gMmGYhHHZf78LzrXtHZf5tDk6PftFHi2mjPimSb84JnV249wmN272khApjR34sH1xxJ2gk1nQCykMDkkXWihe",
+    "2JrgVGJEYd7ZShHpM2E3M6Tv2Rhp892Turu8ZaPa43Z1WRgdwi9WRu4fGKFnvSvM1LXX7LP9UfYAbLs5xC1nLekC"
+  ],
+  "unreadable": [],
+  "training": {
+    "discriminatorBytes": 1,
+    "distinctDiscriminators": 2,
+    "encoding": "not anchor: selector inferred from the data",
+    "encodingConfident": true,
+    "instructionSamples": 357,
+    "instructionsNamed": 0,
+    "rainbowEntries": 23302,
+    "seedBudgetExhausted": false,
+    "seedCandidates": 3958,
+    "seedDerivationsTried": 169467234,
+    "seedDictionary": 3868,
+    "seedLiteralsFromBinary": 90,
+    "signaturesScanned": 250,
+    "transactionsParsed": 250
+  },
+  "result": {
+    "transactions": 32,
+    "instructions": 97,
+    "matched": 23,
+    "coverage": 0.23711340206185566,
+    "runtimeEvents": 0,
+    "signaturesVerified": 32,
+    "pdaVerified": 0,
+    "pdaUnresolved": 0,
+    "opaqueArguments": 23,
+    "failures": [
+      {
+        "signature": "2GYLqf8TPrx5d7sw2sRZGDFq1onhpZ8ELtge4T2SKTdwPym9TwdkWGYTRJgQk8RvybpKms8mXBtYQAgqG7yFFDrh",
+        "slot": 454576654,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 43
+      },
+      {
+        "signature": "2GYLqf8TPrx5d7sw2sRZGDFq1onhpZ8ELtge4T2SKTdwPym9TwdkWGYTRJgQk8RvybpKms8mXBtYQAgqG7yFFDrh",
+        "slot": 454576654,
+        "n": "1.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4GvrMpdEE2m9n6i4REgaStJdqcuuGtRX9nw569F32Bif5d72t4qU718RHKuXQ3HBHYf9EHgELfGXRf7CbsKd3zCo",
+        "slot": 454576654,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "4GvrMpdEE2m9n6i4REgaStJdqcuuGtRX9nw569F32Bif5d72t4qU718RHKuXQ3HBHYf9EHgELfGXRf7CbsKd3zCo",
+        "slot": 454576654,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4TDTaekYqfMkkwtW3ATEuiLn2m3PvCw9LsMgYw2GEFJqqFRJbvRMBSnSHcTqMmJ8wf5BikpaG6zL5dG6riJnuq5E",
+        "slot": 454576654,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "4TDTaekYqfMkkwtW3ATEuiLn2m3PvCw9LsMgYw2GEFJqqFRJbvRMBSnSHcTqMmJ8wf5BikpaG6zL5dG6riJnuq5E",
+        "slot": 454576654,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4tneJAXaD1c364LMjZVsr5ZUbpN8Dyw272vS1kpKfHLJdgtSEzJfxEng5icQXnysge6LV6akNLoJDikwXdBjZug8",
+        "slot": 454576654,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 32
+      },
+      {
+        "signature": "4tneJAXaD1c364LMjZVsr5ZUbpN8Dyw272vS1kpKfHLJdgtSEzJfxEng5icQXnysge6LV6akNLoJDikwXdBjZug8",
+        "slot": 454576654,
+        "n": "0.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "5e56UjnfC4QWxKb96d2kpRoeqEzZHXMDPqQ8JPe8ybJnYRah5ZDtM6HtxqbbjVPprQiYN125KszWvP93K1eYaDAF",
+        "slot": 454576654,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "5e56UjnfC4QWxKb96d2kpRoeqEzZHXMDPqQ8JPe8ybJnYRah5ZDtM6HtxqbbjVPprQiYN125KszWvP93K1eYaDAF",
+        "slot": 454576654,
+        "n": "2.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "iWFE2dafJ5Q5HrvpSMuyBpejpK1xyyrW9oyVLJYxTNP1sFNFWSfegQqTvxPMqvEz5gnXDBNscBpzT8GgKMkKSRM",
+        "slot": 454576654,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "iWFE2dafJ5Q5HrvpSMuyBpejpK1xyyrW9oyVLJYxTNP1sFNFWSfegQqTvxPMqvEz5gnXDBNscBpzT8GgKMkKSRM",
+        "slot": 454576654,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "Mesf84KqKATv5TasHqjEimSenc4cPRhdEWZUyGgzWmSauv6xzUywVL8KWEZjnbvk32QMqX2UqqPbXZAFe4qeoHD",
+        "slot": 454576654,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "Mesf84KqKATv5TasHqjEimSenc4cPRhdEWZUyGgzWmSauv6xzUywVL8KWEZjnbvk32QMqX2UqqPbXZAFe4qeoHD",
+        "slot": 454576654,
+        "n": "2.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "poBsbmt8wZZVhUCzP8RvmvoxKRnY2QwobMUi1a9A6N7atdkUMniRxm1cc2K3iZFrDxH3sDqnsrUYbwjmmSatkni",
+        "slot": 454576654,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "poBsbmt8wZZVhUCzP8RvmvoxKRnY2QwobMUi1a9A6N7atdkUMniRxm1cc2K3iZFrDxH3sDqnsrUYbwjmmSatkni",
+        "slot": 454576654,
+        "n": "2.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "2C534orb7tdkWtynz8PZfeWCNzbRLYgwmgpwaX1H6E7ECLH9mnAfHEQonp1fYG6BW4d3JP4i2L1EgyXxXRg5BZiD",
+        "slot": 454576655,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 24,
+        "accounts": 43
+      },
+      {
+        "signature": "2C534orb7tdkWtynz8PZfeWCNzbRLYgwmgpwaX1H6E7ECLH9mnAfHEQonp1fYG6BW4d3JP4i2L1EgyXxXRg5BZiD",
+        "slot": 454576655,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4JANURK8qh9b948Akwvv137G4AAm4YoKYftQYvNQVW72TG5o9DebXWcoF8YM8UzyTkSCCqY8ajaftTj3rVkUEh2H",
+        "slot": 454576655,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 43
+      },
+      {
+        "signature": "4JANURK8qh9b948Akwvv137G4AAm4YoKYftQYvNQVW72TG5o9DebXWcoF8YM8UzyTkSCCqY8ajaftTj3rVkUEh2H",
+        "slot": 454576655,
+        "n": "1.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "32BUfK7YBuaokDM5Q895KWdnAfrAGQrmezn6irvXDejnx3hhims8suebmoCtRNXwbswaBKn1RdDQYbN1quByBdtL",
+        "slot": 454576656,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 45
+      },
+      {
+        "signature": "32BUfK7YBuaokDM5Q895KWdnAfrAGQrmezn6irvXDejnx3hhims8suebmoCtRNXwbswaBKn1RdDQYbN1quByBdtL",
+        "slot": 454576656,
+        "n": "1.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "3NA1yUNkuTjoSLb3UXYt584PKPGQwuXQUh4RT8T9e68eyZcpHt6Vvwn4jbLMXduFSCcxzF36c1Mh4P4pKMnJJqGC",
+        "slot": 454576656,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "3NA1yUNkuTjoSLb3UXYt584PKPGQwuXQUh4RT8T9e68eyZcpHt6Vvwn4jbLMXduFSCcxzF36c1Mh4P4pKMnJJqGC",
+        "slot": 454576656,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 32
+      },
+      {
+        "signature": "3NA1yUNkuTjoSLb3UXYt584PKPGQwuXQUh4RT8T9e68eyZcpHt6Vvwn4jbLMXduFSCcxzF36c1Mh4P4pKMnJJqGC",
+        "slot": 454576656,
+        "n": "1.8",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "45DFjp67nSnUpCcD5Cs8PvmQKqAs9e6tm9at3MWw9DdnwCRqMLsifQeFAtpvYWmnBeKo2hF8UdBTE4Ar9uffducF",
+        "slot": 454576657,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "45DFjp67nSnUpCcD5Cs8PvmQKqAs9e6tm9at3MWw9DdnwCRqMLsifQeFAtpvYWmnBeKo2hF8UdBTE4Ar9uffducF",
+        "slot": 454576657,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "03",
+        "bytes": 2,
+        "accounts": 5
+      },
+      {
+        "signature": "45DFjp67nSnUpCcD5Cs8PvmQKqAs9e6tm9at3MWw9DdnwCRqMLsifQeFAtpvYWmnBeKo2hF8UdBTE4Ar9uffducF",
+        "slot": 454576657,
+        "n": "3",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 24,
+        "accounts": 43
+      },
+      {
+        "signature": "45DFjp67nSnUpCcD5Cs8PvmQKqAs9e6tm9at3MWw9DdnwCRqMLsifQeFAtpvYWmnBeKo2hF8UdBTE4Ar9uffducF",
+        "slot": 454576657,
+        "n": "3.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "5u3zbm8kBbt6kK4gMuYb22WzkAgLUbNGe7E7wW4eiZjVVEJPs3YfFd9rdVuUyR3PAWMA6wV3rUtM9EvWPt3L13CQ",
+        "slot": 454576657,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 24,
+        "accounts": 43
+      },
+      {
+        "signature": "5u3zbm8kBbt6kK4gMuYb22WzkAgLUbNGe7E7wW4eiZjVVEJPs3YfFd9rdVuUyR3PAWMA6wV3rUtM9EvWPt3L13CQ",
+        "slot": 454576657,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "zAgjKu5w6KfLvXkCGghpzhYema4xEyPnNUWym277bhLN7fympkVMAgBt7Zp5pisSqErw6iyDECcsPrVSUkxjHS4",
+        "slot": 454576657,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 43
+      },
+      {
+        "signature": "zAgjKu5w6KfLvXkCGghpzhYema4xEyPnNUWym277bhLN7fympkVMAgBt7Zp5pisSqErw6iyDECcsPrVSUkxjHS4",
+        "slot": 454576657,
+        "n": "1.8",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "3EdroLs4GpxEjU98UK2Zzz2JqpUCigquffcAA3s2rvMyeyZ9qR2yuq23bQvQanWAJNuxz79K8j87B8PWkEe1DMR7",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "3EdroLs4GpxEjU98UK2Zzz2JqpUCigquffcAA3s2rvMyeyZ9qR2yuq23bQvQanWAJNuxz79K8j87B8PWkEe1DMR7",
+        "slot": 454576658,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 45
+      },
+      {
+        "signature": "3EdroLs4GpxEjU98UK2Zzz2JqpUCigquffcAA3s2rvMyeyZ9qR2yuq23bQvQanWAJNuxz79K8j87B8PWkEe1DMR7",
+        "slot": 454576658,
+        "n": "2.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "3GLQW1waECuTVRU3o96evhGizHGmTtV4ZBTorK3ZRTTSJs2fn22FdEWJ7wU7w9j52rPGqrtsGSsSAEJKcGsuJnQF",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "3GLQW1waECuTVRU3o96evhGizHGmTtV4ZBTorK3ZRTTSJs2fn22FdEWJ7wU7w9j52rPGqrtsGSsSAEJKcGsuJnQF",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "46oE3NJx5r17t6t3cuNSMssaeCy9V9Mux63XEcSi3sKZrZr9dWq9ucunuHSNmBniH5dRhsa6tuzNksKWSjnLjx2x",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "46oE3NJx5r17t6t3cuNSMssaeCy9V9Mux63XEcSi3sKZrZr9dWq9ucunuHSNmBniH5dRhsa6tuzNksKWSjnLjx2x",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4bemZvDCdTGwwjy3RveBZbSTrchVK8Txs9yvHAS5tTWQpHaFHTsCpS4hCUYaoKToQt5kh48orVmhKPVdkXTnX6jP",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "4bemZvDCdTGwwjy3RveBZbSTrchVK8Txs9yvHAS5tTWQpHaFHTsCpS4hCUYaoKToQt5kh48orVmhKPVdkXTnX6jP",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4pQWCzqnqFLgbpMVvMu7PcnHJgmgeeXxRQgXRsrfjctMd4TPrmvkPnjoZ3iz61jYuMQgNYLPWQ5KaW2N1d7k14KX",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "4pQWCzqnqFLgbpMVvMu7PcnHJgmgeeXxRQgXRsrfjctMd4TPrmvkPnjoZ3iz61jYuMQgNYLPWQ5KaW2N1d7k14KX",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "4uAo9ojEAdWottoUigfzAEYGqzxn2JLta6VRnZs8M68GHiejBEH87itvZTyCLYbWjeXArmAyzRYZcfrLtbz7CqaQ",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "4uAo9ojEAdWottoUigfzAEYGqzxn2JLta6VRnZs8M68GHiejBEH87itvZTyCLYbWjeXArmAyzRYZcfrLtbz7CqaQ",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "ASPGc8w1iAW1NEPudgfSJe3yQAi3NW7KybtFZcdx75KyCk7FDKqBR2e75hucitcp9zU1i9AEVDJJxB7x5WCVNiV",
+        "slot": 454576658,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "ASPGc8w1iAW1NEPudgfSJe3yQAi3NW7KybtFZcdx75KyCk7FDKqBR2e75hucitcp9zU1i9AEVDJJxB7x5WCVNiV",
+        "slot": 454576658,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "n4yW8TE2r8fXxgWgCdgFoemqupAAGm2CNjZBpn3ZuJMXvCt5nzyqRVCrEEqqbeEbgV3ut1KwRUWebXw7THwxSY1",
+        "slot": 454576658,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 24,
+        "accounts": 43
+      },
+      {
+        "signature": "n4yW8TE2r8fXxgWgCdgFoemqupAAGm2CNjZBpn3ZuJMXvCt5nzyqRVCrEEqqbeEbgV3ut1KwRUWebXw7THwxSY1",
+        "slot": 454576658,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "2SXHqvc1Rmb3PukmjdG4RSRymSZQLaHYGs5haX4px715wpqx2CC543sQJ8EqvikqBc8MW2tQ74HyuQvakrVigSGo",
+        "slot": 454576659,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "2SXHqvc1Rmb3PukmjdG4RSRymSZQLaHYGs5haX4px715wpqx2CC543sQJ8EqvikqBc8MW2tQ74HyuQvakrVigSGo",
+        "slot": 454576659,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "2SXHqvc1Rmb3PukmjdG4RSRymSZQLaHYGs5haX4px715wpqx2CC543sQJ8EqvikqBc8MW2tQ74HyuQvakrVigSGo",
+        "slot": 454576659,
+        "n": "3",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 25,
+        "accounts": 83
+      },
+      {
+        "signature": "2SXHqvc1Rmb3PukmjdG4RSRymSZQLaHYGs5haX4px715wpqx2CC543sQJ8EqvikqBc8MW2tQ74HyuQvakrVigSGo",
+        "slot": 454576659,
+        "n": "3.15",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "2ZrqXXe7BQcRR93Bt4E2X3v2nbfZ7B6GGVq51HSeWMuPQGsrfvu3itxGzmydYfFdfX9UpcJr7Mgzeq7a4WQW88m6",
+        "slot": 454576659,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "2ZrqXXe7BQcRR93Bt4E2X3v2nbfZ7B6GGVq51HSeWMuPQGsrfvu3itxGzmydYfFdfX9UpcJr7Mgzeq7a4WQW88m6",
+        "slot": 454576659,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "2ZrqXXe7BQcRR93Bt4E2X3v2nbfZ7B6GGVq51HSeWMuPQGsrfvu3itxGzmydYfFdfX9UpcJr7Mgzeq7a4WQW88m6",
+        "slot": 454576659,
+        "n": "3",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 25,
+        "accounts": 83
+      },
+      {
+        "signature": "2ZrqXXe7BQcRR93Bt4E2X3v2nbfZ7B6GGVq51HSeWMuPQGsrfvu3itxGzmydYfFdfX9UpcJr7Mgzeq7a4WQW88m6",
+        "slot": 454576659,
+        "n": "3.15",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "41ADEbvhDTpWDWa4snxx9iSDcQqDFS9e6X4mAv2BGmf4v1WwVQ2oGcZND52sUBoeoLqaVXL1eKx5jQZmTANsUuPC",
+        "slot": 454576659,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 45
+      },
+      {
+        "signature": "41ADEbvhDTpWDWa4snxx9iSDcQqDFS9e6X4mAv2BGmf4v1WwVQ2oGcZND52sUBoeoLqaVXL1eKx5jQZmTANsUuPC",
+        "slot": 454576659,
+        "n": "1.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "JnMCmDCA4WofPgMZ1KtTDcLqZS57TqFVCKL3QA7yxYBrzk6fmXbPwN6M2UjU2BqBiYr3SERzrs2Vf2u7DhfT4Ez",
+        "slot": 454576659,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "JnMCmDCA4WofPgMZ1KtTDcLqZS57TqFVCKL3QA7yxYBrzk6fmXbPwN6M2UjU2BqBiYr3SERzrs2Vf2u7DhfT4Ez",
+        "slot": 454576659,
+        "n": "2",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "05",
+        "bytes": 1,
+        "accounts": 7
+      },
+      {
+        "signature": "JnMCmDCA4WofPgMZ1KtTDcLqZS57TqFVCKL3QA7yxYBrzk6fmXbPwN6M2UjU2BqBiYr3SERzrs2Vf2u7DhfT4Ez",
+        "slot": 454576659,
+        "n": "3",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 25,
+        "accounts": 83
+      },
+      {
+        "signature": "JnMCmDCA4WofPgMZ1KtTDcLqZS57TqFVCKL3QA7yxYBrzk6fmXbPwN6M2UjU2BqBiYr3SERzrs2Vf2u7DhfT4Ez",
+        "slot": 454576659,
+        "n": "3.15",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "21sgwBonxaRXNcqwnYqqtQzZKXGSzTTQkCX8zovSkmaqiDWJjUcJfa1x1VSoVabkkBAx8VZ4tifktCrzcBFV6wYi",
+        "slot": 454576660,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 24,
+        "accounts": 43
+      },
+      {
+        "signature": "21sgwBonxaRXNcqwnYqqtQzZKXGSzTTQkCX8zovSkmaqiDWJjUcJfa1x1VSoVabkkBAx8VZ4tifktCrzcBFV6wYi",
+        "slot": 454576660,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "2ZKvoTZusSyR9K9FLX72zjkm8gMbKashXpw21EB6H2DLmADwMp8BSRmWqdmwwN4QUF62meXuUFB4oC8NwC2XT3sb",
+        "slot": 454576660,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 45
+      },
+      {
+        "signature": "2ZKvoTZusSyR9K9FLX72zjkm8gMbKashXpw21EB6H2DLmADwMp8BSRmWqdmwwN4QUF62meXuUFB4oC8NwC2XT3sb",
+        "slot": 454576660,
+        "n": "1.9",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "5BzQuY6wBd9LAPjnFdZnQxA5ELaYkwth8psLAKHAzgCpEfYoLBn4CxyQaCw53y2JfnmgusscTt9hRW25tsE9hm5G",
+        "slot": 454576660,
+        "n": "0",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 22,
+        "accounts": 30
+      },
+      {
+        "signature": "5BzQuY6wBd9LAPjnFdZnQxA5ELaYkwth8psLAKHAzgCpEfYoLBn4CxyQaCw53y2JfnmgusscTt9hRW25tsE9hm5G",
+        "slot": 454576660,
+        "n": "0.4",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "EckYSC217mBBrg9UQRxL9bMh9aV1iWbjEhvBdj8TuXWVqxJYhZ7hKJvsieccm3hbsY96DWE9SBb8uyLBzq6FA9u",
+        "slot": 454576660,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "EckYSC217mBBrg9UQRxL9bMh9aV1iWbjEhvBdj8TuXWVqxJYhZ7hKJvsieccm3hbsY96DWE9SBb8uyLBzq6FA9u",
+        "slot": 454576660,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      },
+      {
+        "signature": "XDsATNAGpP8XqBhpEnnZzjfh92dXmHYRvxg5yXRvmQAsd5c9NKAANigx7vCsKkNNUED9pBYrKZvfaT7RwsBanvq",
+        "slot": 454576660,
+        "n": "1",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "00",
+        "bytes": 23,
+        "accounts": 32
+      },
+      {
+        "signature": "XDsATNAGpP8XqBhpEnnZzjfh92dXmHYRvxg5yXRvmQAsd5c9NKAANigx7vCsKkNNUED9pBYrKZvfaT7RwsBanvq",
+        "slot": 454576660,
+        "n": "1.7",
+        "reason": "Selector/account/payload shape not covered",
+        "selector": "07",
+        "bytes": 82,
+        "accounts": 0
+      }
+    ],
+    "decoded": [
+      {
+        "signature": "2GYLqf8TPrx5d7sw2sRZGDFq1onhpZ8ELtge4T2SKTdwPym9TwdkWGYTRJgQk8RvybpKms8mXBtYQAgqG7yFFDrh",
+        "slot": 454576654,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000fe",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "2syGPxvhr9umEYe1vUAu488n6vxFbdx1YgnWnZA3aG81"
+          },
+          {
+            "name": "account_1",
+            "address": "EQtjUEfAiCm7m4YjAZUW6R2q6PpysgZQveFgCbvi5NAG"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4GvrMpdEE2m9n6i4REgaStJdqcuuGtRX9nw569F32Bif5d72t4qU718RHKuXQ3HBHYf9EHgELfGXRf7CbsKd3zCo",
+        "slot": 454576654,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "00ca9a3b00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "H13LUiv7qSetfTzUrVzMzTvxtKtYoQQ8QMcdcmfbdiSb"
+          },
+          {
+            "name": "account_1",
+            "address": "XXXXXsiKfM49XohyATcrYbRYBd9WWhDRM7c7vMYQNSd"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4TDTaekYqfMkkwtW3ATEuiLn2m3PvCw9LsMgYw2GEFJqqFRJbvRMBSnSHcTqMmJ8wf5BikpaG6zL5dG6riJnuq5E",
+        "slot": 454576654,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "00ca9a3b00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DKxZ5HpaSLv7kUhdH25dmBuLpnAkHdGAJQdK43qnFm46"
+          },
+          {
+            "name": "account_1",
+            "address": "MafiaY64pWCFdShJp8quaypxr21rG8MnVoPW99HhS3G"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5e56UjnfC4QWxKb96d2kpRoeqEzZHXMDPqQ8JPe8ybJnYRah5ZDtM6HtxqbbjVPprQiYN125KszWvP93K1eYaDAF",
+        "slot": 454576654,
+        "n": "1",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "55f5194100000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "rjpqrwcopnd3zWJrXYfR4LwRYrUxGT5WXRhFANwVMW3"
+          },
+          {
+            "name": "account_1",
+            "address": "7rzHb25KeVs1WeeSaRHTouJWiCiSJKkxE14DvYCNkw3k"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "iWFE2dafJ5Q5HrvpSMuyBpejpK1xyyrW9oyVLJYxTNP1sFNFWSfegQqTvxPMqvEz5gnXDBNscBpzT8GgKMkKSRM",
+        "slot": 454576654,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "00ca9a3b00000000fb",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "EbiHjKe8dM9mxua1QW34EmHGNH7VuSSaTk8pP3AcRfbY"
+          },
+          {
+            "name": "account_1",
+            "address": "HACKERamoyuTkkbuVnSWPNc5a5TDQH3U9vpp6zbrRKTe"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "Mesf84KqKATv5TasHqjEimSenc4cPRhdEWZUyGgzWmSauv6xzUywVL8KWEZjnbvk32QMqX2UqqPbXZAFe4qeoHD",
+        "slot": 454576654,
+        "n": "1",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0c67e03a00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "4o5YtSuGfvmybsmYhUmcNd39ihxonNsHNTMiqkss9viB"
+          },
+          {
+            "name": "account_1",
+            "address": "Go9BEhJGCpbXFzky6SWcofqQyuiKrtE1m9Knx1aiZCc8"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "poBsbmt8wZZVhUCzP8RvmvoxKRnY2QwobMUi1a9A6N7atdkUMniRxm1cc2K3iZFrDxH3sDqnsrUYbwjmmSatkni",
+        "slot": 454576654,
+        "n": "1",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "9f01d63600000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9LNXfDrXn6USjyhWeeQtznisnHkTGAGmMk1WAaYF2WaR"
+          },
+          {
+            "name": "account_1",
+            "address": "HNwEoMmVS3rSNWLT4omZ4D7VqNpD9TaDy2yN3MTpEm9H"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2C534orb7tdkWtynz8PZfeWCNzbRLYgwmgpwaX1H6E7ECLH9mnAfHEQonp1fYG6BW4d3JP4i2L1EgyXxXRg5BZiD",
+        "slot": 454576655,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "80a4d18100000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "5iF57Z8aZa1KSTdrVTU7fayur6eDfwhxAhD12C5ERhxr"
+          },
+          {
+            "name": "account_1",
+            "address": "GyLovszqQ33VRfioYs3cKNv7zbXqjypbYRPgFEQn8Pse"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "4JANURK8qh9b948Akwvv137G4AAm4YoKYftQYvNQVW72TG5o9DebXWcoF8YM8UzyTkSCCqY8ajaftTj3rVkUEh2H",
+        "slot": 454576655,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "FM8GNRSkk9cY7ysK2fw31qVit6WRFsauUCeZcAbeHCLB"
+          },
+          {
+            "name": "account_1",
+            "address": "2iway1dPifCCmntDuTxbsQunwDoK1fcczXSMWpbsjzdn"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "32BUfK7YBuaokDM5Q895KWdnAfrAGQrmezn6irvXDejnx3hhims8suebmoCtRNXwbswaBKn1RdDQYbN1quByBdtL",
+        "slot": 454576656,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "05632a0c00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "2SaDwQ3UkeMfDwBJzvywbuso7tunZDyYKPgPvwwtwCVX"
+          },
+          {
+            "name": "account_1",
+            "address": "BTkM5xq4WdSPVZGcCMzgknZpanQGazEwrLVFQ2Bc6G5N"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "45DFjp67nSnUpCcD5Cs8PvmQKqAs9e6tm9at3MWw9DdnwCRqMLsifQeFAtpvYWmnBeKo2hF8UdBTE4Ar9uffducF",
+        "slot": 454576657,
+        "n": "1",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "8033023b00000000fe",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "9fMo7cdyi689kCEdz1M1u6GqcVsZQXVX16gb6efVXx6p"
+          },
+          {
+            "name": "account_1",
+            "address": "HqhRtkQB1hvNVeDS5YbeyabWSRff39tjx4CX4kjY7U4r"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "5u3zbm8kBbt6kK4gMuYb22WzkAgLUbNGe7E7wW4eiZjVVEJPs3YfFd9rdVuUyR3PAWMA6wV3rUtM9EvWPt3L13CQ",
+        "slot": 454576657,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000fc",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "43g5supUroUDEgXRNCZfu6T1wt8nV3dBp7z4Z4mWgEyN"
+          },
+          {
+            "name": "account_1",
+            "address": "5LPcrJ5iLXGVzVa9qPKftT6wwc1VC4v7yzAJov43QLM5"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "zAgjKu5w6KfLvXkCGghpzhYema4xEyPnNUWym277bhLN7fympkVMAgBt7Zp5pisSqErw6iyDECcsPrVSUkxjHS4",
+        "slot": 454576657,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000f9",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "7MmasBcaCep7fuWAQFmu1qhuwQiBgKF3ov2N6MRUhfKb"
+          },
+          {
+            "name": "account_1",
+            "address": "74TTjdsmgSZ6HC3Pi4pGZBpr7RuaySTtFu6oQhHdGuFu"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "3EdroLs4GpxEjU98UK2Zzz2JqpUCigquffcAA3s2rvMyeyZ9qR2yuq23bQvQanWAJNuxz79K8j87B8PWkEe1DMR7",
+        "slot": 454576658,
+        "n": "1",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "c00fb64c00000000fb",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "HMEhHBSAURdXopdzjjtd3hYmDDQF84YhWRou5Zudmq2G"
+          },
+          {
+            "name": "account_1",
+            "address": "9MbpPb7o4hz2wP6YV4hPsBp9hMmr33wSYpLzsVEgJmMT"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "n4yW8TE2r8fXxgWgCdgFoemqupAAGm2CNjZBpn3ZuJMXvCt5nzyqRVCrEEqqbeEbgV3ut1KwRUWebXw7THwxSY1",
+        "slot": 454576658,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000fe",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "5Eru2mbY1w2FGJHnA6rEWhKppYta3ukXPYdb2nXiRNRJ"
+          },
+          {
+            "name": "account_1",
+            "address": "9g2gAUg2jUqUfbQkK8ziaXfFiVzgihn8r3HqG2Los3mS"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2SXHqvc1Rmb3PukmjdG4RSRymSZQLaHYGs5haX4px715wpqx2CC543sQJ8EqvikqBc8MW2tQ74HyuQvakrVigSGo",
+        "slot": 454576659,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "66bbfb0400000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "FxWXNh7a28A2C8B1UUqdLrbZyh4HgiWaRwmC4zNjrQbY"
+          },
+          {
+            "name": "account_1",
+            "address": "FxBzf8q2MnsbQp8FCPsnSXTBmfWM13tzAbkvBSfLfiZh"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2ZrqXXe7BQcRR93Bt4E2X3v2nbfZ7B6GGVq51HSeWMuPQGsrfvu3itxGzmydYfFdfX9UpcJr7Mgzeq7a4WQW88m6",
+        "slot": 454576659,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "f346a60800000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "2gFEVhUWUzzJ6MRMTgoDXhD5A3Zx4qx4JzVpZeiyJWWY"
+          },
+          {
+            "name": "account_1",
+            "address": "FcYGb4LSq6tf18Z9FXHDqExTGBQr2RdcmmW7yPm25QnL"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "41ADEbvhDTpWDWa4snxx9iSDcQqDFS9e6X4mAv2BGmf4v1WwVQ2oGcZND52sUBoeoLqaVXL1eKx5jQZmTANsUuPC",
+        "slot": 454576659,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "f2b02b0c00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "2SaDwQ3UkeMfDwBJzvywbuso7tunZDyYKPgPvwwtwCVX"
+          },
+          {
+            "name": "account_1",
+            "address": "BTkM5xq4WdSPVZGcCMzgknZpanQGazEwrLVFQ2Bc6G5N"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "JnMCmDCA4WofPgMZ1KtTDcLqZS57TqFVCKL3QA7yxYBrzk6fmXbPwN6M2UjU2BqBiYr3SERzrs2Vf2u7DhfT4Ez",
+        "slot": 454576659,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "8609d70500000000fc",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "3xr4hyTyMt57owFUgV1ejbGFbf7yK5Cqbxr1dA1P223W"
+          },
+          {
+            "name": "account_1",
+            "address": "7PcaanxNRWaTGVxA4tZmLJAT2xpMWEtD2Vurd77GcSBv"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "21sgwBonxaRXNcqwnYqqtQzZKXGSzTTQkCX8zovSkmaqiDWJjUcJfa1x1VSoVabkkBAx8VZ4tifktCrzcBFV6wYi",
+        "slot": 454576660,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "0000000000000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Dj6MNDQ9bP1GjCBgEWc1oheBjNkxuRSTZNEAka35dg4f"
+          },
+          {
+            "name": "account_1",
+            "address": "8BkFC6Q7ucp1K5EiLec6GiRVYCYTn17Tu9CAaxV33cNX"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "2ZKvoTZusSyR9K9FLX72zjkm8gMbKashXpw21EB6H2DLmADwMp8BSRmWqdmwwN4QUF62meXuUFB4oC8NwC2XT3sb",
+        "slot": 454576660,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "c109f20b00000000ff",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "2SaDwQ3UkeMfDwBJzvywbuso7tunZDyYKPgPvwwtwCVX"
+          },
+          {
+            "name": "account_1",
+            "address": "BTkM5xq4WdSPVZGcCMzgknZpanQGazEwrLVFQ2Bc6G5N"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "EckYSC217mBBrg9UQRxL9bMh9aV1iWbjEhvBdj8TuXWVqxJYhZ7hKJvsieccm3hbsY96DWE9SBb8uyLBzq6FA9u",
+        "slot": 454576660,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "a78deb0700000000fc",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "Gb18kKyUKDmEJpF1tgeft3AQTkMygPW92S97uVtsRr2w"
+          },
+          {
+            "name": "account_1",
+            "address": "G1bzkCBzKRw6DoKah9WW2p4T2QvP8RTfvbMkcY3cHPSn"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      },
+      {
+        "signature": "XDsATNAGpP8XqBhpEnnZzjfh92dXmHYRvxg5yXRvmQAsd5c9NKAANigx7vCsKkNNUED9pBYrKZvfaT7RwsBanvq",
+        "slot": 454576660,
+        "n": "0",
+        "instruction": "ix_01",
+        "nameSource": "unknown: no published IDL declares this discriminator, so only the discriminator is certain",
+        "selectorHex": "01",
+        "argsHex": "d924fb0600000000fc",
+        "argumentSemantics": "opaque; no argument names or types invented",
+        "accounts": [
+          {
+            "name": "account_0",
+            "address": "DvqFer8ckAXJZpzP8JKoojxwEFnrCeboynMfCREQPFTN"
+          },
+          {
+            "name": "account_1",
+            "address": "8XcpENUrd4jxhM13XtB2ztsWuYR5LhjFSCv9VpG7te5v"
+          },
+          {
+            "name": "account_2",
+            "address": "So11111111111111111111111111111111111111112"
+          },
+          {
+            "name": "account_3",
+            "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+          },
+          {
+            "name": "account_4",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "pdaRecipes": [],
+        "wireRoundTrip": true
+      }
+    ],
+    "notInvoked": [],
+    "counterCorrections": [],
+    "legacyCounter": {
+      "tested": 97,
+      "matched": 23,
+      "note": "The pre-fix counter, which also scored Anchor event self-CPIs as misses"
+    },
+    "scope": "Held-out structural decoding: instruction selectors, ordered accounts, payload lengths, independently derived PDAs and signed wire bytes. Opaque argument semantics are explicitly unresolved."
+  },
+  "reproducible": "node server/scripts/composer-heldout.ts --replay docs/heldout/FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9",
+  "limits": [
+    "RPC metadata is a provider observation; transaction signatures are independently verified.",
+    "This verifies structural reconstruction. Unnamed arguments remain opaque; no semantics or profit guarantee is asserted.",
+    "The frozen interface is never amended to fit the held-out batch. Every selected receipt and every failure is retained."
+  ]
+}
