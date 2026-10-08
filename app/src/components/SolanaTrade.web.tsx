@@ -10,7 +10,7 @@ import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/s
 import { swapLink } from '@/lib/swap-link'
 import { inspectTransaction } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
-import SolanaLiquidity from './SolanaLiquidity.web'
+import ZapLiquidity from './ZapLiquidity.web'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
 import type { TradeAction } from './Trade'
 
@@ -43,7 +43,7 @@ function WalletActions(props: Props & { signer: SolanaSigner | null; onBack?: ()
   const [locked, setLocked] = useState(false)
   useEffect(() => {
     const restore = setTimeout(() => {
-      if (localStorage.getItem('liquidityxyz.solana.liquidity-batch.v1')) setMode('liquidity')
+      if (localStorage.getItem('liquidityxyz.solana.liquidity-batch.v1') || localStorage.getItem('liquidityxyz.solana.zap.v1')) setMode('liquidity')
     }, 0)
     return () => clearTimeout(restore)
   }, [])
@@ -56,7 +56,7 @@ function WalletActions(props: Props & { signer: SolanaSigner | null; onBack?: ()
       {props.origin.kind === 'liq_remove' ? <><Txt v="small">Check your own position and exit quote. The observed wallet never becomes your signer.</Txt><Button label="Check my exit" disabled={locked} onPress={() => { setExitRequest(true); setMode('liquidity') }} /></> : null}
     </View> : null}
     <Seg value={mode} options={[{ value: 'swap', label: 'Swap' }, { value: 'liquidity', label: 'Liquidity' }]} onChange={value => { if (!locked) setMode(value) }} />
-    {mode === 'swap' ? <TradeForm {...props} onLockChange={setLocked} /> : <SolanaLiquidity {...props} exitRequest={exitRequest} onLockChange={setLocked} />}
+    {mode === 'swap' ? <TradeForm {...props} onLockChange={setLocked} /> : <ZapLiquidity {...props} exitRequest={exitRequest} onLockChange={setLocked} />}
   </View>
 }
 

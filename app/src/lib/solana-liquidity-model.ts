@@ -52,6 +52,8 @@ export interface PoolStats {
   feeRateBps: number | null
   /** Percent, 24h fees annualized (venue figure when it publishes one, else fees24h / tvl * 365 * 100). */
   feeApr: number | null; rewardApr: number | null; totalApr: number | null
+  /** Orca only: whirlpool tick spacing (32896 marks a Splash pool). */
+  tickSpacing?: number | null
   source: string; fetchedAt: number
 }
 export interface PoolStatsResult { venue: PoolStatsVenue; pool: string; stats: PoolStats | null; error?: string }

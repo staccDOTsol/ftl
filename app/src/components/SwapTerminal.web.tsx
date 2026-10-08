@@ -1,8 +1,9 @@
 // Full-page terminal for the Solana router: one card with a Swap | Liquidity
 // switch. Swap is pay and receive panels, a flip, route details and a single
 // primary action, in the shape of Jupiter Terminal; Liquidity mounts the same
-// liquidity card the token page uses (open, add, remove) on the receive token,
-// inside the same wallet session. Wallets come from SolanaWallet.web (shared
+// liquidity card the token page uses on the receive token, inside the same
+// wallet session: Simple (SOL in, LP out; LP in, SOL out) by default, with the
+// full open / add / remove form behind its Advanced chip. Wallets come from SolanaWallet.web (shared
 // with the token page); the quote → build/simulate → sign → send → confirm
 // loop and the pending-transaction recovery follow the token page's TradeForm.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,7 +21,7 @@ import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLi
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
 import { Button, Chip, Press, Seg, TokenAvatar, Txt } from './ui'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
-import SolanaLiquidity from './SolanaLiquidity.web'
+import ZapLiquidity from './ZapLiquidity.web'
 
 interface Token { mint: string; symbol: string; name?: string; image?: string }
 interface WalletState { address: string | null; version: TransactionVersion | null; name: string }
@@ -335,8 +336,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     </WalletSession> : null}
     <Seg value={mode} options={[{ value: 'swap', label: 'Swap' }, { value: 'liquidity', label: 'Liquidity' }]} onChange={value => { if (!locked) { setMode(value); setError(null) } }} />
     {mode === 'liquidity' ? <>
-      <LiquidityPane token={output} pool={initial.pool} action={initial.action} signer={signer} meta={meta} locked={locked} onLockChange={setLiquidityLocked} onPickToken={() => setPicker('out')} />
-      {!address ? <Button label={wallet ? `Connect ${wallet.name}` : 'Connect wallet'} busy={busy && phase === 'idle' && !!wallet} onPress={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} style={st.primary} /> : null}
+      <LiquidityPane token={output} pool={initial.pool} action={initial.action} advanced={initial.advanced} signer={signer} meta={meta} locked={locked} onLockChange={setLiquidityLocked} onPickToken={() => setPicker('out')} onConnect={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} />
       {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
     </> : null}
     {mode === 'swap' && settings ? <View style={st.panel}>
@@ -448,16 +448,16 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   </View>
 }
 
-// Liquidity mode: the token page's liquidity card on the receive token. The
-// token page payload supplies FTL's pools; a token FTL has not seen yet (404)
-// gets a minimal summary from the metadata endpoint and an empty pool list, so
-// a pool address can still be pasted or a new pool opened.
+// Liquidity mode: the token page's liquidity card (Simple by default) on the
+// receive token. The token page payload supplies FTL's pools; a token FTL has
+// not seen yet (404) gets a minimal summary from the metadata endpoint and an
+// empty pool list, so a pool address can still be pasted or a new pool opened.
 type LiquidityPage = { mint: string; t: TokenSummary; pools: PoolSummary[]; indexed: boolean }
 const synthesizeToken = (mint: string, record: TokenMetaRecord | null, token: Token): TokenSummary => ({
   chain: 'solana', address: mint, symbol: record?.symbol ?? (token.symbol !== shortMint(mint) ? token.symbol : undefined), name: record?.name ?? token.name, image: record?.image ?? token.image, decimals: record?.decimals ?? undefined,
   launchedTs: null, launchVenue: null, graduatedTs: null, firstPoolTs: null, pools: 0, fundedPools: 0, lpWallets: 0, events: 0, lastTs: 0, score: 0, flags: [],
 })
-function LiquidityPane({ token, pool, action, signer, meta, locked, onLockChange, onPickToken }: { token: Token | null; pool: string | null; action: SwapLinkAction; signer: SolanaSigner | null; meta: TokenMetaMap; locked: boolean; onLockChange: (locked: boolean) => void; onPickToken: () => void }) {
+function LiquidityPane({ token, pool, action, advanced, signer, meta, locked, onLockChange, onPickToken, onConnect }: { token: Token | null; pool: string | null; action: SwapLinkAction; advanced: boolean; signer: SolanaSigner | null; meta: TokenMetaMap; locked: boolean; onLockChange: (locked: boolean) => void; onPickToken: () => void; onConnect: () => void }) {
   const mint = token?.mint ?? null
   const [page, setPage] = useState<LiquidityPage | null>(null)
   const [failure, setFailure] = useState<{ mint: string; message: string } | null>(null)
@@ -497,7 +497,7 @@ function LiquidityPane({ token, pool, action, signer, meta, locked, onLockChange
       <Txt v="small" color={C.warn}>{failure.message}</Txt>
       <Button kind="ghost" label="Retry" onPress={() => { setFailure(null); setAttempt(value => value + 1) }} />
     </View> : null}
-    {summary && current ? <SolanaLiquidity key={current.mint} t={summary} pools={current.pools} signer={signer} onLockChange={onLockChange} exitRequest={action === 'exit'} initialPool={pool} /> : null}
+    {summary && current ? <ZapLiquidity key={current.mint} t={summary} pools={current.pools} signer={signer} onLockChange={onLockChange} exitRequest={action === 'exit'} initialPool={pool} advanced={advanced} onConnect={onConnect} /> : null}
   </>
 }
 

@@ -23,7 +23,7 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
 // `initialPool` pre-selects one pool (deep link /swap?mode=liquidity&pool=…): a
 // known FTL pool also selects its venue and pair; an unknown address is pasted as is.
-type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: TradeAction; exitRequest?: boolean; initialPool?: string | null }
+type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: TradeAction; exitRequest?: boolean; initialPool?: string | null; initialVenue?: string; initialOperation?: LiquidityOperation }
 type Batch = { build: LiquidityBuild; owner: string; version: '1' | '0'; next: number; confirmed: string[]; pending?: { signature: string; lastValidBlockHeight: number } }
 const BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
 const PENDING_KEY = 'liquidityxyz.solana.pending.v1'
@@ -38,11 +38,11 @@ function readBatch(): Batch | null {
   } catch { return null }
 }
 
-export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange, origin, exitRequest, initialPool }: Props) {
+export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange, origin, exitRequest, initialPool, initialVenue, initialOperation }: Props) {
   const [venues, setVenues] = useState<LiquidityVenue[]>([])
   const [loaded, setLoaded] = useState(false)
   const [venue, setVenue] = useState('')
-  const [operation, setOperation] = useState<LiquidityOperation>(exitRequest ? 'remove' : 'add')
+  const [operation, setOperation] = useState<LiquidityOperation>(exitRequest ? 'remove' : initialOperation ?? 'add')
   const [pool, setPool] = useState('')
   const [mintA, setMintA] = useState(t.address)
   const [mintB, setMintB] = useState(SOL_MINT)
@@ -116,8 +116,9 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       const counts: Record<string, number> = {}
       for (const item of pools) counts[routingVenue(item.venue)] = (counts[routingVenue(item.venue)] ?? 0) + (item.funded ? 2 : 1)
       const linked = initialPool ? pools.find(item => item.address === initialPool) : undefined
-      const best = linked && response.venues.some(item => item.id === routingVenue(linked.venue) && item.capabilities.length) ? response.venues.find(item => item.id === routingVenue(linked.venue))
-        : response.venues.filter(item => item.capabilities.length).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))[0]
+      const best = (initialVenue ? response.venues.find(item => item.id === initialVenue && item.capabilities.length) : undefined)
+        ?? (linked && response.venues.some(item => item.id === routingVenue(linked.venue) && item.capabilities.length) ? response.venues.find(item => item.id === routingVenue(linked.venue))
+        : response.venues.filter(item => item.capabilities.length).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))[0])
       setVenue(best?.id ?? '')
       if (linked) { setPool(linked.address); if (linked.token) setMintA(linked.token); if (linked.quote) setMintB(linked.quote) }
       else if (initialPool) setPool(initialPool)
