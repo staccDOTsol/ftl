@@ -77,19 +77,21 @@ test('(e) signatures are verified over the message the wallet returned', () => {
   assert.throws(() => assertTransactionSignature(unsigned, signed), /signature/)
 })
 
-test('compute budget may be added only to a transaction that set none', () => {
+test('the wallet may set its own compute budget, within a priority-fee cap', () => {
   const price = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 })
-  assert.throws(() => assertTransactionSignature(unsignedOf(original()), signedOf([price, ...original(), assertion([ro(probe)])])), DIFFERENT)
+  assert.doesNotThrow(() => assertTransactionSignature(unsignedOf(original()), signedOf([price, ...original(), assertion([ro(probe)])])))
+  assert.doesNotThrow(() => assertTransactionSignature(unsignedOf(original()), signedOf([ComputeBudgetProgram.setComputeUnitLimit({ units: 260_000 }), swap(), transfer(), assertion([ro(probe)])])))
   const bare = () => [swap(), transfer()]
   const unsigned = unsignedOf(bare())
   const limit = ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 })
   assert.doesNotThrow(() => assertTransactionSignature(unsigned, signedOf([limit, price, ...bare(), assertion([ro(probe)])])))
-  assert.throws(() => assertTransactionSignature(unsigned, signedOf([price, price, ...bare()])), DIFFERENT)
-  assert.throws(() => assertTransactionSignature(unsigned, signedOf([ComputeBudgetProgram.requestHeapFrame({ bytes: 64 * 1024 }), ...bare()])), DIFFERENT)
+  assert.throws(() => assertTransactionSignature(unsigned, signedOf([price, price, ...bare()])), /repeated compute budget/)
+  assert.throws(() => assertTransactionSignature(unsigned, signedOf([ComputeBudgetProgram.requestHeapFrame({ bytes: 64 * 1024 }), ...bare()])), /unexpected compute budget/)
+  assert.throws(() => assertTransactionSignature(unsigned, signedOf([limit, ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50_000_000 }), ...bare()])), /priority fee/)
 })
 
-test('version, blockhash and signer changes are rejected', () => {
+test('a version change is rejected; a refreshed blockhash is not', () => {
   const unsigned = unsignedOf(original())
   assert.throws(() => assertTransactionSignature(unsigned, signedOf([...original(), assertion([ro(probe)])], 'legacy')), DIFFERENT)
-  assert.throws(() => assertTransactionSignature(unsigned, signedOf([...original(), assertion([ro(probe)])], 0, key(8).toBase58())), DIFFERENT)
+  assert.doesNotThrow(() => assertTransactionSignature(unsigned, signedOf([...original(), assertion([ro(probe)])], 0, key(8).toBase58())))
 })

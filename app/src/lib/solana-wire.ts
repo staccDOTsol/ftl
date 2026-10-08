@@ -87,29 +87,48 @@ function resolve(message: VersionedMessage) {
   return { accounts, instructions: message.compiledInstructions.map(ix => ({ program: keys[ix.programIdIndex], accounts: ix.accountKeyIndexes.map(i => accounts[i]), data: ix.data })) }
 }
 
-// Phantom inserts Lighthouse assertions, and priority fees when a transaction
-// sets no compute budget, before signing. Anything else is a different transaction.
-function sameIntent(unsigned: Uint8Array, signed: Uint8Array) {
+// Phantom inserts Lighthouse assertions before signing, and may set its own
+// compute budget or refresh the blockhash. Every other instruction must come
+// back unchanged and in order; otherwise this names what differs.
+const MAX_PRIORITY_FEE_LAMPORTS = 5_000_000n
+function intentChange(unsigned: Uint8Array, signed: Uint8Array): string | null {
   const a = VersionedTransaction.deserialize(unsigned), b = VersionedTransaction.deserialize(signed)
   const expected = resolve(a.message), actual = resolve(b.message)
-  if (!expected || !actual || a.version !== b.version || a.message.recentBlockhash !== b.message.recentBlockhash) return false
+  if (!expected || !actual) return 'unreadable message'
+  if (a.version !== b.version) return 'version changed'
   const flags = new Map(actual.accounts.map(account => [account.key, account])), known = new Set(expected.accounts.map(account => account.key))
-  if (!expected.accounts.every(account => sameAccount(account, flags.get(account.key))) ||
-      actual.accounts.some(account => !known.has(account.key) && (account.isSigner || account.isWritable))) return false
-  // Only SetComputeUnitLimit (2) / SetComputeUnitPrice (3), once each, and only when we set no budget.
-  const budgeted = expected.instructions.some(ix => ix.program === COMPUTE_BUDGET), fees = new Set<number>()
-  const fee = (ix: Instruction) => !budgeted && ix.program === COMPUTE_BUDGET && !ix.accounts.length && !fees.has(ix.data[0]) &&
-    (ix.data[0] === 2 && ix.data.length === 5 || ix.data[0] === 3 && ix.data.length === 9) && !!fees.add(ix.data[0])
-  const rest = actual.instructions.filter(ix => ix.program !== LIGHTHOUSE && !fee(ix))
-  return rest.length === expected.instructions.length && rest.every((ix, i) => sameInstruction(expected.instructions[i], ix))
+  const changed = expected.accounts.find(account => !sameAccount(account, flags.get(account.key)))
+  if (changed) return `account ${changed.key.slice(0, 8)} changed`
+  const added = actual.accounts.find(account => !known.has(account.key) && (account.isSigner || account.isWritable))
+  if (added) return `new signer or writable account ${added.key.slice(0, 8)}`
+  // The wallet's budget: limit (2), price (3), loaded-data size (4), once each;
+  // any other budget instruction must be one we sent. The fee is capped.
+  const kinds = new Set<number>()
+  let limit = 1_400_000n, price = 0n
+  for (const ix of actual.instructions.filter(ix => ix.program === COMPUTE_BUDGET)) {
+    const kind = ix.data[0], view = new DataView(ix.data.buffer, ix.data.byteOffset, ix.data.byteLength)
+    if (ix.accounts.length || kinds.has(kind)) return 'repeated compute budget'
+    kinds.add(kind)
+    if (kind === 2 && ix.data.length === 5) limit = BigInt(view.getUint32(1, true))
+    else if (kind === 3 && ix.data.length === 9) price = view.getBigUint64(1, true)
+    else if (!(kind === 4 && ix.data.length === 5) && !expected.instructions.some(own => sameInstruction(own, ix))) return 'unexpected compute budget'
+  }
+  if (price * limit / 1_000_000n > MAX_PRIORITY_FEE_LAMPORTS) return 'priority fee above 0.005 SOL'
+  const ours = expected.instructions.filter(ix => ix.program !== COMPUTE_BUDGET)
+  const rest = actual.instructions.filter(ix => ix.program !== COMPUTE_BUDGET && ix.program !== LIGHTHOUSE)
+  const extra = rest.find(ix => !ours.some(own => sameInstruction(own, ix)))
+  if (extra) return `added or changed ${extra.program.slice(0, 8)} instruction`
+  if (rest.length !== ours.length || ours.some((ix, i) => !sameInstruction(ix, rest[i]))) return 'instructions dropped or reordered'
+  return null
 }
 
 export function assertTransactionSignature(unsigned: Uint8Array, signed: Uint8Array) {
   const expected = inspectTransaction(unsigned), actual = inspectTransaction(signed)
-  // V1 stays byte-exact: no known wallet rewrites it.
-  if (!sameBytes(expected.message, actual.message) && (expected.version === '1' || actual.version === '1' || expected.version !== actual.version ||
-      expected.signerKeys.join() !== actual.signerKeys.join() || !sameIntent(unsigned, signed))) {
-    throw new Error('Wallet returned a different transaction. Nothing was sent.')
+  if (!sameBytes(expected.message, actual.message)) {
+    // V1 stays byte-exact: no known wallet rewrites it.
+    const change = expected.version === '1' || actual.version === '1' ? 'V1 message rewritten'
+      : expected.signerKeys.join() !== actual.signerKeys.join() ? 'signers changed' : intentChange(unsigned, signed)
+    if (change) throw new Error(`Wallet returned a different transaction (${change}). Nothing was sent.`)
   }
   if (actual.signerKeys.some((key, i) => !nacl.sign.detached.verify(actual.message, actual.signatures[i], bs58.decode(key)))) {
     throw new Error('Wallet returned an invalid transaction signature. Nothing was sent.')
