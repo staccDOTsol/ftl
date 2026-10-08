@@ -12,6 +12,8 @@ const TOKEN_PROGRAMS = new Set(['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', '
 const MAX_RESPONSE = 2_000_000
 const METHODS = new Set(['getAccountInfo', 'getBalance', 'getTokenAccountsByOwner', 'getSignatureStatuses', 'getBlockHeight', 'getLatestBlockhash', 'getFeeForMessage', 'simulateTransaction', 'sendTransaction'])
 type Options = { routerUrl?: string; rpcUrl?: string; selfRouter?: boolean;
+  /** lp-zap composer program id; enables composed multi-hop direct routes. */
+  composerProgramId?: string;
   localRouter?: Pick<DirectSolanaRouter, 'quote' | 'swap'>; fetch?: typeof fetch; now?: () => number }
 class RequestError extends Error { status: number; constructor(status: number, message: string) { super(message); this.status = status } }
 const fail = (message: string): never => { throw new RequestError(400, message) }
@@ -226,7 +228,7 @@ export function createSolanaRouterHandler(options: Options) {
   async function direct() {
     if (options.localRouter) return options.localRouter
     if (!options.rpcUrl) throw new RequestError(503, 'Solana trading RPC is not configured')
-    directPromise ??= import('./self-router.ts').then(module => new module.DirectSolanaRouter(options.rpcUrl!))
+    directPromise ??= import('./self-router.ts').then(module => new module.DirectSolanaRouter(options.rpcUrl!, { composerProgramId: options.composerProgramId }))
     return directPromise
   }
   function localIntent(q: URLSearchParams): LocalIntent {
@@ -313,7 +315,7 @@ export function createSolanaRouterHandler(options: Options) {
     const wallet = address(j.userPublicKey), old = j.quoteResponse
     const q = quoteParams(new URLSearchParams({ inputMint: old.inputMint, outputMint: old.outputMint, amount: old.inAmount, slippageBps: String(old.slippageBps), swapMode: old.swapMode, transactionVersion: requestedVersion }))
     const minimum = amount(old.otherAmountThreshold)
-    let fresh: any, data: any
+    let fresh: any, data: any, fromDirect = false
     // Build on the direct router and quote the external router in parallel;
     // the external route wins only when it returns strictly more output.
     const [builtDirect, external] = await Promise.allSettled([
@@ -326,6 +328,7 @@ export function createSolanaRouterHandler(options: Options) {
     if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
       data = (builtDirect as PromiseFulfilledResult<any>).value
       fresh = publicQuote(data.quoteResponse, q)
+      fromDirect = true
     } else {
       fresh = (external as PromiseFulfilledResult<any>).value
       if (BigInt(fresh.outAmount) < BigInt(minimum)) throw new RequestError(409, 'The price moved beyond your minimum received. Refresh the quote.')
@@ -335,7 +338,10 @@ export function createSolanaRouterHandler(options: Options) {
     if (!object(data) || typeof data.swapTransaction !== 'string' || !Number.isSafeInteger(data.lastValidBlockHeight) || data.lastValidBlockHeight < 1) throw new RequestError(502, 'Router returned an invalid transaction')
     transaction(data.swapTransaction, false)
     if (transactionVersion(data.swapTransaction) !== requestedVersion || (data.transactionVersion !== undefined && String(data.transactionVersion) !== requestedVersion)) throw new RequestError(502, 'Router returned a different transaction version than requested')
-    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0, quoteResponse: fresh }
+    // A composed (multi-hop, on-chain composer) direct route says so; only the
+    // direct router can produce one, so external responses never carry it.
+    const composed = fromDirect && data.composed === true && Number.isSafeInteger(data.hops) && data.hops > 1 && data.hops <= 8
+    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0, ...(composed ? { composed: true, hops: data.hops } : {}), quoteResponse: fresh }
   }
   async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
     const route = `${req.method}:${url.pathname}`

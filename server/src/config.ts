@@ -16,6 +16,11 @@ const laserstreamMaxMibPerHour = Number(env('HELIUS_LASERSTREAM_MAX_MIB_PER_HOUR
 if (!Number.isSafeInteger(laserstreamMaxMibPerHour) || laserstreamMaxMibPerHour < 0 || laserstreamMaxMibPerHour > 1024 * 1024)
   throw new Error('HELIUS_LASERSTREAM_MAX_MIB_PER_HOUR must be a non-negative integer')
 
+function lpZapProgramId(v: string | undefined): string | undefined {
+  if (v !== undefined && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v)) throw new Error('LP_ZAP_PROGRAM_ID must be a base58 program id')
+  return v
+}
+
 export const config = {
   port: Number(env('PORT') ?? 8080),
   dataDir: env('DATA_DIR') ?? './data',
@@ -50,6 +55,9 @@ export const config = {
   // Direct Solana routing stays behind the server; never expose RPC credentials.
   solanaRouterUrl: env('SOLANA_ROUTER_URL'),
   solanaSelfRouter: env('SOLANA_SELF_ROUTER') === '1',
+  // lp-zap composer program id. Optional: when unset the direct router never
+  // discovers or builds composed (multi-hop) routes.
+  lpZapProgramId: lpZapProgramId(env('LP_ZAP_PROGRAM_ID')),
   solanaDasRpc: env('SOLANA_DAS_URL') === 'off' ? undefined : (env('SOLANA_DAS_URL') ?? solanaRpc),
 
   // Liquidity moves on pools and tokens older than this are counted, not stored:

@@ -25,7 +25,7 @@ import { validPublicKey } from './solana/router.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
 const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
-  rpcUrl: config.solanaRpc, selfRouter: config.solanaSelfRouter })
+  rpcUrl: config.solanaRpc, selfRouter: config.solanaSelfRouter, composerProgramId: config.lpZapProgramId })
 // Wallet holdings read the same server-side RPC and FTL's own token and pool
 // rows; the hot() ranking below feeds the buy suggestions.
 // Venue-published pool yield (TVL, volume, fee APR) over the same bounded transport.

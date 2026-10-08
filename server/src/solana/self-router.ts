@@ -1,17 +1,20 @@
-// Direct single-pool Solana swaps. Pool discovery is FTL's durable liquidity
-// log; prices, account ownership and executable instructions come from the
-// current chain state through our configured RPC. No route/transaction API.
+// Direct Solana swaps: single pools, and (only when the lp-zap composer is
+// configured) bounded two-hop routes composed on chain. Pool discovery is
+// FTL's durable liquidity log; prices, account ownership and executable
+// instructions come from the current chain state through our configured RPC.
+// No route/transaction API.
 import { Connection, ComputeBudgetProgram, PublicKey, SYSVAR_CLOCK_PUBKEY, TransactionMessage,
   VersionedTransaction, type AddressLookupTableAccount, type TransactionInstruction } from '@solana/web3.js'
 import { CpAmm, CP_AMM_PROGRAM_ID, SwapMode, getTokenProgram } from '@meteora-ag/cp-amm-sdk'
 import { OnlinePumpAmmSdk, PUMP_AMM_SDK, PUMP_AMM_PROGRAM_ID,
   buyQuoteInput, sellBaseInput, supportsTradeV2 } from '@pump-fun/pump-swap-sdk'
 import BN from 'bn.js'
-import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { NATIVE_MINT, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
   type DirectLeg, type DirectPrice } from './direct-adapter.ts'
+import { ComposeError, FEE_BPS, afterComposerFee, composeRoute, finalHopMinimum } from './compose.ts'
 import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
@@ -44,12 +47,18 @@ export type Priced = { pool: Pool; out: bigint; minimum: bigint; fee: bigint; fe
   leg: (wallet: PublicKey, minimum: bigint) => Promise<DirectLeg> }
 type RoutePlanEntry = { percent: number; swapInfo: { ammKey: string; label: string; inputMint: string;
   outputMint: string; inAmount: string; outAmount: string; feeAmount: string; feeMint: string } }
+/** What a candidate builds: outer instructions, any extra outer program the
+ * emitter must allow (the composer), and the compute budget to request. */
+export type BuiltRoute = { instructions: TransactionInstruction[]; allowPrograms: PublicKey[];
+  computeUnitLimit: number }
 /** One executable route: a single pool, or several pools composed into one
  * on-chain composer call whose later hops are sized from real deltas. */
-type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
-  build: (wallet: PublicKey, floor: bigint) => Promise<TransactionInstruction[]> }
-const MAX_INTERMEDIATES = 2
-const MAX_POOLS_PER_HOP = 2
+export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
+  build: (wallet: PublicKey, floor: bigint) => Promise<BuiltRoute> }
+export const MAX_INTERMEDIATES = 2
+export const MAX_POOLS_PER_HOP = 2
+const SINGLE_CU = 800_000
+const COMPOSED_CU = 1_400_000
 
 async function quotePool(connection: Connection, pool: Pool, intent: LocalIntent): Promise<Priced> {
   if (pool.venue === 'meteora-damm-v2') return quoteDamm(connection, pool, intent)
@@ -86,11 +95,12 @@ const atomic = (value: string): bigint => {
 }
 const bn = (n: bigint): BN => new BN(n.toString())
 const pctMinimum = (out: bigint, bps: number) => out * BigInt(10_000 - bps) / 10_000n
-const priced2leg = (priced: Priced, wallet: PublicKey, program: PublicKey, inputMint: string,
-  outputMint: string, keepNative: LocalIntent['keepNative'], amount: bigint, floor: bigint) =>
-  async (instructions: TransactionInstruction[]): Promise<DirectLeg> => venueLeg(
-    stripNativeWrapping(instructions, wallet, keepNative), program, amount, floor,
-    mintAta(wallet, new PublicKey(inputMint)), mintAta(wallet, new PublicKey(outputMint)))
+/** A leg around instructions an SDK built with its own SOL wrapping: strip
+ * the wrapping keepNative asks to skip, then prove the swap's offsets. */
+const sdkLeg = (instructions: TransactionInstruction[], wallet: PublicKey, program: PublicKey,
+  intent: LocalIntent, amount: bigint, floor: bigint): DirectLeg => venueLeg(
+  stripNativeWrapping(instructions, wallet, intent.keepNative), program, amount, floor,
+  mintAta(wallet, new PublicKey(intent.inputMint)), mintAta(wallet, new PublicKey(intent.outputMint)))
 const toBig = (value: { toString(): string }): bigint => BigInt(value.toString())
 const pairMatches = (a: string, b: string, intent: LocalIntent) =>
   (a === intent.inputMint && b === intent.outputMint) ||
@@ -178,8 +188,7 @@ async function quoteDamm(connection: Connection, pool: Pool, intent: LocalIntent
       tokenBVault: state.tokenBVault, tokenAProgram: TOKEN, tokenBProgram: TOKEN,
       referralTokenAccount: null, poolState: state, swapMode: SwapMode.ExactIn,
       amountIn: bn(amount), minimumAmountOut: bn(protectedMinimum) })
-    return priced2leg(null!, wallet, CP_AMM_PROGRAM_ID, intent.inputMint, intent.outputMint,
-      intent.keepNative, amount, protectedMinimum)(tx.instructions)
+    return sdkLeg(tx.instructions, wallet, CP_AMM_PROGRAM_ID, intent, amount, protectedMinimum)
   }
   return { pool, out, minimum, fee, feeMint: intent.inputMint, leg,
     instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
@@ -239,8 +248,7 @@ async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent
       : supportsTradeV2(pinned.pool)
         ? PUMP_AMM_SDK.sellV2Instructions(pinned, amount, bn(protectedMinimum))
         : PUMP_AMM_SDK.sellInstructions(fresh, amount, bn(protectedMinimum)))
-    return priced2leg(null!, wallet, PUMP_AMM_PROGRAM_ID, intent.inputMint, intent.outputMint,
-      intent.keepNative, toBig(amount), protectedMinimum)(instructions)
+    return sdkLeg(instructions, wallet, PUMP_AMM_PROGRAM_ID, intent, toBig(amount), protectedMinimum)
   }
   return { pool, out, minimum, fee, feeMint: quote, leg,
     instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
@@ -346,14 +354,27 @@ export function directRouterCoverage() {
       .map(r => ({ venue: r.venue, pools: r.pools })) }
 }
 
+export type DirectRouterOptions = {
+  /** lp-zap composer program id. Two-hop routes are discovered only when set. */
+  composerProgramId?: string
+}
+const reasonOf = (error: unknown, fallback: string) =>
+  error instanceof DirectRouteError || error instanceof DirectVenueError || error instanceof ComposeError
+    ? error.message : fallback
+
 export class DirectSolanaRouter {
   private readonly connection: Connection
   private readonly rpcUrl: string
-  constructor(rpcUrl: string) {
+  private readonly composer: PublicKey | null
+  /** Prices one pool; an instance field so tests can supply fake pool state. */
+  private quotePool: (pool: Pool, intent: LocalIntent) => Promise<Priced>
+  constructor(rpcUrl: string, options: DirectRouterOptions = {}) {
     this.rpcUrl = rpcUrl
     this.connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true })
+    this.composer = options.composerProgramId ? new PublicKey(options.composerProgramId) : null
+    this.quotePool = (pool, intent) => quotePool(this.connection, pool, intent)
   }
-  private async candidates(intent: LocalIntent): Promise<Priced[]> {
+  private async singlePool(intent: LocalIntent): Promise<Priced[]> {
     const rows = poolRows(intent)
     if (!rows.length) return noRoute()
     const supported = rows.filter(row => row.venue in VENUE_LABELS)
@@ -367,11 +388,10 @@ export class DirectSolanaRouter {
     // eligible direct pool using its current on-chain, after-fee output.
     for (const row of supported) {
       try {
-        const candidate = await quotePool(this.connection, row, intent)
+        const candidate = await this.quotePool(row, intent)
         priced.push(candidate)
       } catch (error) {
-        lastReason = error instanceof DirectRouteError || error instanceof DirectVenueError
-          ? error.message : 'Pool state or quote is unavailable'
+        lastReason = reasonOf(error, 'Pool state or quote is unavailable')
       }
     }
     if (priced.length) return rankDirectCandidates(priced)
@@ -381,21 +401,92 @@ export class DirectSolanaRouter {
       ...(missing.length ? [`Other funded venues still lack direct swap support: ${missing.join(', ')}`] : [])]
       .join('. '))
   }
-  private quoteFor(intent: LocalIntent, priced: Priced, slot: number) {
-    return { inputMint: intent.inputMint, outputMint: intent.outputMint,
-      inAmount: intent.amount, outAmount: priced.out.toString(),
-      otherAmountThreshold: priced.minimum.toString(), swapMode: 'ExactIn',
-      slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion,
-      priceImpactPct: null, contextSlot: slot,
-      routePlan: [{ percent: 100, swapInfo: { ammKey: priced.pool.address,
-        label: VENUE_LABELS[priced.pool.venue], inputMint: intent.inputMint,
-        outputMint: intent.outputMint, inAmount: intent.amount,
-        outAmount: priced.out.toString(), feeAmount: priced.fee.toString(),
-        feeMint: priced.feeMint } }] }
+  private single(priced: Priced, intent: LocalIntent): Candidate {
+    return { out: priced.out, minimum: priced.minimum, hops: 1,
+      plan: [planEntry(priced, intent.inputMint, intent.outputMint, intent.amount)],
+      build: async (wallet, floor) => ({ instructions: await priced.instructions(wallet, floor),
+        allowPrograms: [], computeUnitLimit: SINGLE_CU }) }
   }
-  async quote(intent: LocalIntent): Promise<{ quote: any; priced: Priced }> {
-    const priced = (await this.candidates(intent))[0]
-    return { quote: this.quoteFor(intent, priced, await this.connection.getSlot('confirmed')), priced }
+  /** Best of at most MAX_POOLS_PER_HOP supported pools for one hop. */
+  private async bestHop(intent: LocalIntent): Promise<Priced | null> {
+    const rows = poolRows(intent).filter(row => row.venue in VENUE_LABELS).slice(0, MAX_POOLS_PER_HOP)
+    const settled = await Promise.allSettled(rows.map(row => this.quotePool(row, intent)))
+    const priced = settled.flatMap(s => s.status === 'fulfilled' ? [s.value] : [])
+    return priced.length ? rankDirectCandidates(priced)[0] : null
+  }
+  /** Bounded two-hop discovery through the lp-zap composer: A→X with the full
+   * amount, X→B with what is left after the composer's 0.1% fee on X, and the
+   * final output net of the fee on B. Off unless the composer is configured. */
+  private async composed(intent: LocalIntent): Promise<Candidate[]> {
+    const composer = this.composer
+    if (!composer) return []
+    // The final check watches the destination token account; a native SOL
+    // destination would be unwrapped (closed), so those routes stay single-pool.
+    if (intent.outputMint === NATIVE_MINT.toBase58()) return []
+    const vias = intermediateMints(intent.inputMint, intent.outputMint, MAX_INTERMEDIATES)
+    const found = await Promise.all(vias.map(async (via): Promise<Candidate | null> => {
+      try {
+        const first = await this.bestHop({ ...intent, outputMint: via, keepNative: 'output' })
+        if (!first) return null
+        const middle = afterComposerFee(first.out)
+        if (middle <= 0n) return null
+        const second = await this.bestHop({ ...intent, inputMint: via, amount: middle.toString(),
+          keepNative: 'input' })
+        if (!second) return null
+        const out = afterComposerFee(second.out)
+        const minimum = pctMinimum(out, intent.slippageBps)
+        if (out <= 0n || minimum <= 0n) return null
+        return { out, minimum, hops: 2,
+          plan: [planEntry(first, intent.inputMint, via, intent.amount),
+            planEntry(second, via, intent.outputMint, middle.toString())],
+          build: async (wallet, floor) => {
+            // Hop 0 is built with its own quoted floor so both amount offsets
+            // are provable; composeRoute then rewrites that floor to 0.
+            const leg0 = await first.leg(wallet, first.minimum)
+            const leg1 = await second.leg(wallet, finalHopMinimum(floor))
+            const route = composeRoute([{ leg: leg0, outputMint: new PublicKey(via) },
+              { leg: leg1, outputMint: new PublicKey(intent.outputMint) }], wallet, floor, composer)
+            const after = [...route.after]
+            // An intermediate WSOL account this route created is emptied by
+            // hop 1; close it so the rent returns. A pre-existing one may hold
+            // the user's own WSOL and is left alone.
+            if (via === NATIVE_MINT.toBase58()) {
+              const wsol = mintAta(wallet, NATIVE_MINT)
+              if (!await this.connection.getAccountInfo(wsol, 'confirmed'))
+                after.push(createCloseAccountInstruction(wsol, wallet, wallet))
+            }
+            return { instructions: [...route.before, route.compose, ...after],
+              allowPrograms: [composer], computeUnitLimit: COMPOSED_CU }
+          } }
+      } catch {
+        return null
+      }
+    }))
+    return found.filter((c): c is Candidate => c !== null)
+  }
+  private async candidates(intent: LocalIntent): Promise<Candidate[]> {
+    const composed = this.composed(intent).catch(() => [] as Candidate[])
+    let singles: Candidate[] = [], failure: unknown = null
+    try {
+      singles = (await this.singlePool(intent)).map(priced => this.single(priced, intent))
+    } catch (error) {
+      failure = error
+    }
+    const all = rankDirectCandidates([...singles, ...await composed])
+    if (all.length) return all
+    throw failure ?? new DirectRouteError(404, 'No executable direct pool route is available for this pair and amount')
+  }
+  private quoteFor(intent: LocalIntent, route: Candidate, slot: number) {
+    return { inputMint: intent.inputMint, outputMint: intent.outputMint,
+      inAmount: intent.amount, outAmount: route.out.toString(),
+      otherAmountThreshold: route.minimum.toString(), swapMode: 'ExactIn',
+      slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion,
+      priceImpactPct: null, contextSlot: slot, routePlan: route.plan,
+      ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS) } : {}) }
+  }
+  async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
+    const route = (await this.candidates(intent))[0]
+    return { quote: this.quoteFor(intent, route, await this.connection.getSlot('confirmed')), priced: route }
   }
   private async simulate(wire: string): Promise<boolean> {
     let response: Response
@@ -425,26 +516,33 @@ export class DirectSolanaRouter {
     const latest = await this.connection.getLatestBlockhash('confirmed')
     const slot = await this.connection.getSlot('confirmed')
     let lastReason = 'No quoted direct pool passed current on-chain simulation'
-    for (const priced of candidates) {
-      if (priced.out < protectedMinimum) break
-      const floor = protectedMinimum > priced.minimum ? protectedMinimum : priced.minimum
+    for (const route of candidates) {
+      if (route.out < protectedMinimum) break
+      const floor = protectedMinimum > route.minimum ? protectedMinimum : route.minimum
       try {
-        const instructions = await priced.instructions(payer, floor)
+        const built = await route.build(payer, floor)
+        const options = { allowPrograms: built.allowPrograms }
         const swapTransaction = intent.transactionVersion === '1'
-          ? unsignedV1(payer, latest.blockhash, instructions)
-          : unsignedV0(payer, latest.blockhash, instructions)
+          ? unsignedV1(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
+          : unsignedV0(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
         if (!await this.simulate(swapTransaction)) continue
         return { transactionVersion: intent.transactionVersion, swapTransaction,
           lastValidBlockHeight: latest.lastValidBlockHeight,
           prioritizationFeeLamports: 0,
-          quoteResponse: { ...this.quoteFor(intent, priced, slot),
+          ...(route.hops > 1 ? { composed: true, hops: route.hops } : {}),
+          quoteResponse: { ...this.quoteFor(intent, route, slot),
             otherAmountThreshold: floor.toString() } }
       } catch (error) {
         if (error instanceof DirectRouteError && error.status === 503) throw error
-        lastReason = error instanceof DirectRouteError || error instanceof DirectVenueError ? error.message
-          : 'Current pool state cannot build an executable swap'
+        lastReason = reasonOf(error, 'Current pool state cannot build an executable swap')
       }
     }
     noRoute(lastReason)
   }
+}
+
+function planEntry(priced: Priced, inputMint: string, outputMint: string, inAmount: string): RoutePlanEntry {
+  return { percent: 100, swapInfo: { ammKey: priced.pool.address, label: VENUE_LABELS[priced.pool.venue],
+    inputMint, outputMint, inAmount, outAmount: priced.out.toString(),
+    feeAmount: priced.fee.toString(), feeMint: priced.feeMint } }
 }

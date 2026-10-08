@@ -1,0 +1,145 @@
+{
+  "comment": "lp-zap compose instruction data fixtures. \"layout-rs\" is lp-zap/src/layout.rs FIXTURE byte-for-byte; \"edges\" exercises every patch mode, both check kinds and the u32/u64/i64 extremes. u64/i64 values are decimal strings, data is hex.",
+  "fixtures": [
+    {
+      "name": "layout-rs",
+      "description": {
+        "watch": [
+          2,
+          5
+        ],
+        "steps": [
+          {
+            "programIndex": 6,
+            "accounts": [
+              1,
+              2,
+              3
+            ],
+            "data": "031027000000000000",
+            "patches": [],
+            "fee": null
+          },
+          {
+            "programIndex": 6,
+            "accounts": [
+              2,
+              4,
+              1
+            ],
+            "data": "030000000000000000",
+            "patches": [
+              {
+                "dataOffset": 1,
+                "watchSlot": 0,
+                "fromStep": 0,
+                "mode": 1,
+                "num": 3,
+                "den": 4,
+                "sub": "0"
+              }
+            ],
+            "fee": {
+              "watchSlot": 0,
+              "feeAtaIndex": 7,
+              "mintIndex": 8,
+              "tokenProgramIndex": 6,
+              "ataProgramIndex": 9,
+              "systemProgramIndex": 10
+            }
+          }
+        ],
+        "checks": [
+          {
+            "watchSlot": 1,
+            "kind": 0,
+            "bound": "-5"
+          }
+        ]
+      },
+      "hex": "000202050206030102030900031027000000000000000006030204010900030000000000000000010100000001030000000400000000000000000000000100070806090a010100fbffffffffffffff"
+    },
+    {
+      "name": "edges",
+      "description": {
+        "watch": [
+          3,
+          4,
+          9
+        ],
+        "steps": [
+          {
+            "programIndex": 7,
+            "accounts": [
+              0,
+              3,
+              4
+            ],
+            "data": "8fbe5adac41e33de40420f0000000000de03000000000000",
+            "patches": [],
+            "fee": {
+              "watchSlot": 1,
+              "feeAtaIndex": 10,
+              "mintIndex": 11,
+              "tokenProgramIndex": 12,
+              "ataProgramIndex": 13,
+              "systemProgramIndex": 14
+            }
+          },
+          {
+            "programIndex": 8,
+            "accounts": [
+              0,
+              4,
+              9
+            ],
+            "data": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "patches": [
+              {
+                "dataOffset": 8,
+                "watchSlot": 1,
+                "fromStep": 0,
+                "mode": 0,
+                "num": 0,
+                "den": 0,
+                "sub": "0"
+              },
+              {
+                "dataOffset": 16,
+                "watchSlot": 1,
+                "fromStep": 0,
+                "mode": 2,
+                "num": 4294967295,
+                "den": 1000,
+                "sub": "18446744073709551615"
+              },
+              {
+                "dataOffset": 0,
+                "watchSlot": 2,
+                "fromStep": 0,
+                "mode": 3,
+                "num": 123456789,
+                "den": 0,
+                "sub": "0"
+              }
+            ],
+            "fee": null
+          }
+        ],
+        "checks": [
+          {
+            "watchSlot": 2,
+            "kind": 0,
+            "bound": "9223372036854775807"
+          },
+          {
+            "watchSlot": 0,
+            "kind": 1,
+            "bound": "-9223372036854775808"
+          }
+        ]
+      },
+      "hex": "000303040902070300030418008fbe5adac41e33de40420f0000000000de030000000000000001010a0b0c0d0e08030004091800aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa030800010000000000000000000000000000000000001000010002ffffffffe8030000ffffffffffffffff000002000315cd5b0700000000000000000000000000020200ffffffffffffff7f00010000000000000080"
+    }
+  ]
+}
