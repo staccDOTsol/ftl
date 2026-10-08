@@ -19,6 +19,8 @@ import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
 import { quoteRaydiumClmm } from './direct-raydium-clmm.ts'
+import { RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S, createResilientFetch, isTransientRpcError,
+  rpcScope, runInRpcScope, type ResilientFetch, type ResilientFetchOptions } from './rpc-resilience.ts'
 
 const TOKEN = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')
 const TOKEN_2022 = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb')
@@ -83,8 +85,17 @@ export function rankDirectCandidates<T extends { out: bigint; minimum: bigint }>
 
 export class DirectRouteError extends Error {
   readonly status: number
-  constructor(status: number, message: string) { super(message); this.status = status }
+  /** Seconds a client should wait; set only on transient (rate-limited) failures. */
+  readonly retryAfter: number | undefined
+  /** The failure says nothing about whether a route exists: RPC was unavailable. */
+  readonly transient: boolean
+  constructor(status: number, message: string, retryAfter?: number) {
+    super(message); this.status = status; this.retryAfter = retryAfter; this.transient = retryAfter !== undefined
+  }
 }
+/** Candidate pools exist but RPC failures kept every attempt from pricing them. */
+export const rateLimited = () => new DirectRouteError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S)
+const isRateLimited = (error: unknown) => error instanceof DirectRouteError && error.transient
 const noRoute = (reason = 'No executable direct pool route is available for this pair and amount'):
   never => { throw new DirectRouteError(404, reason) }
 const atomic = (value: string): bigint => {
@@ -357,7 +368,10 @@ export function directRouterCoverage() {
 export type DirectRouterOptions = {
   /** lp-zap composer program id. Two-hop routes are discovered only when set. */
   composerProgramId?: string
+  /** RPC wrapper overrides (tests: underlying fetch, clock, sleep). */
+  rpc?: ResilientFetchOptions
 }
+type Attempt = { ok: Priced } | { error: unknown; transient: boolean }
 const reasonOf = (error: unknown, fallback: string) =>
   error instanceof DirectRouteError || error instanceof DirectVenueError || error instanceof ComposeError
     ? error.message : fallback
@@ -366,13 +380,32 @@ export class DirectSolanaRouter {
   private readonly connection: Connection
   private readonly rpcUrl: string
   private readonly composer: PublicKey | null
+  /** Retrying, de-duplicating, scope-memoizing fetch behind the Connection. */
+  readonly rpcFetch: ResilientFetch
   /** Prices one pool; an instance field so tests can supply fake pool state. */
   private quotePool: (pool: Pool, intent: LocalIntent) => Promise<Priced>
   constructor(rpcUrl: string, options: DirectRouterOptions = {}) {
     this.rpcUrl = rpcUrl
-    this.connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true })
+    this.rpcFetch = createResilientFetch(options.rpc)
+    this.connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true,
+      fetch: this.rpcFetch as any })
     this.composer = options.composerProgramId ? new PublicKey(options.composerProgramId) : null
     this.quotePool = (pool, intent) => quotePool(this.connection, pool, intent)
+  }
+  /** Prices one pool inside a memo scope (pool/config reads may be served
+   * from the short memo; no wallet is involved in pricing) and says whether a
+   * failure came from RPC unavailability rather than from the pool. */
+  private async attemptPool(row: Pool, intent: LocalIntent): Promise<Attempt> {
+    const scope = rpcScope({ memo: true })
+    try {
+      return { ok: await runInRpcScope(scope, () => this.quotePool(row, intent)) }
+    } catch (error) {
+      return { error, transient: scope.transient > 0 || isTransientRpcError(error) }
+    }
+  }
+  /** Reads outside pricing (slot, blockhash): an RPC give-up becomes the 503. */
+  private async rpcRead<T>(read: () => Promise<T>): Promise<T> {
+    try { return await read() } catch (error) { throw isTransientRpcError(error) ? rateLimited() : error }
   }
   private async singlePool(intent: LocalIntent): Promise<Priced[]> {
     const rows = poolRows(intent)
@@ -382,19 +415,20 @@ export class DirectSolanaRouter {
       const venues = [...new Set(rows.map(row => row.venue))].sort().join(', ')
       return noRoute(`FTL has funded pools for this pair, but direct swaps are not implemented for: ${venues}`)
     }
-    let lastReason: string | null = null
+    let lastReason: string | null = null, transient = 0
     const priced: Priced[] = []
     // FTL activity orders discovery, not execution price. Compare every
     // eligible direct pool using its current on-chain, after-fee output.
     for (const row of supported) {
-      try {
-        const candidate = await this.quotePool(row, intent)
-        priced.push(candidate)
-      } catch (error) {
-        lastReason = reasonOf(error, 'Pool state or quote is unavailable')
-      }
+      const result = await this.attemptPool(row, intent)
+      if ('ok' in result) priced.push(result.ok)
+      else if (result.transient) transient++
+      else lastReason = reasonOf(result.error, 'Pool state or quote is unavailable')
     }
     if (priced.length) return rankDirectCandidates(priced)
+    // A pool whose state could not be read has not shown it cannot fill;
+    // "no route" would be a false answer while the RPC is rate-limiting.
+    if (transient) throw rateLimited()
     const missing = [...new Set(rows.filter(row => !(row.venue in VENUE_LABELS))
       .map(row => row.venue))].sort()
     return noRoute([lastReason ?? 'No supported pool can fill this amount',
@@ -408,30 +442,36 @@ export class DirectSolanaRouter {
         allowPrograms: [], computeUnitLimit: SINGLE_CU }) }
   }
   /** Best of at most MAX_POOLS_PER_HOP supported pools for one hop. */
-  private async bestHop(intent: LocalIntent): Promise<Priced | null> {
+  private async bestHop(intent: LocalIntent): Promise<{ best: Priced | null; transient: boolean }> {
     const rows = poolRows(intent).filter(row => row.venue in VENUE_LABELS).slice(0, MAX_POOLS_PER_HOP)
-    const settled = await Promise.allSettled(rows.map(row => this.quotePool(row, intent)))
-    const priced = settled.flatMap(s => s.status === 'fulfilled' ? [s.value] : [])
-    return priced.length ? rankDirectCandidates(priced)[0] : null
+    const results = await Promise.all(rows.map(row => this.attemptPool(row, intent)))
+    const priced = results.flatMap(r => 'ok' in r ? [r.ok] : [])
+    return { best: priced.length ? rankDirectCandidates(priced)[0] : null,
+      transient: results.some(r => !('ok' in r) && r.transient) }
   }
   /** Bounded two-hop discovery through the lp-zap composer: A→X with the full
    * amount, X→B with what is left after the composer's 0.1% fee on X, and the
    * final output net of the fee on B. Off unless the composer is configured. */
-  private async composed(intent: LocalIntent): Promise<Candidate[]> {
+  private async composed(intent: LocalIntent): Promise<{ routes: Candidate[]; transient: boolean }> {
     const composer = this.composer
-    if (!composer) return []
+    if (!composer) return { routes: [], transient: false }
     // The final check watches the destination token account; a native SOL
     // destination would be unwrapped (closed), so those routes stay single-pool.
-    if (intent.outputMint === NATIVE_MINT.toBase58()) return []
+    if (intent.outputMint === NATIVE_MINT.toBase58()) return { routes: [], transient: false }
     const vias = intermediateMints(intent.inputMint, intent.outputMint, MAX_INTERMEDIATES)
+    let transient = false
     const found = await Promise.all(vias.map(async (via): Promise<Candidate | null> => {
       try {
-        const first = await this.bestHop({ ...intent, outputMint: via, keepNative: 'output' })
+        const hop0 = await this.bestHop({ ...intent, outputMint: via, keepNative: 'output' })
+        if (hop0.transient) transient = true
+        const first = hop0.best
         if (!first) return null
         const middle = afterComposerFee(first.out)
         if (middle <= 0n) return null
-        const second = await this.bestHop({ ...intent, inputMint: via, amount: middle.toString(),
+        const hop1 = await this.bestHop({ ...intent, inputMint: via, amount: middle.toString(),
           keepNative: 'input' })
+        if (hop1.transient) transient = true
+        const second = hop1.best
         if (!second) return null
         const out = afterComposerFee(second.out)
         const minimum = pctMinimum(out, intent.slippageBps)
@@ -458,22 +498,28 @@ export class DirectSolanaRouter {
             return { instructions: [...route.before, route.compose, ...after],
               allowPrograms: [composer], computeUnitLimit: COMPOSED_CU }
           } }
-      } catch {
+      } catch (error) {
+        if (isTransientRpcError(error)) transient = true
         return null
       }
     }))
-    return found.filter((c): c is Candidate => c !== null)
+    return { routes: found.filter((c): c is Candidate => c !== null), transient }
   }
   private async candidates(intent: LocalIntent): Promise<Candidate[]> {
-    const composed = this.composed(intent).catch(() => [] as Candidate[])
+    const composed = this.composed(intent)
+      .catch(error => ({ routes: [] as Candidate[], transient: isTransientRpcError(error) }))
     let singles: Candidate[] = [], failure: unknown = null
     try {
       singles = (await this.singlePool(intent)).map(priced => this.single(priced, intent))
     } catch (error) {
       failure = error
     }
-    const all = rankDirectCandidates([...singles, ...await composed])
+    const multi = await composed
+    const all = rankDirectCandidates([...singles, ...multi.routes])
     if (all.length) return all
+    if (isRateLimited(failure)) throw failure
+    // Two-hop pools exist but could not be read: the route is undetermined.
+    if (multi.transient) throw rateLimited()
     throw failure ?? new DirectRouteError(404, 'No executable direct pool route is available for this pair and amount')
   }
   private quoteFor(intent: LocalIntent, route: Candidate, slot: number) {
@@ -486,7 +532,8 @@ export class DirectSolanaRouter {
   }
   async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
     const route = (await this.candidates(intent))[0]
-    return { quote: this.quoteFor(intent, route, await this.connection.getSlot('confirmed')), priced: route }
+    const slot = await this.rpcRead(() => this.connection.getSlot('confirmed'))
+    return { quote: this.quoteFor(intent, route, slot), priced: route }
   }
   private async simulate(wire: string): Promise<boolean> {
     let response: Response
@@ -513,14 +560,16 @@ export class DirectSolanaRouter {
     if (candidates[0].out < protectedMinimum)
       throw new DirectRouteError(409, 'The price moved beyond your minimum received. Refresh the quote.')
     const payer = new PublicKey(wallet)
-    const latest = await this.connection.getLatestBlockhash('confirmed')
-    const slot = await this.connection.getSlot('confirmed')
+    const latest = await this.rpcRead(() => this.connection.getLatestBlockhash('confirmed'))
+    const slot = await this.rpcRead(() => this.connection.getSlot('confirmed'))
     let lastReason = 'No quoted direct pool passed current on-chain simulation'
     for (const route of candidates) {
       if (route.out < protectedMinimum) break
       const floor = protectedMinimum > route.minimum ? protectedMinimum : route.minimum
+      // Building reads the wallet's own accounts: no memo scope here.
+      const scope = rpcScope({ memo: false })
       try {
-        const built = await route.build(payer, floor)
+        const built = await runInRpcScope(scope, () => route.build(payer, floor))
         const options = { allowPrograms: built.allowPrograms }
         const swapTransaction = intent.transactionVersion === '1'
           ? unsignedV1(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
@@ -534,6 +583,7 @@ export class DirectSolanaRouter {
             otherAmountThreshold: floor.toString() } }
       } catch (error) {
         if (error instanceof DirectRouteError && error.status === 503) throw error
+        if (scope.transient > 0 || isTransientRpcError(error)) throw rateLimited()
         lastReason = reasonOf(error, 'Current pool state cannot build an executable swap')
       }
     }

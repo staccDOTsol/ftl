@@ -5,6 +5,7 @@ import bs58 from 'bs58'
 import nacl from 'tweetnacl'
 import { decodeV1 } from './transaction-v1.ts'
 import type { DirectSolanaRouter, LocalIntent } from './self-router.ts'
+import { RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S } from './rpc-resilience.ts'
 
 const U64_MAX = (1n << 64n) - 1n
 const B64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
@@ -12,10 +13,15 @@ const TOKEN_PROGRAMS = new Set(['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', '
 const MAX_RESPONSE = 2_000_000
 const METHODS = new Set(['getAccountInfo', 'getBalance', 'getTokenAccountsByOwner', 'getSignatureStatuses', 'getBlockHeight', 'getLatestBlockhash', 'getFeeForMessage', 'simulateTransaction', 'sendTransaction'])
 type Options = { routerUrl?: string; rpcUrl?: string; selfRouter?: boolean;
+  /** RPC endpoint for the direct router's pool reads; falls back to rpcUrl. */
+  quoteRpcUrl?: string;
   /** lp-zap composer program id; enables composed multi-hop direct routes. */
   composerProgramId?: string;
   localRouter?: Pick<DirectSolanaRouter, 'quote' | 'swap'>; fetch?: typeof fetch; now?: () => number }
-class RequestError extends Error { status: number; constructor(status: number, message: string) { super(message); this.status = status } }
+class RequestError extends Error {
+  status: number; retryAfter: number | undefined
+  constructor(status: number, message: string, retryAfter?: number) { super(message); this.status = status; this.retryAfter = retryAfter }
+}
 const fail = (message: string): never => { throw new RequestError(400, message) }
 const object = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v)
 export function validPublicKey(v: unknown): v is string {
@@ -218,17 +224,23 @@ function validateLiquidityBuild(data:any, intent:Record<string,any>) {
   }
   return data
 }
+/** The direct router's own RPC-unavailable failure (DirectRouteError, checked
+ * structurally so this module never loads the venue SDKs eagerly). */
+const directTransient = (e: unknown) => object(e) && e.transient === true && e.status === 503
+/** External router failures that say nothing about route existence. */
+const externalTransient = (e: unknown) => e instanceof RequestError && (e.status === 429 || e.status === 503)
 function reply(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }).end(JSON.stringify(data))
 }
 export function createSolanaRouterHandler(options: Options) {
   const fetcher = options.fetch ?? fetch, now = options.now ?? Date.now
-  const directEnabled = !!options.localRouter || (!!options.selfRouter && !!options.rpcUrl)
+  const quoteRpcUrl = options.quoteRpcUrl ?? options.rpcUrl
+  const directEnabled = !!options.localRouter || (!!options.selfRouter && !!quoteRpcUrl)
   let directPromise: Promise<Pick<DirectSolanaRouter, 'quote' | 'swap'>> | null = null
   async function direct() {
     if (options.localRouter) return options.localRouter
-    if (!options.rpcUrl) throw new RequestError(503, 'Solana trading RPC is not configured')
-    directPromise ??= import('./self-router.ts').then(module => new module.DirectSolanaRouter(options.rpcUrl!, { composerProgramId: options.composerProgramId }))
+    if (!quoteRpcUrl) throw new RequestError(503, 'Solana trading RPC is not configured')
+    directPromise ??= import('./self-router.ts').then(module => new module.DirectSolanaRouter(quoteRpcUrl, { composerProgramId: options.composerProgramId }))
     return directPromise
   }
   function localIntent(q: URLSearchParams): LocalIntent {
@@ -279,7 +291,14 @@ export function createSolanaRouterHandler(options: Options) {
     if (!attempts.length) throw new RequestError(503, 'Solana trading is not configured yet')
     const settled = await Promise.allSettled(attempts)
     const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
-    if (!winners.length) { const first = settled[0] as PromiseRejectedResult; throw first.reason instanceof RequestError ? first.reason : new RequestError(404, 'No executable route is available for this pair and amount') }
+    if (!winners.length) {
+      const reasons = settled.map(r => (r as PromiseRejectedResult).reason)
+      // Rate-limited only when the direct router could not read its candidate
+      // pools AND the external router (when configured) also failed transiently.
+      if (directEnabled && directTransient(reasons[0]) && (!externalEnabled || externalTransient(reasons[1])))
+        throw new RequestError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S)
+      throw reasons[0] instanceof RequestError ? reasons[0] : new RequestError(404, 'No executable route is available for this pair and amount')
+    }
     return winners[0]
   }
   async function getQuote(q: URLSearchParams) { return (await bestQuote(q)).quote }
@@ -393,7 +412,8 @@ export function createSolanaRouterHandler(options: Options) {
       const status = e instanceof RequestError ? e.status :
         object(e) && Number.isInteger(e.status) && Number(e.status) >= 400 && Number(e.status) < 600
           ? Number(e.status) : 503
-      if (status === 429) res.setHeader('retry-after', '60')
+      const retryAfter = object(e) && Number.isSafeInteger(e.retryAfter) && Number(e.retryAfter) > 0 ? Number(e.retryAfter) : status === 429 ? 60 : null
+      if (retryAfter !== null) res.setHeader('retry-after', String(retryAfter))
       reply(res, status, { error: e instanceof RequestError || (object(e) && typeof e.message === 'string' && Number.isInteger(e.status))
         ? String(e.message) : 'Trading service is temporarily unavailable' })
     } finally { if (counted) inflight-- }

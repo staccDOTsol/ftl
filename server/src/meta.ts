@@ -13,6 +13,7 @@ import { db, getCursor, setCursor } from './db.ts'
 import { QUOTES, bus, setTokenMeta } from './hub.ts'
 import { recordKnownTokenProgram } from './solana/holders.ts'
 import { httpImage, parseDasAsset } from './solana/token-meta.ts'
+import { createBackgroundRpc } from './solana/rpc-resilience.ts'
 import type { Chain, TokenMeta } from '../../shared/types.ts'
 
 const METAPLEX = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
@@ -45,13 +46,21 @@ function metadataRpcBudget() {
   return { budgetKey, used, limit }
 }
 
+// Metadata enrichment shares the RPC with quoting in some deployments. Keep
+// it to two requests in flight, retry 5xx/network failures with the shared
+// bounded backoff, and stop for 30 s after any 429 instead of hammering.
+export const META_RPC_CONCURRENCY = 2
+export const META_RPC_COOLDOWN_MS = 30_000
+const metaRpc = createBackgroundRpc({ concurrency: META_RPC_CONCURRENCY, cooldownMs: META_RPC_COOLDOWN_MS })
+
 async function solRpc(method: string, params: unknown): Promise<any> {
   const { budgetKey, used, limit } = metadataRpcBudget()
   if (limit > 0 && used >= limit) throw new Error('metadata RPC daily budget exhausted')
-  setCursor(budgetKey, String(used + 1))
   const url = method === 'getAssetBatch' ? config.solanaDasRpc : config.solanaRpc
   if (!url) throw new Error(`no Solana RPC endpoint for ${method}`)
-  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10_000) })
+  if (metaRpc.coolingDown()) throw new Error('metadata RPC cooling down after a rate limit')
+  setCursor(budgetKey, String(used + 1))
+  const r = await metaRpc.call(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(10_000) })
   if (!r.ok) throw new Error(`Solana RPC HTTP ${r.status}`)
   const j = await r.json() as any
   if (j.error) throw new Error(j.error.message)
@@ -215,7 +224,8 @@ async function flush() {
   flushing = true
   try {
     const budget = metadataRpcBudget()
-    if (pending.solana.size && config.solanaRpc && (budget.limit === 0 || budget.used < budget.limit)) {
+    // While cooling down after a 429, pending mints simply wait their turn.
+    if (pending.solana.size && config.solanaRpc && !metaRpc.coolingDown() && (budget.limit === 0 || budget.used < budget.limit)) {
       const batch = [...pending.solana].slice(0, 20)
       for (const m of batch) { pending.solana.delete(m); inflight.add(`solana:${m}`) }
       let got = new Map<string, TokenMeta>()

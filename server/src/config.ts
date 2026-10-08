@@ -52,6 +52,10 @@ export const config = {
   drpcGeyserUrl: env('DRPC_GEYSER_URL'),
   drpcKey,
   solanaRpc,
+  // Quote/trade reads (direct router pool state, wrap/zap/holdings balance
+  // reads) can use their own endpoint so feed and metadata traffic cannot
+  // rate-limit quoting. Falls back to SOLANA_RPC_URL.
+  solanaQuoteRpc: env('SOLANA_QUOTE_RPC_URL') ?? solanaRpc,
   // Direct Solana routing stays behind the server; never expose RPC credentials.
   solanaRouterUrl: env('SOLANA_ROUTER_URL'),
   solanaSelfRouter: env('SOLANA_SELF_ROUTER') === '1',
@@ -66,7 +70,7 @@ export const config = {
   retainDays: Number(env('RETAIN_DAYS') ?? 14),
 }
 
-const urlSecrets = [config.solanaRpc, config.solanaDasRpc, env('HELIUS_WAAS_SECURE_RPC_URL'), config.heliusLaserstreamUrl, config.yellowstoneGrpcUrl, config.tritonGrpcUrl, config.drpcGeyserUrl, config.rhWss, config.rhHttp]
+const urlSecrets = [config.solanaRpc, config.solanaQuoteRpc, config.solanaDasRpc, env('HELIUS_WAAS_SECURE_RPC_URL'), config.heliusLaserstreamUrl, config.yellowstoneGrpcUrl, config.tritonGrpcUrl, config.drpcGeyserUrl, config.rhWss, config.rhHttp]
   .flatMap(raw => {
     if (!raw) return []
     try {
