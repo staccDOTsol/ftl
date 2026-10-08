@@ -2,9 +2,22 @@
 
 Realtime socialfi for liquidity: every pool birth, liquidity add and pull on Solana and Robinhood Chain, scored against the bot-structure fingerprints recorded in [staccDOTsol/the-book](https://github.com/staccDOTsol/the-book). Follow wallets and tokens, post calls that score at graduation, get alerts when they move.
 
-- Web: https://liquidityxyz.fun (Vercel project `ftl-liquidity`)
-- API + websocket: https://ftl-firehose.fly.dev, `api.liquidityxyz.fun` once DNS verifies (`/api/status`, `/ws`)
+- Web: https://www.liquidityxyz.fun (Vercel project `ftl-liquidity`)
+- API + websocket: https://api.liquidityxyz.fun (Fly app `ftl-firehose`; `/api/status`, `/ws`)
 - iOS / Android: Expo app in `app/`, built on EAS (`@staccoverflow/ftl-follow-the-liquidity`)
+- Router: [staccDOTsol/autobahn](https://github.com/staccDOTsol/autobahn) (swap + eight-venue liquidity router, Fly app `liquidityxyz-router`); LST engine: [staccDOTsol/permissionless-lst-engine](https://github.com/staccDOTsol/permissionless-lst-engine) embedding the [permissionless S controller](https://github.com/staccDOTsol/permissionless-lst)
+- Requirements and status: [docs/SPEC.md](docs/SPEC.md)
+
+## Trade and liquidity, from the feed
+
+Every Solana token page carries a Trade card, and feed events deep-link into it with the originating pool.
+
+- **Swap**: wallet-standard, Phantom/Solflare injected, or a Helius embedded wallet; quote → requote → simulate → sign → send → confirm, V0 or V1 transactions. The server quotes both its direct venue router (FTL-observed young pools, immediately) and the external Autobahn router (deep established markets) and builds from whichever pays more. A full-page Jupiter-Terminal-style terminal lives at `/swap`.
+- **Liquidity**: initialize, add and remove on Raydium CPMM / CLMM / AMM v4, Orca Whirlpools, Meteora DLMM / DAMM v1 / DAMM v2 and PumpSwap. Venue chips show how many pools this token already has on each venue; concentrated ranges are inferred from the amounts you enter (ticks and bins are advanced fields); every selected pool shows a live yield card (fee APR, 24h fees, TVL, volume) sourced from the venue's own API; "who's in this pool" lists the LP wallets with follow buttons; wrap/unwrap SOL is one tap away; a confirmed move can be posted to the feed with its transaction attached.
+- **What can I do with what I'm holding** (`/holdings`): paste or connect a wallet and get balances, LP positions across venues, and ranked executable actions: exits, sells, adds, buys.
+- **Mainnet receipts**: funded add and remove on all eight venues, plus a browser-wallet-signed Raydium CLMM add through this site, are listed in the [autobahn README](https://github.com/staccDOTsol/autobahn/blob/codex/permissionless-adapters/README.md).
+
+API surface added for this: `GET /api/quote/solana`, `POST /api/swap/solana`, `GET /api/router/solana`, `POST /api/solana/rpc`, `GET /api/liquidity/solana/{capabilities,positions}`, `POST /api/liquidity/solana/{quote,build}`, `GET /api/holdings/solana/:owner`, `GET /api/pool-stats/solana`, `GET /api/pool/:chain/:pool/wallets`, `POST /api/wrap/solana`, and `POST /api/posts` with optional `tx` + `move`.
 
 ## Feeds
 
