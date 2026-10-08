@@ -447,7 +447,10 @@ test('composed: a deposit this server builds is signed by its new position key b
     assert.equal(r.data.mode, 'composed')
     assert.deepEqual(r.data.transactions[0].expectedSigners, [OWNER, position.publicKey.toBase58()])
     assert.equal(r.data.position, position.publicKey.toBase58())
-    assert.equal(seen[0].tokenAmount, 995_000_000n * 10_100n / 10_000n, 'quoted at the swap output plus slippage headroom')
+    assert.equal(seen.length, 2, 'the plan and the build both size the deposit with this builder')
+    assert.equal(seen[0].tokenAmount, 995_000_000n * 99n / 100n, 'the plan quotes the swap\'s minimum out')
+    assert.equal(plan.steps[1].quote.amounts[0].expectedRaw, String(seen[0].tokenAmount), 'the plan shows the builder\'s own quote')
+    assert.equal(seen[1].tokenAmount, 995_000_000n * 10_100n / 10_000n, 'built at the swap output plus slippage headroom')
     const bytes = Buffer.from(r.data.transactions[0].transaction, 'base64')
     const end = bytes.length - 2 * 64
     assert.ok(bytes.subarray(end, end + 64).every(b => b === 0), 'the wallet signs its own slot')
@@ -457,8 +460,10 @@ test('composed: a deposit this server builds is signed by its new position key b
 test('composed: a swap through the deposit pool sizes the deposit against the pool it leaves', async () => {
   const after = Buffer.from('pool after the swap'), seen: (Buffer | undefined)[] = [], DAMM_V2_PROGRAM = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG'
   const builder = async (connection: any, input: any) => {
-    const [pool] = await connection.getMultipleAccountsInfo([new PublicKey(input.pool)])
-    seen.push(pool?.data, (await connection.getAccountInfo(new PublicKey(input.pool)))?.data)
+    // At plan time there is no swap yet, and no reachable RPC behind this fake.
+    const read = async (get: () => Promise<any>) => { try { return await get() } catch { return null } }
+    const [pool] = await read(() => connection.getMultipleAccountsInfo([new PublicKey(input.pool)])) ?? []
+    seen.push(pool?.data, (await read(() => connection.getAccountInfo(new PublicKey(input.pool))))?.data)
     const data = Buffer.alloc(24); data.writeBigUInt64LE(input.tokenAmount, 8); data.writeBigUInt64LE(input.solAmount, 16)
     return { signers: [], position: POSITION, instructions: [{ programId: DAMM_V2_PROGRAM, data: data.toString('base64'), keys: [{ pubkey: OWNER, isSigner: true, isWritable: true }] }],
       quote: { amounts: [{ mint: MINT, direction: 'debit', expectedRaw: String(input.tokenAmount), limitRaw: String(input.tokenAmount) },
@@ -471,7 +476,7 @@ test('composed: a swap through the deposit pool sizes the deposit against the po
     const simulated = calls.filter(c => c.body?.method === 'simulateTransaction')
     assert.equal(simulated.length, 1, 'the swap leg is simulated once')
     assert.ok(simulated[0].body.params[1].accounts.addresses.includes(DAMM))
-    assert.deepEqual(seen, [after, after], 'both read paths see the pool as the swap leaves it')
+    assert.deepEqual(seen.slice(-2), [after, after], 'at build time both read paths see the pool as the swap leaves it')
   })
 })
 test('composed: a price that moves between the swap leg\'s quote and build is quoted once more', async () => {

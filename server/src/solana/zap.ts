@@ -322,16 +322,24 @@ export function createSolanaZapHandler(options: Options) {
     let chosen: ZapCandidate | null = null, addQuote: any = null, lastError: unknown = null
     for (const candidate of ranked.slice(0, MAX_CANDIDATE_QUOTES)) {
       let candidateQuote: any
+      // A composed deposit into a venue this server builds is quoted by that
+      // same builder: the plan shows what the one transaction will deposit.
+      const builder = options.composerProgramId && options.rpcUrl ? (options.depositBuilders ?? DEPOSIT_BUILDERS)[candidate.venue] : undefined
       try {
-        candidateQuote = await options.router.liquidityQuote({ venue: candidate.venue, operation: 'add', owner, pool: candidate.pool, mintA: mint, mintB: SOL_MINT, amountA: quote.otherAmountThreshold, amountB: keep.toString(), slippageBps, parameters: addParameters(candidate.venue), transactionVersion })
+        candidateQuote = builder
+          ? { ...(await builder(connection(), { pool: candidate.pool, owner, tokenMint: mint, tokenAmount: BigInt(quote.otherAmountThreshold), solAmount: keep,
+              slippageBps, parameters: addParameters(candidate.venue) })).quote, venue: candidate.venue, pool: candidate.pool, owner, operation: 'add' }
+          : await options.router.liquidityQuote({ venue: candidate.venue, operation: 'add', owner, pool: candidate.pool, mintA: mint, mintB: SOL_MINT, amountA: quote.otherAmountThreshold, amountB: keep.toString(), slippageBps, parameters: addParameters(candidate.venue), transactionVersion })
       } catch (e) {
         // Your pick is not silently swapped for another pool.
         if (input.pool === candidate.pool) throw e
         lastError = e; continue
       }
       const tokenDebit = debitOf(candidateQuote, mint), solDebit = debitOf(candidateQuote, SOL_MINT)
-      const price = candidate.kind === 'constant' && tokenDebit && solDebit && integer(quote.outAmount)
-        ? poolPriceBps(BigInt(tokenDebit.expectedRaw), BigInt(solDebit.expectedRaw), BigInt(quote.outAmount), swap) : null
+      // Builders anchor the token debit on their budget; the pool's price is what it takes at that price.
+      const tokenAtPrice = integer(candidateQuote?.details?.tokenEstimateRaw) ? candidateQuote.details.tokenEstimateRaw : tokenDebit?.expectedRaw
+      const price = candidate.kind === 'constant' && tokenAtPrice && solDebit && integer(quote.outAmount)
+        ? poolPriceBps(BigInt(tokenAtPrice), BigInt(solDebit.expectedRaw), BigInt(quote.outAmount), swap) : null
       if (price !== null && (price > 10_000n + MAX_POOL_PRICE_DEVIATION_BPS || price < 10_000n - MAX_POOL_PRICE_DEVIATION_BPS)) {
         lastError = new RequestError(409, `That ${venueLabel(candidate.venue)} pool prices ${symbol} ${(Math.abs(Number(price) - 10_000) / 100).toFixed(1)}% away from the market; depositing there would lose the difference`)
         // Your pick is not silently swapped for another pool.
@@ -350,7 +358,7 @@ export function createSolanaZapHandler(options: Options) {
       pool: { venue: chosen.venue, pool: chosen.pool, kind: chosen.kind, mintA: addQuote.mintA ?? mint, mintB: addQuote.mintB ?? SOL_MINT, stats: chosen.stats, reason: input.pool === chosen.pool ? `${describeChoice(chosen, ranked).replace(/\.$/, '')} (your pick).` : describeChoice(chosen, ranked) },
       alternatives: ranked.filter(c => c.pool !== chosen!.pool).slice(0, MAX_ALTERNATIVES).map(c => ({ venue: c.venue, pool: c.pool, kind: c.kind, stats: c.stats })),
       steps: [swapStep, addStep],
-      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals: tokenDebit?.decimals, networkFeeSolApprox: options.composerProgramId ? composedFee([swapStep, addStep]) : sequentialFee([swapStep, addStep]) },
+      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals: Number.isInteger(tokenDebit?.decimals) ? tokenDebit.decimals : options.catalog.token(mint)?.decimals ?? await mintDecimals(mint), networkFeeSolApprox: options.composerProgramId ? composedFee([swapStep, addStep]) : sequentialFee([swapStep, addStep]) },
       createdAt: now(), expiresAt: now() + PLAN_TTL,
     }
     return plan
@@ -424,6 +432,12 @@ export function createSolanaZapHandler(options: Options) {
     const quote = await options.router.liquidityQuote({ ...step.intent, transactionVersion })
     const built = await options.router.liquidityBuild({ quoteId: quote.quoteId, owner, transactionVersion })
     return { step: index, mode: 'sequential' as ZapMode, kind: 'remove', transactions: withInstructions(built.transactions), quote: built.quote, pool: built.pool, position: built.position }
+  }
+  /** A mint's decimals read from chain (a mint account's byte 44), or undefined. */
+  async function mintDecimals(mint: string): Promise<number | undefined> {
+    const data = (await rpc('getAccountInfo', [mint, { encoding: 'base64', commitment: 'confirmed' }]).catch(() => null))?.value?.data?.[0]
+    const bytes = typeof data === 'string' ? Buffer.from(data, 'base64') : null
+    return bytes && bytes.length >= 82 ? bytes[44] : undefined
   }
   /** The zap's own swap leg, quoted and built now. A price that moves past
    * the slippage between the two is quoted and built once more: the minimum
