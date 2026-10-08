@@ -16,11 +16,14 @@ import { FollowTradingWallet } from './FollowTradingWallet.web'
 import { WrapSol } from './WrapSol.web'
 import { PoolYield } from './PoolYield.web'
 import type { Move, MoveVenue } from '@/lib/types'
+import { useTokenMeta } from '@/lib/token-meta'
 
 const ADVANCED = new Set(['tickLowerIndex', 'tickUpperIndex', 'minBinId', 'maxBinId', 'strategyType', 'configIndex'])
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 
-type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: TradeAction; exitRequest?: boolean }
+// `initialPool` pre-selects one pool (deep link /swap?mode=liquidity&pool=…): a
+// known FTL pool also selects its venue and pair; an unknown address is pasted as is.
+type Props = { t: TokenSummary; pools: PoolSummary[]; signer: SolanaSigner | null; onBack?: () => void; onLockChange: (locked: boolean) => void; origin?: FlowEvent | null; initialAction?: TradeAction; exitRequest?: boolean; initialPool?: string | null }
 type Batch = { build: LiquidityBuild; owner: string; version: '1' | '0'; next: number; confirmed: string[]; pending?: { signature: string; lastValidBlockHeight: number } }
 const BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
 const PENDING_KEY = 'liquidityxyz.solana.pending.v1'
@@ -35,7 +38,7 @@ function readBatch(): Batch | null {
   } catch { return null }
 }
 
-export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange, origin, exitRequest }: Props) {
+export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange, origin, exitRequest, initialPool }: Props) {
   const [venues, setVenues] = useState<LiquidityVenue[]>([])
   const [loaded, setLoaded] = useState(false)
   const [venue, setVenue] = useState('')
@@ -112,9 +115,13 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
     void liquidityCapabilities().then(response => { if (alive) { setVenues(response.venues); setLoaded(true)
       const counts: Record<string, number> = {}
       for (const item of pools) counts[routingVenue(item.venue)] = (counts[routingVenue(item.venue)] ?? 0) + (item.funded ? 2 : 1)
-      const best = response.venues.filter(item => item.capabilities.length).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))[0]
+      const linked = initialPool ? pools.find(item => item.address === initialPool) : undefined
+      const best = linked && response.venues.some(item => item.id === routingVenue(linked.venue) && item.capabilities.length) ? response.venues.find(item => item.id === routingVenue(linked.venue))
+        : response.venues.filter(item => item.capabilities.length).sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))[0]
       setVenue(best?.id ?? '')
-      if (best && counts[best.id]) { const first = pools.find(item => routingVenue(item.venue) === best.id && item.funded) ?? pools.find(item => routingVenue(item.venue) === best.id); if (first) { setPool(first.address); if (first.token) setMintA(first.token); if (first.quote) setMintB(first.quote) } } } }).catch(error => { if (alive) { setError(errorMessage(error)); setLoaded(true) } })
+      if (linked) { setPool(linked.address); if (linked.token) setMintA(linked.token); if (linked.quote) setMintB(linked.quote) }
+      else if (initialPool) setPool(initialPool)
+      else if (best && counts[best.id]) { const first = pools.find(item => routingVenue(item.venue) === best.id && item.funded) ?? pools.find(item => routingVenue(item.venue) === best.id); if (first) { setPool(first.address); if (first.token) setMintA(first.token); if (first.quote) setMintB(first.quote) } } } }).catch(error => { if (alive) { setError(errorMessage(error)); setLoaded(true) } })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -250,7 +257,6 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
     persist(value)
   }
 
-  const label = (mint: string) => mint === SOL_MINT ? (nativeSol ? 'SOL' : 'WSOL') : mint === USDC_MINT ? 'USDC' : mint === t.address ? (t.symbol || shortMint(mint)) : shortMint(mint)
   const details = (quote?.details ?? {}) as Record<string, string | number | boolean | null | undefined>
   const basicSchema = schema.filter(field => !ADVANCED.has(field.name) && !(percentageRemoval && field.name === 'removeBps'))
   const advancedSchema = schema.filter(field => ADVANCED.has(field.name))
@@ -258,6 +264,10 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
   const rangeManual = advancedSchema.some(field => (parameters[field.name] ?? '').trim() !== '')
   const venuePositions = walletPositions.filter(item => item.venue === venue && (!pool || item.pool === pool))
   const tokenPositions = walletPositions.filter(position => position.mintA === t.address || position.mintB === t.address || position.pool === result?.pool)
+  // Symbols for every mint this card names: the pair, quoted amounts, positions.
+  const meta = useTokenMeta([t.address, mintA, mintB, ...(quote?.amounts.map(amount => amount.mint) ?? []), ...(batch?.build.quote.amounts.map(amount => amount.mint) ?? []), ...tokenPositions.flatMap(position => [position.mintA, position.mintB])])
+  const label = (mint: string) => mint === SOL_MINT ? (nativeSol ? 'SOL' : 'WSOL') : mint === USDC_MINT ? 'USDC' : mint === t.address ? (t.symbol || meta[mint]?.symbol || shortMint(mint)) : meta[mint]?.symbol || shortMint(mint)
+  const tokenName = t.symbol || meta[t.address]?.symbol || 'this token'
   function amountField(mint: string, amount: string, change: (value: string) => void) {
     const token = tokens[mint], balance = token?.owner === owner && (mint !== SOL_MINT || token.nativeSol === nativeSol) ? token.raw : null
     return <View style={st.amountBox}>
@@ -280,12 +290,12 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
     {!loaded ? <Txt v="small">Loading venues…</Txt> : null}
     {['meteora-dbc', 'raydium-launchlab', 'pumpfun'].includes(venue) ? <Txt v="small">This is a launch curve. Use Swap to trade it; its protocol manages launch and migration. Choose an AMM below to initialize an independent liquidity pool.</Txt> : null}
     <View style={st.section}>
-      <View style={st.between}><Txt v="label">Venue</Txt><Txt v="monoSmall">{pools.length ? `${pools.filter(item => item.funded).length} funded of ${pools.length} pools on ${t.symbol || 'this token'}` : 'no pools seen yet'}</Txt></View>
+      <View style={st.between}><Txt v="label">Venue</Txt><Txt v="monoSmall">{pools.length ? `${pools.filter(item => item.funded).length} funded of ${pools.length} pools on ${tokenName}` : 'no pools seen yet'}</Txt></View>
       <View style={st.row}>{orderedVenues.map(item => {
         const stats = poolsByVenue[item.id]
         return <Chip key={item.id} label={venueName(item.id)} active={item.id === venue} color={stats?.funded ? C.accent : stats ? C.gold : C.ghost} count={stats?.total} onPress={() => { if (!locked) chooseVenue(item.id) }} />
       })}</View>
-      {loaded ? <Txt v="monoSmall">counted venues already hold {t.symbol || 'this token'} · mint {t.symbol || 'the token'} liquidity anywhere else with New pool</Txt> : null}
+      {loaded ? <Txt v="monoSmall">counted venues already hold {tokenName} · mint {tokenName === 'this token' ? 'the token' : tokenName} liquidity anywhere else with New pool</Txt> : null}
       {selectedVenue?.note || selectedVenue?.reason ? <Txt v="small">{selectedVenue.note || selectedVenue.reason}</Txt> : null}
     </View>
     {!selectedVenue ? <Txt v="small">Choose a venue once capabilities load.</Txt> : !selectedVenue.capabilities.length ? <Txt v="small">This venue has no direct LP operations. Pre-bond launch curves use their protocol’s launch and migration flow.</Txt> : <>
@@ -361,9 +371,9 @@ export default function SolanaLiquidity({ t, pools, signer, onBack, onLockChange
       {quote ? <Button label="Review & sign" disabled={busy || quote.expiresAt <= now} onPress={() => void act(start)} style={{ flex: 1 }} /> : null}
     </View>}
     {result ? <View style={[st.quote, { borderColor: C.accent + '66' }]}><Txt v="h2" color={C.accent}>{result.operation === 'initialize' ? 'Pool opened' : result.operation === 'remove' ? 'Liquidity withdrawn' : 'Liquidity added'}</Txt><Txt v="monoSmall" selectable>Pool {result.pool}</Txt>{result.position ? <Txt v="monoSmall" selectable>Position {result.position}</Txt> : null}<View style={st.row}>{result.signatures.map((signature, i) => <Chip key={signature} label={`Transaction ${i + 1} ↗`} color={C.accent} active onPress={() => void Linking.openURL(`https://solscan.io/tx/${signature}`)} />)}</View>{result.operation === 'initialize' ? <Button label="Add liquidity to this pool" disabled={locked} onPress={() => { setPool(result.pool); setOperation('add'); setParameters({}); setQuote(null) }} /> : null}
-      {result.signatures.length ? <ShareMove chain="solana" token={t.address} symbol={t.symbol || undefined} graduated={!!t.graduatedTs} tx={result.signatures[result.signatures.length - 1]} move={{ venue: result.venue as MoveVenue, operation: result.operation, pool: result.pool, amounts: result.amounts.slice(0, 4).map(amount => ({ mint: amount.mint, amount: fromAtomic(amount.expectedRaw, amount.decimals), symbol: label(amount.mint) })) } satisfies Move} /> : null}</View> : null}
+      {result.signatures.length ? <ShareMove chain="solana" token={t.address} symbol={t.symbol || meta[t.address]?.symbol || undefined} graduated={!!t.graduatedTs} tx={result.signatures[result.signatures.length - 1]} move={{ venue: result.venue as MoveVenue, operation: result.operation, pool: result.pool, amounts: result.amounts.slice(0, 4).map(amount => ({ mint: amount.mint, amount: fromAtomic(amount.expectedRaw, amount.decimals), symbol: label(amount.mint) })) } satisfies Move} /> : null}</View> : null}
     <View style={st.section}>
-      <View style={st.between}><Txt v="label">My positions on {t.symbol || 'this token'}</Txt><Button kind="quiet" label="Refresh" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
+      <View style={st.between}><Txt v="label">My positions on {tokenName}</Txt><Button kind="quiet" label="Refresh" disabled={busy || !owner} onPress={() => void act(refreshPositions)} /></View>
       {!owner ? <Txt v="small">Connect your wallet to check your positions.</Txt> : null}
       {positionError?.owner === owner ? <Txt v="small" color={C.warn}>Positions could not refresh: {positionError.message}</Txt> : null}
       {positions?.owner === owner ? positions.errors.map(item => <Txt key={item.venue} v="monoSmall">{venueName(item.venue)}: {item.error}</Txt>) : null}

@@ -24,23 +24,42 @@ export function resolveMintParam(value: string | string[] | null | undefined): s
   return isMintLike(text) ? text : null
 }
 
-export interface SwapLink { inputMint: string; outputMint: string | null; amount: string }
-// /swap?in=<mint|SOL>&out=<mint>&amount=<decimal>. Unusable values fall back
-// to SOL in, nothing out, empty amount; equal sides drop the output.
-export function parseSwapLink(params: { in?: string | string[]; out?: string | string[]; amount?: string | string[] } | null | undefined): SwapLink {
+export type SwapMode = 'swap' | 'liquidity'
+export type SwapLinkAction = 'exit' | null
+export interface SwapLink { inputMint: string; outputMint: string | null; amount: string; mode: SwapMode; pool: string | null; action: SwapLinkAction }
+type LinkParam = string | string[] | undefined
+const first = (value: LinkParam) => (Array.isArray(value) ? value[0] : value ?? '').trim()
+// /swap?in=<mint|SOL>&out=<mint>&amount=<decimal>[&mode=liquidity&pool=<address>&action=exit].
+// Unusable values fall back to SOL in, nothing out, empty amount, Swap mode;
+// equal sides drop the output. `pool` and `action` only matter in Liquidity mode.
+export function parseSwapLink(params: { in?: LinkParam; out?: LinkParam; amount?: LinkParam; mode?: LinkParam; pool?: LinkParam; action?: LinkParam } | null | undefined): SwapLink {
   const inputMint = resolveMintParam(params?.in) ?? SOL_MINT
   let outputMint = resolveMintParam(params?.out)
   if (outputMint === inputMint) outputMint = null
-  const rawAmount = (Array.isArray(params?.amount) ? params?.amount[0] : params?.amount ?? '').trim()
+  const rawAmount = first(params?.amount)
   const amount = /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(rawAmount) && Number(rawAmount) > 0 ? rawAmount : ''
-  return { inputMint, outputMint, amount }
+  const mode: SwapMode = first(params?.mode).toLowerCase() === 'liquidity' ? 'liquidity' : 'swap'
+  const rawPool = first(params?.pool)
+  const pool = mode === 'liquidity' && isMintLike(rawPool) ? rawPool : null
+  const action: SwapLinkAction = mode === 'liquidity' && first(params?.action).toLowerCase() === 'exit' ? 'exit' : null
+  return { inputMint, outputMint, amount, mode, pool, action }
 }
 
-export function swapLink(inputMint: string, outputMint?: string | null, amount?: string | null): string {
+export function swapLink(inputMint: string, outputMint?: string | null, amount?: string | null, options?: { mode?: SwapMode; pool?: string | null; action?: SwapLinkAction }): string {
   const query = new URLSearchParams()
+  if (options?.mode === 'liquidity') query.set('mode', 'liquidity')
   query.set('in', inputMint === SOL_MINT ? 'SOL' : inputMint)
   if (outputMint) query.set('out', outputMint === SOL_MINT ? 'SOL' : outputMint)
   if (amount && Number(amount) > 0) query.set('amount', amount)
+  if (options?.mode === 'liquidity' && options.pool) query.set('pool', options.pool)
+  if (options?.mode === 'liquidity' && options.action) query.set('action', options.action)
+  return `/swap?${query}`
+}
+// Liquidity mode on one token: /swap?mode=liquidity&out=<mint>[&pool=<address>][&action=exit]
+export function liquidityLink(mint: string, pool?: string | null, action?: SwapLinkAction): string {
+  const query = new URLSearchParams({ mode: 'liquidity', out: mint })
+  if (pool) query.set('pool', pool)
+  if (action) query.set('action', action)
   return `/swap?${query}`
 }
 

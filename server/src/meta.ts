@@ -12,25 +12,10 @@ import { config } from './config.ts'
 import { db, getCursor, setCursor } from './db.ts'
 import { QUOTES, bus, setTokenMeta } from './hub.ts'
 import { recordKnownTokenProgram } from './solana/holders.ts'
+import { httpImage, parseDasAsset } from './solana/token-meta.ts'
 import type { Chain, TokenMeta } from '../../shared/types.ts'
 
 const METAPLEX = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
-
-// ipfs.io / dweb.link answer 429 under load; filebase serves the same CIDs fast
-const GATEWAY = 'https://ipfs.filebase.io/ipfs/'
-export function httpImage(uri: string | undefined | null): string | undefined {
-  if (!uri) return undefined
-  const u = uri.trim()
-  if (u.startsWith('ipfs://')) return GATEWAY + u.slice(7).replace(/^ipfs\//, '')
-  if (u.startsWith('ar://')) return 'https://arweave.net/' + u.slice(5)
-  const path = u.match(/^https?:\/\/[^/]+\/ipfs\/(.+)$/)
-  if (path && !/filebase/.test(u)) return GATEWAY + path[1]
-  const sub = u.match(/^https?:\/\/([a-z0-9]{46,})\.ipfs\.[^/]+\/?(.*)$/)
-  if (sub) return GATEWAY + sub[1] + (sub[2] ? '/' + sub[2] : '')
-  if (/^https?:\/\//.test(u)) return u
-  if (/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z2-7]{50,})/.test(u)) return GATEWAY + u
-  return undefined
-}
 
 async function offchain(uri: string): Promise<{ image?: string; description?: string; twitter?: string; website?: string }> {
   const url = httpImage(uri)
@@ -77,15 +62,10 @@ async function dasBatch(mints: string[]): Promise<Map<string, TokenMeta>> {
   const out = new Map<string, TokenMeta>()
   const res = await solRpc('getAssetBatch', { ids: mints, displayOptions: { showFungible: true } })
   for (const a of res ?? []) {
-    if (!a?.id) continue
-    if (typeof a.token_info?.token_program === 'string')
-      recordKnownTokenProgram(a.id, a.token_info.token_program, 'das-getAssetBatch')
-    const md = a.content?.metadata ?? {}
-    const image = httpImage(a.content?.links?.image ?? a.content?.files?.find((f: any) => /^image\//.test(f?.mime ?? ''))?.uri ?? a.content?.files?.[0]?.uri)
-    out.set(a.id, {
-      name: md.name || undefined, symbol: md.symbol || undefined, image,
-      decimals: a.token_info?.decimals ?? undefined, description: md.description || undefined,
-    })
+    const parsed = parseDasAsset(a)
+    if (!parsed) continue
+    if (parsed.tokenProgram) recordKnownTokenProgram(a.id, parsed.tokenProgram, 'das-getAssetBatch')
+    out.set(a.id, parsed.meta)
   }
   return out
 }

@@ -1,22 +1,26 @@
-// Full-page swap terminal for the Solana router: one card, pay and receive
-// panels, a flip, route details and a single primary action, in the shape of
-// Jupiter Terminal. Wallets come from SolanaWallet.web (shared with the token
-// page); the quote → build/simulate → sign → send → confirm loop and the
-// pending-transaction recovery follow the token page's TradeForm exactly.
+// Full-page terminal for the Solana router: one card with a Swap | Liquidity
+// switch. Swap is pay and receive panels, a flip, route details and a single
+// primary action, in the shape of Jupiter Terminal; Liquidity mounts the same
+// liquidity card the token page uses (open, add, remove) on the receive token,
+// inside the same wallet session. Wallets come from SolanaWallet.web (shared
+// with the token page); the quote → build/simulate → sign → send → confirm
+// loop and the pending-transaction recovery follow the token page's TradeForm.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native'
 import bs58 from 'bs58'
 import { C, F, T } from '@/theme'
-import { get } from '@/lib/api'
+import { ApiError, get } from '@/lib/api'
 import { short, venue } from '@/lib/format'
-import type { TokenSummary } from '@/lib/types'
+import type { PoolSummary, TokenSummary } from '@/lib/types'
+import { tokenMetaOne, useTokenMeta, type TokenMetaMap, type TokenMetaRecord } from '@/lib/token-meta'
 import { balancePercent, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
-import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink } from '@/lib/swap-link'
+import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink, type SwapLinkAction, type SwapMode } from '@/lib/swap-link'
 import { inspectTransaction, type TransactionVersion } from '@/lib/solana-wire'
-import { Button, Chip, Press, TokenAvatar, Txt } from './ui'
+import { Button, Chip, Press, Seg, TokenAvatar, Txt } from './ui'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner, type WalletKey } from './SolanaWallet.web'
+import SolanaLiquidity from './SolanaLiquidity.web'
 
 interface Token { mint: string; symbol: string; name?: string; image?: string }
 interface WalletState { address: string | null; version: TransactionVersion | null; name: string }
@@ -29,6 +33,18 @@ const tokenOf = (mint: string, known?: Partial<Token> | null): Token => {
   return { mint, symbol: known?.symbol || base?.symbol || shortMint(mint), name: known?.name ?? base?.name, image: known?.image }
 }
 const fromSummary = (summary: TokenSummary): Token => tokenOf(summary.address, { symbol: summary.symbol, name: summary.name, image: summary.image })
+// Fill symbol / name / image from the metadata endpoint without replacing a
+// token that already carries them; same object back when nothing changes.
+function withMeta(token: Token, meta: TokenMetaMap): Token {
+  const record = meta[token.mint]
+  if (!record) return token
+  const known = KNOWN_TOKENS.some(known => known.mint === token.mint)
+  const symbol = known ? token.symbol : record.symbol || token.symbol
+  const name = token.name ?? record.name ?? undefined
+  const image = token.image ?? record.image ?? undefined
+  return symbol === token.symbol && name === token.name && image === token.image ? token : { ...token, symbol, name, image }
+}
+const LIQUIDITY_BATCH_KEY = 'liquidityxyz.solana.liquidity-batch.v1'
 const priceImpact = (value: string | null) => value === null || !Number.isFinite(Number(value)) ? 'n/a' : `${Number(value).toFixed(2)}%`
 
 // Pushes the live signer up to the terminal without remounting its form, and
@@ -51,7 +67,10 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   const [walletModal, setWalletModal] = useState(false)
   const [walletMenu, setWalletMenu] = useState(false)
   const signerRef = useRef<SolanaSigner | null>(null)
+  const [signer, setSigner] = useState<SolanaSigner | null>(null)
   const [wallet, setWallet] = useState<WalletState | null>(null)
+  const [mode, setMode] = useState<SwapMode>(initial.mode)
+  const [liquidityLocked, setLiquidityLocked] = useState(false)
   const address = wallet?.address ?? null
   const transactionVersion = wallet?.version ?? '1'
 
@@ -89,7 +108,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   const quote = quoteResult && quoteResult.key === quoteKey && quoteResult.wallet === address ? quoteResult : null
   const fresh = !!quote && isQuoteFresh(quote.at, now)
   const unresolved = pending?.state === 'pending'
-  const locked = busy || unresolved
+  const locked = busy || unresolved || liquidityLocked
   const inputBalance = balances[inputMint]?.owner === address ? balances[inputMint].raw : null
   const outputBalance = outputMint && balances[outputMint]?.owner === address ? balances[outputMint].raw : null
 
@@ -111,21 +130,19 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     }).catch(() => { if (alive) setRouterMessage('Route service is reconnecting. You can retry a quote.') })
     return () => { alive = false }
   }, [])
-  // Deep-linked mints arrive as bare addresses; borrow symbol and image from FTL's index.
+  // Deep-linked and pasted mints arrive as bare addresses; the metadata endpoint
+  // (FTL row → DAS → mint account) names them, and route legs through other mints.
+  const legMints = useMemo(() => quoteResult?.response.routePlan.flatMap(leg => leg.swapInfo ? [leg.swapInfo.inputMint, leg.swapInfo.outputMint] : []) ?? [], [quoteResult])
+  const meta = useTokenMeta([inputMint, outputMint, ...legMints])
   useEffect(() => {
-    const mints = [initial.inputMint, initial.outputMint].filter((mint): mint is string => !!mint && !KNOWN_TOKENS.some(token => token.mint === mint))
-    if (!mints.length) return
-    let alive = true
-    for (const mint of mints) {
-      void get<{ tokens: TokenSummary[] }>('/api/search', { q: mint }).then(result => {
-        const found = result.tokens.find(token => token.chain === 'solana' && token.address === mint)
-        if (!alive || !found) return
-        setInput(current => current.mint === mint ? fromSummary(found) : current)
-        setOutput(current => current?.mint === mint ? fromSummary(found) : current)
-      }).catch(() => {})
-    }
-    return () => { alive = false }
-  }, [initial.inputMint, initial.outputMint])
+    setInput(current => withMeta(current, meta))
+    setOutput(current => current ? withMeta(current, meta) : current)
+  }, [meta])
+  // An interrupted liquidity batch resumes in Liquidity mode, like the token page.
+  useEffect(() => {
+    const timer = setTimeout(() => { try { if (initial.outputMint && localStorage.getItem(LIQUIDITY_BATCH_KEY)) setMode('liquidity') } catch {} }, 0)
+    return () => clearTimeout(timer)
+  }, [initial.outputMint])
 
   useEffect(() => {
     let alive = true
@@ -183,6 +200,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
 
   const onSigner = useCallback((signer: SolanaSigner | null, name: string | null) => {
     signerRef.current = signer
+    setSigner(signer)
     const next: WalletState | null = signer && name ? { address: signer.address, version: signer.transactionVersion, name } : null
     setWallet(current => current?.address === next?.address && current?.version === next?.version && current?.name === next?.name ? current : next)
   }, [])
@@ -267,7 +285,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
   }
   function reset() { setPending(null); setAmount(''); setError(null); setNetworkFee(null) }
 
-  const symbol = (mint: string) => mint === input.mint ? input.symbol : mint === output?.mint ? output.symbol : tokenOf(mint).symbol
+  const symbol = (mint: string) => mint === input.mint ? input.symbol : mint === output?.mint ? output.symbol : tokenOf(mint, meta[mint] ? { symbol: meta[mint].symbol ?? undefined } : null).symbol
   const outDecimals = outputMint ? decimals[outputMint] : undefined
   const estimated = quote && outDecimals !== undefined ? fromAtomic(quote.response.outAmount, outDecimals) : null
   const rate = quote && output && outDecimals !== undefined && decimals[inputMint] !== undefined
@@ -295,11 +313,11 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
 
   return <View style={st.card}>
     <View style={st.header}>
-      <Txt v="h1">Swap</Txt>
+      <Txt v="h1">{mode === 'liquidity' ? 'Liquidity' : 'Swap'}</Txt>
       <View style={st.headerRight}>
-        <Press onPress={() => setSettings(value => !value)} accessibilityRole="button" accessibilityLabel="Swap settings" hitSlop={6} style={({ hovered, pressed }) => [st.icon, settings && { borderColor: C.accent + '88', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+        {mode === 'swap' ? <Press onPress={() => setSettings(value => !value)} accessibilityRole="button" accessibilityLabel="Swap settings" hitSlop={6} style={({ hovered, pressed }) => [st.icon, settings && { borderColor: C.accent + '88', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
           <Txt v="mono" color={settings ? C.accent : C.muted}>⚙</Txt>
-        </Press>
+        </Press> : null}
         {address
           ? <Button kind="ghost" label={shortMint(address)} disabled={locked} onPress={() => setWalletMenu(value => !value)} />
           : <Button kind={wallet ? 'ghost' : 'primary'} label={wallet ? `Connect ${wallet.name}` : 'Connect'} busy={busy && phase === 'idle' && !!wallet} onPress={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} />}
@@ -315,7 +333,13 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     {selected && walletName(selected, wallets) ? <WalletSession selected={selected} wallets={wallets} onBack={leaveWallet} embeddedTitle={null}>
       {(signer, name) => <SignerBridge signer={signer} name={name} onSigner={onSigner} onError={setError} />}
     </WalletSession> : null}
-    {settings ? <View style={st.panel}>
+    <Seg value={mode} options={[{ value: 'swap', label: 'Swap' }, { value: 'liquidity', label: 'Liquidity' }]} onChange={value => { if (!locked) { setMode(value); setError(null) } }} />
+    {mode === 'liquidity' ? <>
+      <LiquidityPane token={output} pool={initial.pool} action={initial.action} signer={signer} meta={meta} locked={locked} onLockChange={setLiquidityLocked} onPickToken={() => setPicker('out')} />
+      {!address ? <Button label={wallet ? `Connect ${wallet.name}` : 'Connect wallet'} busy={busy && phase === 'idle' && !!wallet} onPress={() => wallet ? void act(async () => { await signerRef.current?.connect() }) : setWalletModal(true)} style={st.primary} /> : null}
+      {error ? <Txt v="small" color={C.warn}>{error}</Txt> : null}
+    </> : null}
+    {mode === 'swap' && settings ? <View style={st.panel}>
       <View style={st.between}><Txt v="label">Slippage tolerance</Txt><Txt v="monoSmall" color={C.accent}>{formatBps(slippageBps)}</Txt></View>
       <View style={st.wrap}>{SLIPPAGE_PRESETS.map(bps => <Chip key={bps} label={formatBps(bps)} active={slippageBps === bps} onPress={() => { if (!locked) { setSlippageBps(bps); setCustomBps('') } }} />)}</View>
       <View style={st.inputRow}>
@@ -325,6 +349,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
       <Txt v="monoSmall">{wallet ? wallet.version === '1' ? `${wallet.name} signs V1 transactions · routes up to 4,096 bytes` : wallet.version === '0' ? `${wallet.name} signs V0 transactions · routes must fit 1,232 bytes` : `${wallet.name} does not advertise V0 or V1 signing` : 'V1 wallets fit longer routes (4,096 bytes); V0 wallets are limited to 1,232 bytes.'}</Txt>
     </View> : null}
 
+    {mode === 'swap' ? <>
     <View style={st.panel}>
       <View style={st.between}>
         <Txt v="label">You pay</Txt>
@@ -407,6 +432,7 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
 
     {!resolved ? <Button label={primary.label} busy={primary.busy} disabled={!primary.onPress} onPress={primary.onPress} style={st.primary} /> : null}
     <Txt v="monoSmall" style={{ textAlign: 'center' }}>{routerMessage}</Txt>
+    </> : null}
 
     <Modal visible={walletModal} transparent animationType="fade" onRequestClose={() => setWalletModal(false)}>
       <Press onPress={() => setWalletModal(false)} accessibilityLabel="Close" style={() => st.backdrop}>
@@ -420,6 +446,59 @@ export default function SwapTerminal({ initial }: { initial: SwapLink }) {
     </Modal>
     {picker ? <TokenPicker side={picker} exclude={picker === 'in' ? output?.mint ?? null : input.mint} onClose={() => setPicker(null)} onPick={token => pick(picker, token)} /> : null}
   </View>
+}
+
+// Liquidity mode: the token page's liquidity card on the receive token. The
+// token page payload supplies FTL's pools; a token FTL has not seen yet (404)
+// gets a minimal summary from the metadata endpoint and an empty pool list, so
+// a pool address can still be pasted or a new pool opened.
+type LiquidityPage = { mint: string; t: TokenSummary; pools: PoolSummary[]; indexed: boolean }
+const synthesizeToken = (mint: string, record: TokenMetaRecord | null, token: Token): TokenSummary => ({
+  chain: 'solana', address: mint, symbol: record?.symbol ?? (token.symbol !== shortMint(mint) ? token.symbol : undefined), name: record?.name ?? token.name, image: record?.image ?? token.image, decimals: record?.decimals ?? undefined,
+  launchedTs: null, launchVenue: null, graduatedTs: null, firstPoolTs: null, pools: 0, fundedPools: 0, lpWallets: 0, events: 0, lastTs: 0, score: 0, flags: [],
+})
+function LiquidityPane({ token, pool, action, signer, meta, locked, onLockChange, onPickToken }: { token: Token | null; pool: string | null; action: SwapLinkAction; signer: SolanaSigner | null; meta: TokenMetaMap; locked: boolean; onLockChange: (locked: boolean) => void; onPickToken: () => void }) {
+  const mint = token?.mint ?? null
+  const [page, setPage] = useState<LiquidityPage | null>(null)
+  const [failure, setFailure] = useState<{ mint: string; message: string } | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (!mint || !token) return
+    let alive = true
+    void get<{ token: TokenSummary; pools: PoolSummary[] }>(`/api/token/solana/${mint}`)
+      .then(result => { if (alive) setPage({ mint, t: result.token, pools: result.pools, indexed: true }) })
+      .catch(async (error: unknown) => {
+        if (!alive) return
+        if (error instanceof ApiError && error.status === 404) {
+          const record = await tokenMetaOne(mint).catch(() => null)
+          if (alive) setPage({ mint, t: synthesizeToken(mint, record, token), pools: [], indexed: false })
+        } else setFailure({ mint, message: messageOf(error) })
+      })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mint, attempt])
+  const current = page?.mint === mint ? page : null
+  const record = mint ? meta[mint] : undefined
+  // Pools arrive once per token; the symbol can land later from the metadata endpoint.
+  const summary = useMemo<TokenSummary | null>(() => current ? { ...current.t, symbol: current.t.symbol || record?.symbol || undefined, name: current.t.name ?? record?.name ?? undefined, image: current.t.image ?? record?.image ?? undefined } : null, [current, record])
+  return <>
+    <View style={st.panel}>
+      <View style={st.between}>
+        <Txt v="label">Token</Txt>
+        <Txt v="monoSmall">{!token ? '' : !current ? (failure?.mint === mint ? '' : 'Loading pools…') : current.indexed ? `${current.pools.length} FTL pool${current.pools.length === 1 ? '' : 's'}` : 'not indexed by FTL yet'}</Txt>
+      </View>
+      <View style={st.row}>
+        <TokenButton token={token} disabled={locked} onPress={onPickToken} />
+        {token ? <Txt v="monoSmall" selectable numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>{token.mint}</Txt> : <Txt v="small" style={{ flex: 1 }}>Choose the token whose liquidity you want to open, add to or pull.</Txt>}
+      </View>
+      {token && record && !record.symbol ? <Txt v="small">Unnamed token: no symbol in DAS or on-chain metadata. Check the mint before adding liquidity.</Txt> : null}
+    </View>
+    {failure?.mint === mint && !current ? <View style={st.details}>
+      <Txt v="small" color={C.warn}>{failure.message}</Txt>
+      <Button kind="ghost" label="Retry" onPress={() => { setFailure(null); setAttempt(value => value + 1) }} />
+    </View> : null}
+    {summary && current ? <SolanaLiquidity key={current.mint} t={summary} pools={current.pools} signer={signer} onLockChange={onLockChange} exitRequest={action === 'exit'} initialPool={pool} /> : null}
+  </>
 }
 
 function Detail({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
@@ -442,6 +521,8 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
   const [searching, setSearching] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const pasted = isMintLike(query)
+  const pastedMeta = useTokenMeta(pasted ? [query.trim()] : [])
+  const pastedRecord = pasted ? pastedMeta[query.trim()] : undefined
   useEffect(() => {
     let alive = true
     void get<TokenSummary[]>('/api/tokens/hot', { chain: 'solana', hours: 24, limit: 12 }).then(rows => { if (alive) setHot(rows.map(fromSummary)) }).catch(() => {})
@@ -463,7 +544,7 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
     try {
       const mint = validateMint(query)
       await mintDecimals(mint)
-      onPick(results.find(token => token.mint === mint) ?? tokenOf(mint))
+      onPick(results.find(token => token.mint === mint) ?? tokenOf(mint, pastedRecord ? { symbol: pastedRecord.symbol ?? undefined, name: pastedRecord.name ?? undefined, image: pastedRecord.image ?? undefined } : null))
     } catch (error) { setMessage(messageOf(error)) }
   }
   const quick = [...KNOWN_TOKENS.map(token => tokenOf(token.mint)), ...hot].filter(token => token.mint !== exclude)
@@ -475,7 +556,11 @@ function TokenPicker({ side, exclude, onClose, onPick }: { side: 'in' | 'out'; e
         <TextInput accessibilityLabel="Search tokens or paste a mint" value={query} onChangeText={value => { setQuery(value); setMessage(null) }} autoFocus autoCapitalize="none" autoCorrect={false} placeholder="Search by symbol, name or paste a mint" placeholderTextColor={C.faint} style={[st.textInput, st.boxed]} />
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 10 }}>
           {pasted ? <Press onPress={() => void usePasted()} accessibilityRole="button" style={({ hovered, pressed }) => [st.tokenRow, { borderColor: C.accent + '66', backgroundColor: C.accentDim }, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
-            <View style={{ flex: 1, gap: 2, minWidth: 0 }}><Txt v="body">Use pasted mint</Txt><Txt v="monoSmall" numberOfLines={1}>{query.trim()}</Txt></View>
+            {pastedRecord ? <TokenAvatar image={pastedRecord.image ?? undefined} label={pastedRecord.symbol ?? shortMint(query.trim())} size={32} chain="solana" /> : null}
+            <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
+              <Txt v="body" numberOfLines={1}>{pastedRecord?.symbol ? <>Use {pastedRecord.symbol}{pastedRecord.name ? <Txt v="small">  {pastedRecord.name}</Txt> : null}</> : pastedRecord ? 'Use pasted mint · unnamed token' : 'Use pasted mint'}</Txt>
+              <Txt v="monoSmall" numberOfLines={1}>{query.trim()}</Txt>
+            </View>
             <Txt v="mono" color={C.accent}>→</Txt>
           </Press> : null}
           {message ? <Txt v="small" color={C.warn}>{message}</Txt> : null}

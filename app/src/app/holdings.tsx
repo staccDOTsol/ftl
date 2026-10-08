@@ -6,7 +6,9 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { C, F } from '@/theme'
 import { short, venue } from '@/lib/format'
 import { fromAtomic } from '@/lib/solana-trade'
-import { ACTION_LABEL, getHoldings, holdingLabel, isActionHref, isSolanaAddress, shortAddress, type HoldingAction, type Holdings } from '@/lib/solana-holdings'
+import { ACTION_LABEL, actionMint, getHoldings, holdingLabel, isActionHref, isSolanaAddress, liquidityActionHref, shortAddress, SOL_MINT, type HoldingAction, type Holdings } from '@/lib/solana-holdings'
+import { liquidityLink, swapLink } from '@/lib/swap-link'
+import { retitle, useTokenMeta, type TokenMetaMap } from '@/lib/token-meta'
 import HoldingsWallet from '@/components/HoldingsWallet'
 import { Button, Empty, Loading, Press, Screen, Section, Stat, TokenAvatar, Txt } from '@/components/ui'
 
@@ -47,6 +49,16 @@ export default function HoldingsScreen() {
 
   const data = result?.owner === owner ? result.data : null
   const known = data ? data.tokens.filter(t => t.pools.length).length : 0
+  // Names for every mint on screen that FTL has not named itself: held tokens,
+  // position pairs and the mints the ranked actions point at.
+  const meta = useTokenMeta(data ? [
+    ...data.tokens.filter(t => !t.token?.symbol && !t.wrappedSol).map(t => t.mint),
+    ...data.positions.positions.flatMap(p => [p.mintA, p.mintB]),
+    ...data.actions.map(a => actionMint(a.href)),
+  ] : [])
+  // The token page exists for mints FTL has a row for; anything else goes to
+  // the swap terminal (Liquidity mode for add / exit, Swap otherwise).
+  const seen = useCallback((mint: string) => mint === SOL_MINT || !!data?.tokens.find(t => t.mint === mint)?.token || meta[mint]?.source === 'ftl', [data, meta])
 
   return (
     <Screen edges={[]}>
@@ -88,7 +100,7 @@ export default function HoldingsScreen() {
           </View>
 
           <Section title={`What you can do · ${data.actions.length}`}>
-            {data.actions.length ? data.actions.map((a, i) => <ActionRow key={`${a.kind}:${a.href}:${i}`} action={a} />) : (
+            {data.actions.length ? data.actions.map((a, i) => <ActionRow key={`${a.kind}:${a.href}:${i}`} action={a} meta={meta} seen={seen} positions={data.positions.positions} />) : (
               <View style={{ paddingHorizontal: 16, gap: 6 }}>
                 <Txt v="small">Nothing executable yet. {data.tokens.length ? 'FTL has not seen pools for the tokens this wallet holds, and there are no open positions.' : 'This wallet holds no tokens and no positions.'} {BigInt(data.sol.lamports) <= 20_000_000n ? 'Fund it with more than 0.02 SOL to see buy suggestions.' : ''}</Txt>
               </View>
@@ -97,13 +109,16 @@ export default function HoldingsScreen() {
 
           <Section title={`Tokens · ${data.tokens.length}`} right={known ? <Txt v="monoSmall">{known} with FTL pools</Txt> : undefined}>
             {data.tokens.length ? data.tokens.map(t => {
-              const label = holdingLabel(t)
-              const open = t.wrappedSol || t.pools.length ? () => router.push(`/token/solana/${t.mint}` as any) : undefined
+              const record = meta[t.mint]
+              const label = t.wrappedSol || t.token?.symbol || !record?.symbol ? holdingLabel(t) : `$${record.symbol.slice(0, 14)}`
+              const name = t.wrappedSol ? null : t.token?.name ?? record?.name ?? null
+              // Known tokens open their page; anything else opens the swap terminal on that mint.
+              const open = t.wrappedSol || t.pools.length || seen(t.mint) ? () => router.push(`/token/solana/${t.mint}` as any) : () => router.push(swapLink(SOL_MINT, t.mint) as any)
               return (
-                <Press key={t.account} onPress={open} disabled={!open} accessibilityRole={open ? 'button' : undefined} style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
-                  <TokenAvatar image={t.token?.image} label={label} size={36} chain="solana" />
+                <Press key={t.account} onPress={open} accessibilityRole="button" style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+                  <TokenAvatar image={t.token?.image ?? record?.image ?? undefined} label={label} size={36} chain="solana" />
                   <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-                    <Txt v="body" numberOfLines={1}>{label}{t.token?.name && !t.wrappedSol ? <Txt v="small">  {t.token.name}</Txt> : null}</Txt>
+                    <Txt v="body" numberOfLines={1}>{label}{name ? <Txt v="small">  {name}</Txt> : null}</Txt>
                     <Txt v="monoSmall" numberOfLines={1}>{shortAddress(t.mint)}{t.program === 'token-2022' ? ' · Token-2022' : ''} · {t.pools.length ? `${t.pools.length} FTL pool${t.pools.length === 1 ? '' : 's'}${t.pools.some(p => p.funded) ? ` · ${t.pools.filter(p => p.funded).length} funded` : ''}` : t.wrappedSol ? 'wrapped SOL account' : 'no FTL-known pools'}</Txt>
                   </View>
                   <Txt v="num" style={{ fontSize: 14 }}>{fromAtomic(t.amount, t.decimals)}</Txt>
@@ -116,11 +131,13 @@ export default function HoldingsScreen() {
             {data.positions.error ? <Txt v="small" color={C.warn} style={{ paddingHorizontal: 16, paddingBottom: 6 }}>{data.positions.error}</Txt> : null}
             {data.positions.errors.map(e => <Txt key={e.venue} v="small" color={C.warn} style={{ paddingHorizontal: 16, paddingBottom: 4 }}>{venue(e.venue)}: {e.error}</Txt>)}
             {data.positions.positions.length ? data.positions.positions.map(p => {
-              const mint = p.mintA !== 'So11111111111111111111111111111111111111112' ? p.mintA : p.mintB
+              const mint = p.mintA !== SOL_MINT ? p.mintA : p.mintB
+              const href = seen(mint) ? `/token/solana/${mint}?action=exit` : liquidityLink(mint, p.pool, 'exit')
+              const pairName = (m: string) => meta[m]?.symbol ? `$${meta[m].symbol!.slice(0, 14)}` : shortAddress(m)
               return (
-                <Press key={`${p.venue}:${p.position}`} onPress={() => router.push(`/token/solana/${mint}?action=exit` as any)} accessibilityRole="button" style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+                <Press key={`${p.venue}:${p.position}`} onPress={() => router.push(href as any)} accessibilityRole="button" style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
                   <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-                    <Txt v="body" numberOfLines={1}>{venue(p.venue)} · {shortAddress(p.mintA)} / {shortAddress(p.mintB)}</Txt>
+                    <Txt v="body" numberOfLines={1}>{venue(p.venue)} · {pairName(p.mintA)} / {pairName(p.mintB)}</Txt>
                     <Txt v="monoSmall" numberOfLines={1}>pool {short(p.pool, 5)} · position {short(p.position, 5)}</Txt>
                   </View>
                   <Txt v="monoSmall" color={C.text}>{p.removalMode === 'percentage' ? 'Bin position' : `${p.liquidity ?? '—'} liquidity units`}</Txt>
@@ -135,14 +152,18 @@ export default function HoldingsScreen() {
   )
 }
 
-function ActionRow({ action }: { action: HoldingAction }) {
-  const ok = isActionHref(action.href)
+function ActionRow({ action, meta, seen, positions }: { action: HoldingAction; meta: TokenMetaMap; seen: (mint: string) => boolean; positions: Holdings['positions']['positions'] }) {
+  const href = liquidityActionHref(action, seen, positions)
+  const ok = isActionHref(href)
+  const mint = actionMint(action.href)
+  // "Sell A9EC…KnH4" reads "Sell $SYMBOL" once the metadata endpoint names it.
+  const title = mint ? retitle(action.title, mint, meta) : action.title
   const color = ACTION_COLOR[action.kind] ?? C.accent
   return (
-    <Press onPress={ok ? () => router.push(action.href as any) : undefined} disabled={!ok} accessibilityRole="button" style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
+    <Press onPress={ok ? () => router.push(href as any) : undefined} disabled={!ok} accessibilityRole="button" style={({ hovered, pressed }) => [st.row, hovered && { backgroundColor: C.hover }, pressed && { opacity: 0.7 }]}>
       <View style={[st.kind, { borderColor: color + '66', backgroundColor: color + '1A' }]}><Txt v="label" color={color}>{ACTION_LABEL[action.kind] ?? action.kind}</Txt></View>
       <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-        <Txt v="body" numberOfLines={2}>{action.title}</Txt>
+        <Txt v="body" numberOfLines={2}>{title}{href !== action.href ? <Txt v="small" color={C.accent}>  Liquidity ⇄</Txt> : null}</Txt>
         <Txt v="small" numberOfLines={3}>{action.detail}</Txt>
       </View>
       <Txt v="mono" color={C.faint}>→</Txt>

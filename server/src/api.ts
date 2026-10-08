@@ -3,7 +3,7 @@
 import http from 'node:http'
 import { WebSocketServer, type WebSocket } from 'ws'
 import { db } from './db.ts'
-import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken, rowToWallet } from './hub.ts'
+import { bus, counters, getToken, laneStatus, rowToEvent, rowToPool, rowToToken, rowToWallet, setTokenMeta } from './hub.ts'
 import { enrich } from './meta.ts'
 import { prices } from './prices.ts'
 import { getResearch, listResearch, startResearch } from './research.ts'
@@ -19,6 +19,8 @@ import { createSolanaRouterHandler } from './solana/router.ts'
 import { createSolanaHoldingsHandler } from './solana/holdings.ts'
 import { createPoolStatsHandler } from './solana/pool-stats.ts'
 import { createSolanaWrapHandler } from './solana/wrap.ts'
+import { createTokenMetaHandler, type TokenMetaRecord } from './solana/token-meta.ts'
+import { validPublicKey } from './solana/router.ts'
 import type { Chain, ClientMsg, FlowEvent, Kind, ServerMsg, Status } from '../../shared/types.ts'
 
 const handleSolanaRouter = createSolanaRouterHandler({ routerUrl: config.solanaRouterUrl,
@@ -33,6 +35,13 @@ const handleSolanaHoldings = createSolanaHoldingsHandler({ rpcUrl: config.solana
   hot: limit => hot(new URLSearchParams({ chain: 'solana', limit: String(limit) })),
 } })
 const handleSolanaWrap = createSolanaWrapHandler({ rpcUrl: config.solanaRpc })
+// Symbol / name / image / decimals for any mint, FTL row → DAS → mint account;
+// DAS answers are written back through setTokenMeta like the enrichment queue.
+const handleTokenMeta = createTokenMetaHandler({ dasUrl: config.solanaDasRpc, rpcUrl: config.solanaRpc, catalog: {
+  token: mint => getToken('solana', mint),
+  tokenProgram: mint => { try { return (db.prepare('SELECT program_id FROM research_holder_state WHERE mint = ?').get(mint) as any)?.program_id ?? null } catch { return null } },
+  learn: (mint, meta, complete) => setTokenMeta('solana', mint, meta, complete),
+} })
 const started = Date.now()
 let programStatusCache: { at: number; value: ProgramBackfillStatus } | null = null
 
@@ -123,11 +132,21 @@ function leaderboard(q: URLSearchParams) {
   return rows.map(rowToWallet)
 }
 
-function search(qs: string) {
+// A pasted Solana mint FTL has never indexed still resolves: the meta lookup
+// names it (and persists what DAS knows) so pickers can show a symbol.
+function unseenToken(record: TokenMetaRecord) {
+  return getToken('solana', record.mint) ?? rowToToken({ chain: 'solana', address: record.mint, symbol: record.symbol, name: record.name, image: record.image, decimals: record.decimals,
+    launched_ts: null, launch_venue: null, graduated_ts: null, first_pool_ts: null, pools: 0, funded_pools: 0, lp_wallets: 0, events: 0, last_ts: 0, score: 0, flags: '[]' })
+}
+async function search(qs: string) {
   const q = qs.trim()
   if (!q) return { tokens: [], wallets: [], profiles: [] }
   const like = `%${q.replace(/[%_]/g, '')}%`
-  const tokens = (db.prepare(`SELECT * FROM tokens WHERE (address = ? OR address = ? OR symbol LIKE ? OR name LIKE ?) AND pools > 0 ORDER BY score DESC LIMIT 20`).all(q, q.toLowerCase(), like, like) as any[]).map(rowToToken)
+  let tokens = (db.prepare(`SELECT * FROM tokens WHERE (address = ? OR address = ? OR symbol LIKE ? OR name LIKE ?) AND pools > 0 ORDER BY score DESC LIMIT 20`).all(q, q.toLowerCase(), like, like) as any[]).map(rowToToken)
+  if (!tokens.length && validPublicKey(q)) {
+    const record = await handleTokenMeta.lookup(q).catch(() => null)
+    if (record) tokens = [unseenToken(record)]
+  }
   const wallets = (db.prepare('SELECT * FROM wallets WHERE address = ? OR address = ? LIMIT 5').all(q, q.toLowerCase()) as any[]).map(rowToWallet)
   const profiles = (db.prepare('SELECT * FROM users WHERE handle LIKE ? OR pubkey = ? LIMIT 10').all(like, q) as any[]).map(r => profile(r.pubkey))
   return { tokens, wallets, profiles }
@@ -179,6 +198,7 @@ export function startApi(port: number) {
       if (await handleSolanaHoldings(req, res, url)) return
       if (await handlePoolStats(req, res, url)) return
       if (await handleSolanaWrap(req, res, url, body)) return
+      if (await handleTokenMeta(req, res, url)) return
       if (await handleHeliusWaas(req, res, url, body)) return
       let out: unknown
       const [a, b, c, d] = parts
@@ -212,7 +232,7 @@ export function startApi(port: number) {
           limit: Math.max(1, Math.min(Number(q.get('limit') ?? 50) || 50, 200)), viewer,
         })
         else if (b === 'profile' && c) out = { profile: profile(c), follows: follows(c), posts: listPosts({ user: c, viewer }) }
-        else if (b === 'search') out = search(q.get('q') ?? '')
+        else if (b === 'search') out = await search(q.get('q') ?? '')
         else if (b === 'quote' && c === 'robinhood') out = await quote(q)
         else throw new HttpError(404, 'not found')
       } else if (req.method === 'POST') {
