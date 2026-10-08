@@ -144,6 +144,8 @@ type Scenario = {
   plainSwap?: boolean
   /** With a composer: the swap trades through this pool, and simulating it leaves this pool state. */
   swapWrites?: { pool: string; data: Buffer }
+  /** Output multipliers for the next swap quotes, one per quote (then 1x): a moving market. */
+  quoteMoves?: bigint[]
 }
 async function withZap(scenario: Scenario, run: (request: (path: string, body: unknown) => Promise<{ status: number; data: any; text: string }>, calls: { url: string; body: any }[], clock: { now: number }) => Promise<void>) {
   const calls: { url: string; body: any }[] = []
@@ -170,7 +172,8 @@ async function withZap(scenario: Scenario, run: (request: (path: string, body: u
     if (u.pathname.endsWith('/secret-path/quote')) {
       if (scenario.failQuote) return Response.json({ error: 'no route' }, { status: 404 })
       const q = Object.fromEntries(u.searchParams), amount = BigInt(q.amount)
-      const out = q.inputMint === SOL_MINT ? amount * 2n : amount / 2n
+      const inflate = scenario.quoteMoves?.shift() ?? 1n
+      const out = (q.inputMint === SOL_MINT ? amount * 2n : amount / 2n) * inflate
       return Response.json({ inputMint: q.inputMint, outputMint: q.outputMint, inAmount: q.amount, outAmount: out.toString(), otherAmountThreshold: (out * 99n / 100n).toString(), swapMode: 'ExactIn', slippageBps: Number(q.slippageBps), priceImpactPct: null, contextSlot: 1, routePlan: [{ percent: 100, swapInfo: { ammKey: DAMM, label: 'Meteora DAMM v2', inputMint: q.inputMint, outputMint: q.outputMint, inAmount: q.amount, outAmount: out.toString(), feeAmount: '1', feeMint: q.inputMint } }] })
     }
     if (u.pathname.endsWith('/swap')) {
@@ -469,6 +472,25 @@ test('composed: a swap through the deposit pool sizes the deposit against the po
     assert.equal(simulated.length, 1, 'the swap leg is simulated once')
     assert.ok(simulated[0].body.params[1].accounts.addresses.includes(DAMM))
     assert.deepEqual(seen, [after, after], 'both read paths see the pool as the swap leaves it')
+  })
+})
+test('composed: a price that moves between the swap leg\'s quote and build is quoted once more', async () => {
+  const scenario: Scenario = { ...bordr, composer: COMPOSER }
+  await withZap(scenario, async (request, calls) => {
+    const plan = (await request('/api/zap/solana/plan', planIn())).data
+    const quotes = () => calls.filter(c => c.url.includes('/secret-path/quote')).length
+    const before = quotes()
+    // Quoted rich, then the build finds the market back where it was.
+    scenario.quoteMoves = [2n, 1n]
+    const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+    assert.equal(r.status, 200, r.text)
+    assert.equal(r.data.mode, 'composed')
+    assert.equal(quotes() - before, 4, 'quote and build, the build refused for the move, then quote and build again')
+    // Still moving on the second try: refused with the reason, once.
+    scenario.quoteMoves = [2n, 1n, 2n, 1n]
+    const moving = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })
+    assert.equal(moving.status, 409, moving.text)
+    assert.match(moving.data.error, /price moved beyond your minimum received\. Refresh the quote\. Nothing was signed\.$/)
   })
 })
 test('composed: an unprovable build is refused with its reason, never split into steps', async () => withZap({ ...bordr, composer: COMPOSER, plainSwap: true }, async (request) => {

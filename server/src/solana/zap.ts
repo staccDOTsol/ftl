@@ -242,7 +242,7 @@ function clientError(e: unknown): { status: number; message: string } {
 
 // Venues whose deposit opens a position account this server builds and signs for.
 const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit, 'meteora-damm-v2': newDammV2Deposit, orca: newOrcaDeposit, 'raydium-clmm': newClmmDeposit }
-const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why}. Nothing was signed.`)
+const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why.replace(/\.+$/, '')}. Nothing was signed.`)
 
 export function createSolanaZapHandler(options: Options) {
   const fetcher = options.fetch ?? fetch, now = options.now ?? Date.now
@@ -425,6 +425,19 @@ export function createSolanaZapHandler(options: Options) {
     const built = await options.router.liquidityBuild({ quoteId: quote.quoteId, owner, transactionVersion })
     return { step: index, mode: 'sequential' as ZapMode, kind: 'remove', transactions: withInstructions(built.transactions), quote: built.quote, pool: built.pool, position: built.position }
   }
+  /** The zap's own swap leg, quoted and built now. A price that moves past
+   * the slippage between the two is quoted and built once more: the minimum
+   * is always the newest quote's, and nothing has been signed. */
+  async function swapLeg(inputMint: string, outputMint: string, amount: string, slippageBps: number, owner: string, version: '1' | '0'): Promise<any> {
+    for (let attempt = 0; ; attempt++) {
+      const quoted = await swapQuote(inputMint, outputMint, amount, slippageBps, version)
+      try {
+        return await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version, legOnly: true })
+      } catch (error) {
+        if (attempt > 0 || !object(error) || error.status !== 409) throw error
+      }
+    }
+  }
   /** Each key's state once `wire` (the swap leg) has run alone, by simulation. */
   async function simulatedState(wire: string, keys: string[]): Promise<Map<string, AccountInfo<Buffer> | null>> {
     const result = await rpc('simulateTransaction', [wire, { encoding: 'base64', sigVerify: false, replaceRecentBlockhash: true,
@@ -464,8 +477,7 @@ export function createSolanaZapHandler(options: Options) {
         const addSol = spendable - lamports
         const solAmount = addSol < BigInt(addStep.solAmount) ? addSol : BigInt(addStep.solAmount)
         if (solAmount <= 0n) throw unavailable('not enough SOL left for the deposit side')
-        const quoted = await swapQuote(SOL_MINT, plan.mint, lamports.toString(), plan.slippageBps, version)
-        const builtSwap = await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version, legOnly: true })
+        const builtSwap = await swapLeg(SOL_MINT, plan.mint, lamports.toString(), plan.slippageBps, owner, version)
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed') // the composer cannot nest
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')
@@ -511,8 +523,7 @@ export function createSolanaZapHandler(options: Options) {
         const builtRemove = await options.router.liquidityBuild({ quoteId: removeQuote.quoteId, owner, transactionVersion: version })
         const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
         if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
-        const fresh = await swapQuote(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, version)
-        const builtSwap = await options.router.buildSwap({ quoteResponse: fresh, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version, legOnly: true })
+        const builtSwap = await swapLeg(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, owner, version)
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed')
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')
