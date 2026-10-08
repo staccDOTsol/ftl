@@ -22,6 +22,7 @@ Every requirement the owner gave on 2026-10-07/08, with its current status. Upda
 | 17 | Token metadata for any mint (symbol, name, image) across swap, holdings, liquidity | Done, live | GET /api/meta/solana/:mint (FTL row → DAS getAsset → chain decimals), batch form, /api/search falls through to it; app caches and labels everywhere |
 | 18 | Liquidity operations inside the swap terminal | Done, live | Swap / Liquidity seg in /swap; /swap?mode=liquidity&out=<mint>[&pool=<address>][&action=exit]; holdings routes unseen tokens here |
 | 19 | Design pass ("make it beautiful") | Done, live | Web shell with transitions, focus-visible and invalid-input rings, reduced-motion; button weight ladder; chip count badges; Trade card first on token pages; percent chips; redesigned liquidity card |
+| 20 | Simple liquidity: abstract venue/pool/range, prefer constant-product or splash pools, feel like swapping into/out of LP (zap in from SOL, zap out to SOL); current form becomes Advanced | In progress | POST /api/zap/solana/{plan,build}; ZapLiquidity.web.tsx default in the terminal and token card |
 | 13 | Feed → router loop: event → token → route → sign → confirm → back to feed | Done for swaps and LP | Feed events deep-link into the trade card with the originating pool; confirmed moves re-enter the feed through on-chain detection |
 
 Incident log: 2026-10-08 04:49–05:00 UTC the router crash-looped after a deploy from the repo root picked the wrong Fly config; rolled back to the previous image, then rebuilt with `fly deploy -c deploy/fly.toml` from the root.
