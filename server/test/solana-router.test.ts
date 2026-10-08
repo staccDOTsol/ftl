@@ -157,7 +157,7 @@ test('enabled direct router uses only its local quote/build path and ignores cli
     assert.equal(r.status, 200)
     assert.equal(calls.length, 2)
     assert.deepEqual(calls[1], ['swap', { inputMint: SOL, outputMint: BREAD,
-      amount: '1000000', slippageBps: 100, transactionVersion: '1' }, SOL, q.otherAmountThreshold])
+      amount: '1000000', slippageBps: 100, transactionVersion: '1', legOnly: false }, SOL, q.otherAmountThreshold])
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
@@ -292,3 +292,26 @@ test('LP builder cannot change requested owner, version or signer declaration',a
  const result=await request('/api/liquidity/solana/build',{owner:SOL,transactionVersion:'1',quoteId:lpQuote.quoteId})
  assert.equal(result.status,502)
 },()=>Response.json({pool:BREAD,quote:lpQuote,transactions:[{transaction:encodedV1(),transactionVersion:'1',lastValidBlockHeight:123,expectedSigners:[SOL]}]})))
+
+test('a client cannot ask for a raw leg that skips the composer', async () => {
+  const seen: any[] = []
+  const direct = {
+    async quote(intent: any) { return { quote: { ...q, inputMint: intent.inputMint, outputMint: intent.outputMint, inAmount: intent.amount, slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion }, priced: {} as any } },
+    async swap(intent: any) { seen.push(intent); return { swapTransaction: encodedV1(), transactionVersion: '1', lastValidBlockHeight: 999, quoteResponse: { ...q, transactionVersion: '1' } } },
+  }
+  const handler = createSolanaRouterHandler({ routerUrl: 'http://router.example', rpcUrl: 'https://rpc.example', localRouter: direct, composerProgramId: SOL,
+    fetch: async () => { throw new Error('external swaps are off while the composer is configured') } })
+  const server = http.createServer(async (req, res) => {
+    let body = ''; for await (const chunk of req) body += chunk
+    if (!await handler(req, res, new URL(req.url ?? '/', 'http://localhost'), body)) res.writeHead(404).end()
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const r = await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/api/swap/solana`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ userPublicKey: SOL, quoteResponse: q, legOnly: true }) })
+    assert.equal(r.status, 200, await r.clone().text())
+    assert.equal(seen[0].legOnly, false)
+    assert.equal((await handler.buildSwap({ userPublicKey: SOL, quoteResponse: q, legOnly: true })).swapTransaction, encodedV1())
+    assert.equal(seen[1].legOnly, true, 'the in-process zap call keeps it')
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
+})

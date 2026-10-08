@@ -9,7 +9,7 @@ import { CpAmm, CP_AMM_PROGRAM_ID, SwapMode, getTokenProgram } from '@meteora-ag
 import { OnlinePumpAmmSdk, PUMP_AMM_SDK, PUMP_AMM_PROGRAM_ID,
   buyQuoteInput, sellBaseInput, supportsTradeV2 } from '@pump-fun/pump-swap-sdk'
 import BN from 'bn.js'
-import { NATIVE_MINT, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
@@ -43,7 +43,9 @@ export const DIRECT_SOLANA_VENUES = Object.keys(VENUE_LABELS)
 
 type Pool = { address: string; venue: string; mint_a: string; mint_b: string; liq_events: number }
 export type LocalIntent = { inputMint: string; outputMint: string; amount: string;
-  slippageBps: number; transactionVersion: '0' | '1'; keepNative?: 'input' | 'output' | 'both' }
+  slippageBps: number; transactionVersion: '0' | '1'; keepNative?: 'input' | 'output' | 'both'
+  /** A raw venue leg, not routed through the composer: a zap composes it itself. */
+  legOnly?: boolean }
 export type Priced = { pool: Pool; out: bigint; minimum: bigint; fee: bigint; feeMint: string;
   instructions: (wallet: PublicKey, minimum: bigint) => Promise<TransactionInstruction[]>;
   leg: (wallet: PublicKey, minimum: bigint) => Promise<DirectLeg> }
@@ -55,7 +57,7 @@ export type BuiltRoute = { instructions: TransactionInstruction[]; allowPrograms
   computeUnitLimit: number }
 /** One executable route: a single pool, or several pools composed into one
  * on-chain composer call whose later hops are sized from real deltas. */
-export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
+export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[]; viaComposer?: boolean;
   build: (wallet: PublicKey, floor: bigint) => Promise<BuiltRoute> }
 export const MAX_INTERMEDIATES = 2
 export const MAX_POOLS_PER_HOP = 2
@@ -72,6 +74,13 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]) } }
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
   return out
+}
+
+/** The token program a leg pays out under, read off its output account: an
+ * associated token address differs per token program. The composer's fee
+ * account on that mint must use the same one (Token-2022 pump coins). */
+function legTokenProgram(leg: DirectLeg, wallet: PublicKey, mint: PublicKey): PublicKey {
+  return getAssociatedTokenAddressSync(mint, wallet, true, TOKEN_2022_PROGRAM_ID).equals(leg.outputAccount) ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID
 }
 
 async function quotePool(connection: Connection, pool: Pool, intent: LocalIntent): Promise<Priced> {
@@ -457,8 +466,21 @@ export class DirectSolanaRouter {
       .join('. '))
   }
   private single(priced: Priced, intent: LocalIntent): Candidate {
-    return { out: priced.out, minimum: priced.minimum, hops: 1,
-      plan: [planEntry(priced, intent.inputMint, intent.outputMint, intent.amount)],
+    const plan = [planEntry(priced, intent.inputMint, intent.outputMint, intent.amount)]
+    // Every swap runs through the lp-zap composer, one hop at 0.1% in kind,
+    // except a raw venue leg that a zap composes with its deposit.
+    const composer = this.composer
+    if (composer && !intent.legOnly) {
+      const out = afterComposerFee(priced.out), minimum = pctMinimum(out, intent.slippageBps)
+      return { out, minimum, hops: 1, viaComposer: true, plan,
+        build: async (wallet, floor) => {
+          const leg = await priced.leg(wallet, finalHopMinimum(floor))
+          const outputMint = new PublicKey(intent.outputMint)
+          const route = composeRoute([{ leg, outputMint, outputTokenProgram: legTokenProgram(leg, wallet, outputMint) }], wallet, floor, composer)
+          return { instructions: [...route.before, route.compose, ...route.after], allowPrograms: [composer], computeUnitLimit: COMPOSED_CU }
+        } }
+    }
+    return { out: priced.out, minimum: priced.minimum, hops: 1, plan,
       build: async (wallet, floor) => ({ instructions: await priced.instructions(wallet, floor),
         allowPrograms: [], computeUnitLimit: SINGLE_CU }) }
   }
@@ -475,7 +497,7 @@ export class DirectSolanaRouter {
    * final output net of the fee on B. Off unless the composer is configured. */
   private async composed(intent: LocalIntent): Promise<{ routes: Candidate[]; transient: boolean }> {
     const composer = this.composer
-    if (!composer) return { routes: [], transient: false }
+    if (!composer || intent.legOnly) return { routes: [], transient: false }
     // The final check watches the destination token account; a native SOL
     // destination would be unwrapped (closed), so those routes stay single-pool.
     if (intent.outputMint === NATIVE_MINT.toBase58()) return { routes: [], transient: false }
@@ -505,8 +527,9 @@ export class DirectSolanaRouter {
             // are provable; composeRoute then rewrites that floor to 0.
             const leg0 = await first.leg(wallet, first.minimum)
             const leg1 = await second.leg(wallet, finalHopMinimum(floor))
-            const route = composeRoute([{ leg: leg0, outputMint: new PublicKey(via) },
-              { leg: leg1, outputMint: new PublicKey(intent.outputMint) }], wallet, floor, composer)
+            const viaMint = new PublicKey(via), outputMint = new PublicKey(intent.outputMint)
+            const route = composeRoute([{ leg: leg0, outputMint: viaMint, outputTokenProgram: legTokenProgram(leg0, wallet, viaMint) },
+              { leg: leg1, outputMint, outputTokenProgram: legTokenProgram(leg1, wallet, outputMint) }], wallet, floor, composer)
             const after = [...route.after]
             // An intermediate WSOL account this route created is emptied by
             // hop 1; close it so the rent returns. A pre-existing one may hold
@@ -550,7 +573,7 @@ export class DirectSolanaRouter {
       slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion,
       priceImpactPct: null, contextSlot: slot, routePlan: route.plan,
       // A composed route names the program the wallet will call and who its fee pays.
-      ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
+      ...(route.viaComposer || route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
         composerProgramId: this.composer?.toBase58(), composerFeeRecipient: FEE_RECIPIENT.toBase58() } : {}) }
   }
   async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
@@ -601,7 +624,7 @@ export class DirectSolanaRouter {
         return { transactionVersion: intent.transactionVersion, swapTransaction,
           lastValidBlockHeight: latest.lastValidBlockHeight,
           prioritizationFeeLamports: 0,
-          ...(route.hops > 1 ? { composed: true, hops: route.hops } : {}),
+          ...(route.viaComposer || route.hops > 1 ? { composed: true, hops: route.hops } : {}),
           quoteResponse: { ...this.quoteFor(intent, route, slot),
             otherAmountThreshold: floor.toString() } }
       } catch (error) {

@@ -297,14 +297,18 @@ export function createSolanaRouterHandler(options: Options) {
     return u.toString()
   }
   const externalEnabled = !!options.routerUrl
+  // With the composer configured every swap runs through it; the external
+  // router's opaque routes cannot, so it serves liquidity calls only.
+  const externalSwaps = externalEnabled && !options.composerProgramId
   // Best execution across both route sources. The direct venue router knows
   // FTL-observed young pools immediately; the external router covers deep
   // established markets. Either may lack a pair; whichever quotes more output
   // wins, and the swap is built from that same source.
-  async function bestQuote(q: URLSearchParams): Promise<{ quote: any; source: 'direct' | 'external' }> {
+  /** legOnly: a raw venue leg for a zap's own composition; in-process callers only. */
+  async function bestQuote(q: URLSearchParams, legOnly = false): Promise<{ quote: any; source: 'direct' | 'external' }> {
     const attempts: Promise<{ quote: any; source: 'direct' | 'external' }>[] = []
-    if (directEnabled) attempts.push(direct().then(async r => ({ quote: publicQuote((await r.quote(localIntent(q))).quote, q), source: 'direct' as const })))
-    if (externalEnabled) attempts.push(upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })))
+    if (directEnabled) attempts.push(direct().then(async r => ({ quote: publicQuote((await r.quote({ ...localIntent(q), legOnly })).quote, q), source: 'direct' as const })))
+    if (externalSwaps || (legOnly && externalEnabled)) attempts.push(upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })))
     if (!attempts.length) throw new RequestError(503, 'Solana trading is not configured yet')
     const settled = await settleWithGrace(attempts, externalGraceMs)
     const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
@@ -355,8 +359,8 @@ export function createSolanaRouterHandler(options: Options) {
     // Build on the direct router and quote the external router in parallel;
     // the external route wins only when it returns strictly more output.
     const [builtDirect, external] = await settleWithGrace([
-      directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
-      externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
+      directEnabled ? direct().then(r => r.swap({ ...localIntent(q), legOnly: j.legOnly === true }, wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
+      externalSwaps || (j.legOnly === true && externalEnabled) ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
     ], externalGraceMs)
     const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
     const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
@@ -411,7 +415,8 @@ export function createSolanaRouterHandler(options: Options) {
       else {
         let j: any
         try { j = JSON.parse(body) } catch { fail('Invalid JSON body') }
-        if (route === 'POST:/api/swap/solana') data = await buildSwap(j)
+        // legOnly (no composer) is for the zap's own in-process call, never a client.
+        if (route === 'POST:/api/swap/solana') data = await buildSwap(object(j) ? { ...j, legOnly: false } : j)
         else {
           if (!options.rpcUrl) throw new RequestError(503, 'Solana wallet RPC is not configured yet')
           const request = validateRpc(j)
@@ -436,5 +441,5 @@ export function createSolanaRouterHandler(options: Options) {
     } finally { if (counted) inflight-- }
     return true
   }
-  return Object.assign(handle, { positions, liquidityPositions, liquidityQuote, liquidityBuild, quote: (q: URLSearchParams) => getQuote(quoteParams(q)), buildSwap, upstream, router })
+  return Object.assign(handle, { positions, liquidityPositions, liquidityQuote, liquidityBuild, quote: (q: URLSearchParams, legOnly = false) => bestQuote(quoteParams(q), legOnly).then(best => best.quote), buildSwap, upstream, router })
 }

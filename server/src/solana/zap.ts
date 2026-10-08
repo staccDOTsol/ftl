@@ -16,6 +16,7 @@ import { fetchPoolStats, isPoolStatsVenue, POOL_STATS_VENUES, type PoolStats, ty
 import { buildComposedTransaction, composeZap, FEE_BPS, FEE_RECIPIENT, signComposed } from './compose.ts'
 import { assembleComposedZap, mintTokenProgram } from './zap-compose.ts'
 import { newDlmmDeposit } from './dlmm-position.ts'
+import { newOrcaDeposit } from './orca-position.ts'
 import type { VenueDepositBuilder } from './venue-deposit.ts'
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112'
@@ -203,7 +204,7 @@ export interface ZapPlan {
 }
 export interface ZapCatalog { token: (mint: string) => TokenSummary | null; pools: (mint: string, limit: number) => PoolSummary[] }
 export interface ZapRouter {
-  quote: (q: URLSearchParams) => Promise<any>
+  quote: (q: URLSearchParams, legOnly?: boolean) => Promise<any>
   buildSwap: (body: any) => Promise<any>
   liquidityQuote: (intent: unknown) => Promise<any>
   liquidityBuild: (intent: unknown) => Promise<any>
@@ -236,7 +237,7 @@ function clientError(e: unknown): { status: number; message: string } {
 }
 
 // Venues whose deposit opens a position account this server builds and signs for.
-const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit }
+const DEPOSIT_BUILDERS: Partial<Record<string, VenueDepositBuilder>> = { 'meteora-dlmm': newDlmmDeposit, orca: newOrcaDeposit }
 const unavailable = (why: string) => new RequestError(409, `This deposit could not be built as one transaction: ${why}. Nothing was signed.`)
 
 export function createSolanaZapHandler(options: Options) {
@@ -284,8 +285,9 @@ export function createSolanaZapHandler(options: Options) {
     }
     return total
   }
+  // Raw venue legs: the zap composes the swap with its deposit itself.
   async function swapQuote(inputMint: string, outputMint: string, lamports: string, slippageBps: number, transactionVersion: '1' | '0') {
-    return options.router.quote(new URLSearchParams({ inputMint, outputMint, amount: lamports, slippageBps: String(slippageBps), swapMode: 'ExactIn', transactionVersion }))
+    return options.router.quote(new URLSearchParams({ inputMint, outputMint, amount: lamports, slippageBps: String(slippageBps), swapMode: 'ExactIn', transactionVersion }), true)
   }
   const symbolOf = (mint: string) => { const t = options.catalog.token(mint); return t?.symbol ? `$${t.symbol.slice(0, 14)}` : shortMint(mint) }
   const creditOf = (quote: any, mint: string) => (Array.isArray(quote?.amounts) ? quote.amounts : []).find((a: any) => object(a) && a.mint === mint && a.direction === 'credit' && integer(a.expectedRaw))
@@ -440,7 +442,7 @@ export function createSolanaZapHandler(options: Options) {
         const solAmount = addSol < BigInt(addStep.solAmount) ? addSol : BigInt(addStep.solAmount)
         if (solAmount <= 0n) throw unavailable('not enough SOL left for the deposit side')
         const quoted = await swapQuote(SOL_MINT, plan.mint, lamports.toString(), plan.slippageBps, version)
-        const builtSwap = await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
+        const builtSwap = await options.router.buildSwap({ quoteResponse: quoted, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version, legOnly: true })
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed') // the composer cannot nest
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')
@@ -482,7 +484,7 @@ export function createSolanaZapHandler(options: Options) {
         const removeInstructions = builtRemove.transactions.map((tx: any) => instructionsOf(tx.transaction))
         if (removeInstructions.some((ixs: RawInstruction[] | null) => ixs === null)) throw unavailable('the withdrawal transaction could not be read')
         const fresh = await swapQuote(swapStep.inputMint, swapStep.outputMint, swapStep.amount, plan.slippageBps, version)
-        const builtSwap = await options.router.buildSwap({ quoteResponse: fresh, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version })
+        const builtSwap = await options.router.buildSwap({ quoteResponse: fresh, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion: version, legOnly: true })
         if (builtSwap.composed === true) throw unavailable('the swap route is itself composed')
         const swapInstructions = instructionsOf(builtSwap.swapTransaction)
         if (!swapInstructions) throw unavailable('the swap transaction could not be read')
