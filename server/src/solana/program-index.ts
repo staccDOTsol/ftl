@@ -3,7 +3,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { createHash } from 'node:crypto'
 import type { ProgramActivity, ProgramBucket, ProgramCoverage, ProgramDetail, ProgramList, ProgramRecord, ProgramState, ProgramTotals, ProgramUpdate } from '../../../shared/programs.ts'
-import { INFRASTRUCTURE, type InstructionSample, type ProgramObservation, validProgram } from './program-observation.ts'
+import { INFRASTRUCTURE, type InstructionSample, type ProgramObservation, type SwapTemplate, validProgram } from './program-observation.ts'
 import { indexableSamples, interfaceMatch, mergeLearnedInstructions, selectorFor } from './program-interface.ts'
 
 const MINUTE = 60_000
@@ -109,6 +109,10 @@ export class ProgramIndex {
       CREATE TABLE IF NOT EXISTS program_sources (
         lane TEXT PRIMARY KEY, connected INTEGER NOT NULL DEFAULT 0, last_ts INTEGER, transactions INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS program_index_meta (key TEXT PRIMARY KEY,value INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS program_swap_templates (
+        program TEXT NOT NULL, pair TEXT NOT NULL, shape TEXT NOT NULL, signature TEXT NOT NULL, ts INTEGER NOT NULL, body TEXT NOT NULL,
+        PRIMARY KEY(program,pair,shape));
+      CREATE INDEX IF NOT EXISTS program_swap_templates_pair ON program_swap_templates(pair,ts DESC);
       INSERT OR IGNORE INTO program_index_meta(key,value) VALUES('sequence',0);`)
     // A crash/redeploy preserves every job and names the interruption.
     this.db.prepare(`UPDATE programs SET state='retrying', phase='Resuming interrupted Composer job', next_attempt=?, reason='Worker restarted during learning' WHERE state IN ('checking','learning','validating')`).run(this.now())
@@ -152,6 +156,15 @@ export class ProgramIndex {
     try {
       for (const observation of observations) {
         if (!observation.programs.length) continue
+        // Latest landed swap per program, pair and instruction shape: the router's replay source.
+        if (observation.executed && !observation.failed) for (const template of observation.templates ?? []) {
+          if (!validProgram(template.program) || INFRASTRUCTURE.has(template.program)) continue
+          const bytes = Buffer.from(template.data, 'base64')
+          this.sql(`INSERT INTO program_swap_templates(program,pair,shape,signature,ts,body) VALUES(?,?,?,?,?,?)
+            ON CONFLICT(program,pair,shape) DO UPDATE SET signature=excluded.signature,ts=excluded.ts,body=excluded.body WHERE excluded.ts>=ts`)
+            .run(template.program, `${template.inputMint}:${template.outputMint}`, `${bytes.subarray(0, 8).toString('hex')}:${bytes.length}:${template.accounts.length}`,
+              template.signature, now, JSON.stringify(template))
+        }
         const oldTx = this.sql('SELECT * FROM program_transactions WHERE signature=?').get(observation.signature) as Row | undefined
         const invocationCount = observation.programs.reduce((sum, p) => sum + p.outer + p.inner, 0)
         const atomic = observation.executed && !observation.failed && observation.programs.some(p => p.atomic)
@@ -288,6 +301,30 @@ export class ProgramIndex {
         bundleHint: !!receipt.bundle_hint, closedPositive: !!receipt.closed_positive, failed: !!receipt.failed, finalized: !!receipt.finalized })) }
   }
   idl(address: string): string | null { return (this.sql('SELECT body FROM program_idls WHERE address=?').get(address) as Row | undefined)?.body ?? null }
+
+  /** Landed swaps for a pair whose program has an indexed interface that
+   * structurally matches the template's instruction (selector, accounts,
+   * payload length, fixed addresses, flags): "decoded" as the held-out test
+   * defines it. The matched instruction carries the PDA recipes the router
+   * needs to re-derive the signer's own accounts for another wallet. */
+  swapTemplates({ inputMint, outputMint, limit = 4 }: { inputMint: string; outputMint: string; limit?: number }) {
+    const found: { template: SwapTemplate; programName: string | null; idlSource: string; instruction: { name: string; accounts: any[] } }[] = []
+    const seen = new Set<string>()
+    for (const row of this.sql('SELECT program,body FROM program_swap_templates WHERE pair=? ORDER BY ts DESC LIMIT 40').all(`${inputMint}:${outputMint}`) as Row[]) {
+      if (found.length >= limit || seen.has(row.program)) continue
+      const stored = this.sql('SELECT body,source FROM program_idls WHERE address=?').get(row.program) as Row | undefined
+      if (!stored) continue
+      const template = JSON.parse(row.body) as SwapTemplate, idl = JSON.parse(stored.body)
+      const sample: InstructionSample = { signature: template.signature, n: '0', inner: false, data: template.data, accounts: template.accounts }
+      const learned = stored.source === 'composer' || idl.metadata?.source?.includes('reconstructed') === true
+      const instruction = (idl.instructions ?? []).find((ix: any) => interfaceMatch(ix, sample, learned))
+      if (!instruction) continue
+      seen.add(row.program)
+      found.push({ template, programName: this.raw(row.program)?.name ?? null, idlSource: stored.source,
+        instruction: { name: instruction.name, accounts: flatten(instruction.accounts) } })
+    }
+    return found
+  }
 
   refreshInterfaces() {
     for (const row of this.sql("SELECT * FROM programs WHERE idl_source IN ('published','composer','published+composer') AND state IN ('partial','ready')").all() as Row[]) {

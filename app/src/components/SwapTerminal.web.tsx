@@ -14,7 +14,7 @@ import { ApiError, get } from '@/lib/api'
 import { short, venue } from '@/lib/format'
 import type { PoolSummary, TokenSummary } from '@/lib/types'
 import { tokenMetaOne, useTokenMeta, type TokenMetaMap, type TokenMetaRecord } from '@/lib/token-meta'
-import { acknowledgeComposer, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, unacknowledgedComposedBuild, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
+import { acknowledgeComposer, acknowledgeDecodedProgram, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, DECODED_BUILD_MESSAGE, decodedProgramAcknowledged, unacknowledgedComposedBuild, unacknowledgedDecodedBuild, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink, type SwapLinkAction, type SwapMode } from '@/lib/swap-link'
@@ -25,6 +25,7 @@ import { useWalletSelection, updateWalletSession } from '@/lib/wallet-session'
 import { Dialog, Icon } from './MarketUI.web'
 import ZapLiquidity from './ZapLiquidity.web'
 import ComposerRouteNotice from './ComposerRouteNotice.web'
+import DecodedRouteNotice from './DecodedRouteNotice.web'
 
 interface Token { mint: string; symbol: string; name?: string; image?: string }
 interface WalletState { address: string | null; version: TransactionVersion | null; name: string }
@@ -116,6 +117,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
   const [ackedProgram, setAckedProgram] = useState<string | null>(null)
   const composedRoute = !!quote && composerFeeLabel(quote.response) !== null
   const composerAck = composedRoute && (ackedProgram === (quote!.response.composerProgramId ?? 'unreported') || composerAcknowledged(quote!.response.composerProgramId))
+  const decodedRoute = !!quote && quote.response.decoded === true
+  const decodedAck = decodedRoute && (ackedProgram === (quote!.response.decodedProgramId ?? 'unreported') || decodedProgramAcknowledged(quote!.response.decodedProgramId))
   const fresh = !!quote && isQuoteFresh(quote.at, now)
   const unresolved = pending?.state === 'pending'
   const locked = busy || unresolved || liquidityLocked
@@ -269,6 +272,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
     if (!mounted.current || request !== seq.current || signerRef.current?.address !== owner || !isQuoteFresh(quote.at)) throw new Error('The route or wallet changed. Wait for a fresh route.')
     const composedInstead = unacknowledgedComposedBuild(built, ackedProgram)
     if (composedInstead) { setQuoteResult({ ...quote, response: composedInstead, at: Date.now() }); throw new Error(COMPOSED_BUILD_MESSAGE) }
+    const decodedInstead = unacknowledgedDecodedBuild(built, ackedProgram)
+    if (decodedInstead) { setQuoteResult({ ...quote, response: decodedInstead, at: Date.now() }); throw new Error(DECODED_BUILD_MESSAGE) }
     setNetworkFee(built.networkFeeLamports ?? null)
     setPhase('approve')
     const signed = await signer.sign(decodeTransaction(built.swapTransaction))
@@ -319,6 +324,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
     if (!quote || quoting && !fresh) return { label: 'Fetching route…', busy: true }
     if (wallet.version === null) return { label: 'Wallet cannot sign V0/V1' }
     if (composedRoute && !composerAck) return { label: 'Review the composed route above' }
+    if (decodedRoute && !decodedAck) return { label: 'Review the decoded route above' }
     return { label: 'Swap', enabled: true, onPress: () => void act(swap) }
   })()
   const resolved = pending && pending.state !== 'pending' ? pending : null
@@ -326,7 +332,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
   // Availability is derived only from render state. The handler itself reads
   // signer refs at click time, never while deciding the button's appearance.
   const primaryDisabled = !!(unresolved || busy || output && (!amountRaw || wallet && address && (
-    inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance) || quoteError || !quote || !fresh || wallet.version === null || composedRoute && !composerAck
+    inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance) || quoteError || !quote || !fresh || wallet.version === null || composedRoute && !composerAck || decodedRoute && !decodedAck
   )))
 
   return <View style={st.card}>
@@ -421,6 +427,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
       {composedFee && quote.response.platformFee ? <Detail label="Additional router fee" value={formatBps(quote.response.platformFee.feeBps)} /> : null}
       {composedRoute ? <ComposerRouteNotice quote={quote.response} label={symbol} amountOf={amountOf} acknowledged={composerAck}
         onAcknowledge={() => { acknowledgeComposer(quote.response.composerProgramId); setAckedProgram(quote.response.composerProgramId ?? 'unreported') }} /> : null}
+      {decodedRoute ? <DecodedRouteNotice quote={quote.response} acknowledged={decodedAck}
+        onAcknowledge={() => { acknowledgeDecodedProgram(quote.response.decodedProgramId); setAckedProgram(quote.response.decodedProgramId ?? 'unreported') }} /> : null}
       <Detail label="Network fee" value={networkFee !== null ? `≈ ${fromAtomic(String(networkFee), 9)} SOL` : 'after simulation'} />
       <View style={{ gap: 4, marginTop: 4 }}>
         <Press onPress={() => setRouteExpanded(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: routeExpanded }} style={({ hovered }) => [st.between, { paddingVertical: 5 }, hovered && { opacity: 0.7 }]}><Txt v="label">{quote.response.routePlan.length} {quote.response.routePlan.length === 1 ? 'route leg' : 'route legs'} · {routeExpanded ? 'Hide details' : 'View details'}</Txt><Icon name={routeExpanded ? 'close' : 'plus'} size={13} /></Press>

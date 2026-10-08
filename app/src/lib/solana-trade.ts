@@ -44,6 +44,11 @@ export interface SolanaQuote {
   /** Present on composed routes: the on-chain composer the wallet calls and its fee owner. */
   composerProgramId?: string
   composerFeeRecipient?: string
+  /** Present on decoded routes: the learned program the wallet calls, replayed
+   * from a landed swap, sized by simulation before signing. */
+  decoded?: boolean
+  decodedProgramId?: string
+  decodedProgramName?: string
   contextSlot: number
   transactionVersion?: '0' | '1'
   routePlan: { percent: number; swapInfo?: {
@@ -61,6 +66,8 @@ export function composerFeeLabel(quote: Pick<SolanaQuote, 'composed' | 'hops' | 
 }
 
 export const COMPOSER_SOURCE_URL = 'https://github.com/staccDOTsol/lp-zap'
+/** Where decoded programs and their interfaces come from. */
+export const DECODED_PROGRAM_SOURCE = 'https://www.liquidityxyz.fun/programs'
 
 /** The composer's in-kind fee on each hop: fee bps of the gross amount that
  * hop delivered, in that hop's output token (the route plan reports gross
@@ -92,6 +99,24 @@ export function unacknowledgedComposedBuild(built: { composed?: boolean; quoteRe
   return ackedProgram === (program ?? 'unreported') || composerAcknowledged(program) ? null : built.quoteResponse
 }
 export const COMPOSED_BUILD_MESSAGE = 'This swap routes through the composer program. Review the composed route above and acknowledge it, then swap again. Nothing was signed.'
+
+// One acknowledgement per browser and decoded program, same rule as the composer.
+const DECODED_ACK_KEY = 'liquidityxyz.decoded-program-ack.v1'
+export function decodedProgramAcknowledged(programId: string | undefined): boolean {
+  try { return localStorage.getItem(DECODED_ACK_KEY) === (programId ?? 'unreported') } catch { return false }
+}
+export function acknowledgeDecodedProgram(programId: string | undefined) {
+  try { localStorage.setItem(DECODED_ACK_KEY, programId ?? 'unreported') } catch {}
+}
+
+/** A build the server routed through a decoded program this browser has not
+ * acknowledged: returns the decoded route to show instead of signing. */
+export function unacknowledgedDecodedBuild(built: { decoded?: boolean; decodedProgramId?: string; quoteResponse?: SolanaQuote }, ackedProgram: string | null): SolanaQuote | null {
+  if (built.decoded !== true || !built.quoteResponse) return null
+  const program = built.quoteResponse.decodedProgramId
+  return ackedProgram === (program ?? 'unreported') || decodedProgramAcknowledged(program) ? null : built.quoteResponse
+}
+export const DECODED_BUILD_MESSAGE = 'This swap replays a landed swap through a program FTL learned by observation. Review the decoded route above and acknowledge it, then swap again. Nothing was signed.'
 
 export interface QuoteIntent { inputMint: string; outputMint: string; amount: string; slippageBps: number; transactionVersion?: '0' | '1' }
 

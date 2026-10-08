@@ -64,3 +64,8 @@ async function request<T>(operation: string, options: unknown): Promise<T> {
 export const listPrograms = (options: Record<string, unknown> = {}) => request<ProgramList>('list', options)
 export const getProgram = (address: string) => request<ProgramDetail | null>('detail', address)
 export const getProgramIdl = (address: string) => request<string | null>('idl', address)
+export type DecodedSwapTemplate = { template: import('./program-observation.ts').SwapTemplate; programName: string | null; idlSource: string;
+  instruction: { name: string; accounts: any[] } }
+/** Landed swaps through decoded programs for one pair; empty when discovery is off. */
+export const decodedSwapTemplates = (inputMint: string, outputMint: string, limit = 4): Promise<DecodedSwapTemplate[]> =>
+  config.programDiscovery ? request<DecodedSwapTemplate[]>('swap-templates', { inputMint, outputMint, limit }) : Promise.resolve([])

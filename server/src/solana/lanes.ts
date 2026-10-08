@@ -78,6 +78,7 @@ export function toNTx(sig: Uint8Array, slot: number, message: any, loadedW: Uint
     ...(message.config.loadedAccountsDataSizeLimit != null ? { loadedAccountsDataSizeLimit: Number(message.config.loadedAccountsDataSizeLimit) } : {}),
     ...(message.config.heapSize != null ? { heapSize: Number(message.config.heapSize) } : {}),
   } } : {}) }
+  if (message?.addressTableLookups?.length) tx.lookups = message.addressTableLookups.map((l: any) => bs58.encode(l.accountKey))
   const header = message?.header
   if (header) tx.keyFlags = keys.map((_, i) => ({ signer: i < header.numRequiredSignatures,
     writable: i < header.numRequiredSignatures ? i < header.numRequiredSignatures - header.numReadonlySignedAccounts

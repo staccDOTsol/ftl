@@ -47,6 +47,128 @@ export interface ProgramObservation {
   bundleHint: boolean; closedPositive: boolean
   programs: { address: string; outer: number; inner: number; atomic: boolean; samples: InstructionSample[] }[]
   edges: { caller: string; callee: string; attribution: 'direct' | 'outer' }[]
+  templates?: SwapTemplate[]
+}
+
+/** A landed swap its signer made through exactly one non-infrastructure
+ * program: the router may replay it for another wallet once that program's
+ * interface is indexed. Everything here is observed; nothing is inferred
+ * beyond the unique byte offset of the exact amount the signer spent. */
+export interface SwapTemplate {
+  program: string; signature: string; slot: number; ts: number
+  data: string; accounts: { address: string; signer: boolean; writable: boolean }[]
+  signer: string; inputMint: string; outputMint: string; amountIn: string; amountOut: string
+  /** Unique little-endian u64 offset of amountIn in the instruction data.
+   * 'exact': the slot equals what the signer spent. 'bounded': a native spend
+   * also paid the program's own fee, so the slot is the unique value within
+   * 10% below the spend; the router sizes it by simulation before use. */
+  amountOffset: number; amountProof: 'exact' | 'bounded'
+  /** How native SOL moved: from/to the wallet's lamports, or via a WSOL token account. */
+  nativeIn: 'lamports' | 'wsol' | null; nativeOut: 'lamports' | 'wsol' | null
+  /** The signer's own token accounts the instruction names, by mint. */
+  tokenAccounts: { address: string; mint: string }[]
+  lookupTables: string[]
+}
+const capturedTemplates = new Map<string, number>()
+const TEMPLATE_REFRESH_MS = 5 * 60_000
+const metaBalances = (items: any[]) => items.map(b => ({ idx: b.accountIndex, mint: b.mint, owner: b.owner ?? '', amount: BigInt(b.uiTokenAmount?.amount ?? '0'), decimals: b.uiTokenAmount?.decimals ?? 0 }))
+
+/** The unique offset of `value` as a little-endian u64 in `data`, else null. */
+export function uniqueU64(data: Uint8Array, value: bigint): number | null {
+  if (value <= 0n || value >= 1n << 64n) return null
+  const needle = Buffer.alloc(8); needle.writeBigUInt64LE(value)
+  const haystack = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+  const at = haystack.indexOf(needle)
+  return at >= 0 && haystack.indexOf(needle, at + 1) < 0 ? at : null
+}
+
+export function swapTemplate(tx: NTx, ts: number, keyAt: (index: number) => string | null,
+  flagAt: (index: number) => { signer: boolean; writable: boolean } | undefined, rawMeta?: any): SwapTemplate | null {
+  if (tx.failed) return null
+  let venue: NIx | null = null
+  for (const ix of tx.ixs) {
+    if (ix.n.includes('.') || INFRASTRUCTURE.has(ix.prog)) continue
+    // One venue instruction, from a program FTL's own decoders do not already route.
+    if (venue || shipped.has(ix.prog) || !validProgram(ix.prog)) return null
+    venue = ix
+  }
+  if (!venue || venue.rawDataKnown === false || venue.data.length > 1024 || venue.accts.length > 48) return null
+  const signer = keyAt(0)
+  if (!signer || flagAt(0)?.signer !== true || !venue.accts.includes(0)) return null
+  const pre = tx.pre ?? (Array.isArray(rawMeta?.preTokenBalances) ? metaBalances(rawMeta.preTokenBalances) : null)
+  const post = tx.post ?? (Array.isArray(rawMeta?.postTokenBalances) ? metaBalances(rawMeta.postTokenBalances) : null)
+  const lamports = tx.lamports ?? (Array.isArray(rawMeta?.preBalances) && Array.isArray(rawMeta?.postBalances)
+    ? { pre: rawMeta.preBalances.map(BigInt), post: rawMeta.postBalances.map(BigInt), fee: BigInt(rawMeta.fee ?? 0) } : null)
+  if (!pre || !post || !lamports || lamports.pre[0] === undefined || lamports.post[0] === undefined) return null
+  const delta = new Map<string, bigint>(), owned = new Map<string, string>()
+  for (const [list, sign] of [[pre, -1n], [post, 1n]] as const) for (const balance of list) {
+    if (balance.owner !== signer) continue
+    const address = keyAt(balance.idx)
+    if (!address) return null
+    const known = owned.get(address)
+    if (known && known !== balance.mint) return null
+    owned.set(address, balance.mint)
+    delta.set(balance.mint, (delta.get(balance.mint) ?? 0n) + sign * balance.amount)
+  }
+  // One account per mint: two of the signer's accounts for one mint is ambiguous to re-point.
+  const mints = [...owned.values()]
+  if (new Set(mints).size !== mints.length) return null
+  const native = lamports.post[0] - lamports.pre[0] + lamports.fee + (delta.get(WSOL) ?? 0n)
+  const wsolAccount = [...owned].find(([, mint]) => mint === WSOL)?.[0]
+  const wsolNamed = !!wsolAccount && venue.accts.some(i => keyAt(i) === wsolAccount)
+  delta.delete(WSOL)
+  const ins = [...delta].filter(([, d]) => d < 0n), outs = [...delta].filter(([, d]) => d > 0n)
+  let inputMint: string, outputMint: string, amountIn: bigint, amountOut: bigint
+  let nativeIn: SwapTemplate['nativeIn'] = null, nativeOut: SwapTemplate['nativeOut'] = null
+  if (ins.length === 1 && outs.length === 1) [inputMint, amountIn, outputMint, amountOut] = [ins[0][0], -ins[0][1], outs[0][0], outs[0][1]]
+  else if (!ins.length && outs.length === 1 && native < 0n) {
+    [inputMint, amountIn, outputMint, amountOut] = [WSOL, -native, outs[0][0], outs[0][1]]; nativeIn = wsolNamed ? 'wsol' : 'lamports'
+  } else if (ins.length === 1 && !outs.length && native > 0n) {
+    [inputMint, amountIn, outputMint, amountOut] = [ins[0][0], -ins[0][1], WSOL, native]; nativeOut = wsolNamed ? 'wsol' : 'lamports'
+  } else return null
+  // The amount the signer spent must sit at exactly one offset. A native spend
+  // also carries tips and rent paid by the outer infrastructure instructions;
+  // those are measured from this transaction and removed before matching.
+  const data = Buffer.from(venue.data)
+  let amountOffset = uniqueU64(data, amountIn), amountProof: SwapTemplate['amountProof'] = 'exact'
+  if (amountOffset === null && nativeIn) {
+    let outer = 0n
+    for (const ix of tx.ixs) {
+      if (ix.n.includes('.') || ix === venue || ix.accts[0] !== 0) continue
+      const bytes = Buffer.from(ix.data)
+      if (ix.prog === '11111111111111111111111111111111' && bytes.length === 12 && bytes.readUInt32LE(0) === 2 && ix.accts[1] !== 0
+        && keyAt(ix.accts[1]) !== wsolAccount) outer += bytes.readBigUInt64LE(4)
+      if (ix.prog === 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' && ix.accts[1] !== undefined && keyAt(ix.accts[1]) !== wsolAccount)
+        outer += (lamports.post[ix.accts[1]] ?? 0n) - (lamports.pre[ix.accts[1]] ?? 0n)
+    }
+    if (outer > 0n && outer < amountIn) { amountIn -= outer; amountOffset = uniqueU64(data, amountIn) }
+    if (amountOffset === null) {
+      // The program's own fee on top of its amount: one u64 in (90%, 100%] of the spend.
+      const found: number[] = []
+      for (let at = 0; at + 8 <= data.length; at++) {
+        const value = data.readBigUInt64LE(at)
+        if (value * 10n > amountIn * 9n && value <= amountIn) found.push(at)
+      }
+      if (found.length !== 1) return null
+      amountOffset = found[0]; amountIn = data.readBigUInt64LE(amountOffset); amountProof = 'bounded'
+    }
+  }
+  if (amountOffset === null) return null
+  const accounts = venue.accts.map(i => ({ address: keyAt(i), flags: tx.keyFlags?.[i] ?? flagAt(i) }))
+  if (accounts.some(a => !a.address || !a.flags)) return null
+  const tokenAccounts = [...owned].filter(([address]) => venue!.accts.some(i => keyAt(i) === address)).map(([address, mint]) => ({ address, mint }))
+  // Every account the swap moved value through must be one the instruction names.
+  for (const mint of [inputMint, outputMint]) if (mint !== WSOL || wsolNamed)
+    if (!tokenAccounts.some(account => account.mint === mint)) return null
+  const key = `${venue.prog}:${data.subarray(0, 8).toString('hex')}:${data.length}:${venue.accts.length}:${inputMint}:${outputMint}`
+  const last = capturedTemplates.get(key)
+  if (last !== undefined && ts - last < TEMPLATE_REFRESH_MS) return null
+  capturedTemplates.set(key, ts)
+  if (capturedTemplates.size > 20_000) capturedTemplates.delete(capturedTemplates.keys().next().value!)
+  return { program: venue.prog, signature: tx.sig, slot: tx.slot, ts, data: data.toString('base64'),
+    accounts: accounts.map(a => ({ address: a.address!, signer: a.flags!.signer, writable: a.flags!.writable })),
+    signer, inputMint, outputMint, amountIn: amountIn.toString(), amountOut: amountOut.toString(), amountOffset, amountProof,
+    nativeIn, nativeOut, tokenAccounts, lookupTables: tx.lookups ?? [] }
 }
 
 // A positive closed-inventory receipt is an observed balance pattern, not a
@@ -127,9 +249,10 @@ export function observePrograms(tx: NTx, lane: string, ts = Date.now(), executed
     if (Array.isArray(meta.preTokenBalances) && Array.isArray(meta.postTokenBalances)) { tx.pre = balances(meta.preTokenBalances); tx.post = balances(meta.postTokenBalances) }
     if (Array.isArray(meta.preBalances) && Array.isArray(meta.postBalances)) tx.lamports = { pre: meta.preBalances.map(BigInt), post: meta.postBalances.map(BigInt), fee: BigInt(meta.fee ?? 0) }
   }
+  const template = executed ? swapTemplate(tx, ts, keyAt, i => tx.keyFlags?.[i] ?? options.flagAt?.(i), options.rawMeta) : null
   return { signature: tx.sig, slot: tx.slot, ts, lane, version: tx.version ?? 'legacy', executed,
     failed: tx.failed === true, finalized, bundleHint, closedPositive: totalSwaps >= 2 && closedPositive(tx),
-    programs: [...programs.values()], edges: [...edges.values()] }
+    programs: [...programs.values()], edges: [...edges.values()], ...(template ? { templates: [template] } : {}) }
 }
 
 const programAddresses = new Map<string, string>()
@@ -167,7 +290,9 @@ export function observeRawPrograms(info: any, slot: number, lane: string, ts = D
       : i < message.accountKeys.length ? i < message.accountKeys.length - header.numReadonlyUnsignedAccounts
         : i < message.accountKeys.length + (meta?.loadedWritableAddresses?.length ?? 0) }) : undefined
   return observePrograms({ sig: bs58.encode(info.signature), slot, keys, ixs, failed: !!meta?.err,
-    version: message.config != null ? 1 : message.versioned ? 0 : 'legacy' }, lane, ts, true, finalized, { resolveKey, flagAt, rawMeta: meta })
+    version: message.config != null ? 1 : message.versioned ? 0 : 'legacy',
+    ...(message.addressTableLookups?.length ? { lookups: message.addressTableLookups.map((l: any) => bs58.encode(l.accountKey)) } : {}) },
+    lane, ts, true, finalized, { resolveKey, flagAt, rawMeta: meta })
 }
 
 export function rpcDiscoveryTransaction(row: any, signature?: string): NTx {
@@ -193,7 +318,9 @@ export function rpcDiscoveryTransaction(row: any, signature?: string): NTx {
     ? i < h.numRequiredSignatures - h.numReadonlySignedAccounts : i < message.accountKeys.length
       ? i < message.accountKeys.length - h.numReadonlyUnsignedAccounts : i < message.accountKeys.length + (row.meta.loadedAddresses?.writable?.length ?? 0) })) : undefined
   const balances = (items: any[]) => items.map(b => ({ idx: b.accountIndex, mint: b.mint, owner: b.owner ?? '', amount: BigInt(b.uiTokenAmount.amount), decimals: b.uiTokenAmount.decimals }))
+  const lookups: string[] = wire ? wire.lookups.map(l => l.table) : (message.addressTableLookups ?? []).map((l: any) => l.accountKey)
   return { sig, slot: row.slot, keys, ixs, keyFlags, version: wire?.version ?? row.version ?? 'legacy', failed: row.meta.err !== null,
+    ...(lookups.length ? { lookups } : {}),
     ...(Array.isArray(row.meta.preTokenBalances) ? { pre: balances(row.meta.preTokenBalances) } : {}),
     ...(Array.isArray(row.meta.postTokenBalances) ? { post: balances(row.meta.postTokenBalances) } : {}),
     ...(Array.isArray(row.meta.preBalances) && Array.isArray(row.meta.postBalances) ? { lamports: { pre: row.meta.preBalances.map(BigInt), post: row.meta.postBalances.map(BigInt), fee: BigInt(row.meta.fee ?? 0) } } : {}) }

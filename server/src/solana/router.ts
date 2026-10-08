@@ -358,9 +358,14 @@ export function createSolanaRouterHandler(options: Options) {
     transaction(data.swapTransaction, false)
     if (transactionVersion(data.swapTransaction) !== requestedVersion || (data.transactionVersion !== undefined && String(data.transactionVersion) !== requestedVersion)) throw new RequestError(502, 'Router returned a different transaction version than requested')
     // A composed (multi-hop, on-chain composer) direct route says so; only the
-    // direct router can produce one, so external responses never carry it.
+    // direct router can produce one, so external responses never carry it. The
+    // same holds for a decoded route through a learned program.
     const composed = fromDirect && data.composed === true && Number.isSafeInteger(data.hops) && data.hops > 1 && data.hops <= 8
-    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0, ...(composed ? { composed: true, hops: data.hops } : {}), quoteResponse: fresh }
+    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0,
+      ...(composed ? { composed: true, hops: data.hops } : {}),
+      ...(fromDirect && data.decoded === true && typeof data.decodedProgramId === 'string' ? { decoded: true, decodedProgramId: data.decodedProgramId,
+        ...(typeof data.decodedProgramName === 'string' ? { decodedProgramName: data.decodedProgramName } : {}) } : {}),
+      quoteResponse: fresh }
   }
   async function handle(req: IncomingMessage, res: ServerResponse, url: URL, body: string): Promise<boolean> {
     const route = `${req.method}:${url.pathname}`

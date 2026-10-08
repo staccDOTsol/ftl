@@ -19,6 +19,8 @@ import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
 import { quoteRaydiumClmm } from './direct-raydium-clmm.ts'
+import { replayDecodedSwap, tokenAccountAmount } from './direct-decoded.ts'
+import { decodedSwapTemplates, type DecodedSwapTemplate } from './program-service.ts'
 import { RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S, createResilientFetch, isTransientRpcError,
   rpcScope, runInRpcScope, type ResilientFetch, type ResilientFetchOptions } from './rpc-resilience.ts'
 
@@ -52,10 +54,15 @@ type RoutePlanEntry = { percent: number; swapInfo: { ammKey: string; label: stri
 /** What a candidate builds: outer instructions, any extra outer program the
  * emitter must allow (the composer), and the compute budget to request. */
 export type BuiltRoute = { instructions: TransactionInstruction[]; allowPrograms: PublicKey[];
-  computeUnitLimit: number }
-/** One executable route: a single pool, or several pools composed into one
- * on-chain composer call whose later hops are sized from real deltas. */
+  computeUnitLimit: number
+  /** A decoded route: the wallet's output token account and its pre-replay
+   * balance, so the simulated outcome can be checked against the floor. */
+  output?: { address: string; preAmount: bigint } }
+/** One executable route: a single pool, several pools composed into one
+ * on-chain composer call whose later hops are sized from real deltas, or one
+ * landed swap replayed through a program FTL learned by observation. */
 export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
+  decoded?: { program: string; name: string | null }
   build: (wallet: PublicKey, floor: bigint) => Promise<BuiltRoute> }
 export const MAX_INTERMEDIATES = 2
 export const MAX_POOLS_PER_HOP = 2
@@ -368,6 +375,8 @@ export function directRouterCoverage() {
 export type DirectRouterOptions = {
   /** lp-zap composer program id. Two-hop routes are discovered only when set. */
   composerProgramId?: string
+  /** Source of landed swaps through decoded programs (tests inject fakes). */
+  decodedSwapSource?: (inputMint: string, outputMint: string, limit: number) => Promise<DecodedSwapTemplate[]>
   /** RPC wrapper overrides (tests: underlying fetch, clock, sleep). */
   rpc?: ResilientFetchOptions
 }
@@ -380,6 +389,8 @@ export class DirectSolanaRouter {
   private readonly connection: Connection
   private readonly rpcUrl: string
   private readonly composer: PublicKey | null
+  /** Landed swaps through decoded programs; returns [] when discovery is off. */
+  private readonly decodedSource: (inputMint: string, outputMint: string, limit: number) => Promise<DecodedSwapTemplate[]>
   /** Retrying, de-duplicating, scope-memoizing fetch behind the Connection. */
   readonly rpcFetch: ResilientFetch
   /** Prices one pool; an instance field so tests can supply fake pool state. */
@@ -390,6 +401,10 @@ export class DirectSolanaRouter {
     this.connection = new Connection(rpcUrl, { commitment: 'confirmed', disableRetryOnRateLimit: true,
       fetch: this.rpcFetch as any })
     this.composer = options.composerProgramId ? new PublicKey(options.composerProgramId) : null
+    // Only a discovery-enabled process consults the frontier; anywhere else
+    // (tests, a discovery-off deploy) the source stays empty.
+    this.decodedSource = options.decodedSwapSource ?? ((inputMint, outputMint, limit) =>
+      config.programDiscovery ? decodedSwapTemplates(inputMint, outputMint, limit) : Promise.resolve([]))
     this.quotePool = (pool, intent) => quotePool(this.connection, pool, intent)
   }
   /** Prices one pool inside a memo scope (pool/config reads may be served
@@ -505,6 +520,38 @@ export class DirectSolanaRouter {
     }))
     return { routes: found.filter((c): c is Candidate => c !== null), transient }
   }
+  /** Landed swaps through decoded programs, the last resort for pairs with no
+   * supported pool: the landing's ratio at this size quotes the route, and
+   * the build replays it for the wallet with only its own accounts re-pointed
+   * and the amount patched at its proven offset. Only exact-amount proofs
+   * participate; the outcome is simulated before anything is signed. */
+  private async decoded(intent: LocalIntent): Promise<Candidate[]> {
+    let items: DecodedSwapTemplate[]
+    try { items = await this.decodedSource(intent.inputMint, intent.outputMint, 2) } catch { return [] }
+    const amount = atomic(intent.amount)
+    const found: Candidate[] = []
+    for (const item of items) {
+      const template = item.template
+      if (template.amountProof !== 'exact') continue
+      const landedIn = BigInt(template.amountIn), landedOut = BigInt(template.amountOut)
+      if (landedIn <= 0n || landedOut <= 0n) continue
+      const out = landedOut * amount / landedIn
+      if (out <= 0n) continue
+      const label = `Decoded ${item.programName ?? template.program.slice(0, 4) + '…' + template.program.slice(-4)}`
+      found.push({ out, minimum: pctMinimum(out, intent.slippageBps), hops: 1,
+        decoded: { program: template.program, name: item.programName },
+        plan: [{ percent: 100, swapInfo: { ammKey: template.program, label, inputMint: intent.inputMint,
+          outputMint: intent.outputMint, inAmount: intent.amount, outAmount: out.toString(),
+          feeAmount: '0', feeMint: intent.inputMint } }],
+        build: async wallet => {
+          const replay = await replayDecodedSwap(item, wallet, amount, this.connection)
+          if (!replay) throw new DirectRouteError(422, 'The decoded swap could not be replayed for this wallet')
+          return { instructions: replay.instructions, allowPrograms: replay.allowPrograms,
+            computeUnitLimit: replay.computeUnitLimit, output: replay.output }
+        } })
+    }
+    return found
+  }
   private async candidates(intent: LocalIntent): Promise<Candidate[]> {
     const composed = this.composed(intent)
       .catch(error => ({ routes: [] as Candidate[], transient: isTransientRpcError(error) }))
@@ -520,6 +567,10 @@ export class DirectSolanaRouter {
     if (isRateLimited(failure)) throw failure
     // Two-hop pools exist but could not be read: the route is undetermined.
     if (multi.transient) throw rateLimited()
+    // Pairs with no supported pool may still route through a program the
+    // frontier learned and a landed swap proved.
+    const decodedRoutes = await this.decoded(intent)
+    if (decodedRoutes.length) return decodedRoutes
     throw failure ?? new DirectRouteError(404, 'No executable direct pool route is available for this pair and amount')
   }
   private quoteFor(intent: LocalIntent, route: Candidate, slot: number) {
@@ -530,7 +581,10 @@ export class DirectSolanaRouter {
       priceImpactPct: null, contextSlot: slot, routePlan: route.plan,
       // A composed route names the program the wallet will call and who its fee pays.
       ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
-        composerProgramId: this.composer?.toBase58(), composerFeeRecipient: FEE_RECIPIENT.toBase58() } : {}) }
+        composerProgramId: this.composer?.toBase58(), composerFeeRecipient: FEE_RECIPIENT.toBase58() } : {}),
+      // A decoded route names the learned program the wallet will call.
+      ...(route.decoded ? { decoded: true, decodedProgramId: route.decoded.program,
+        ...(route.decoded.name ? { decodedProgramName: route.decoded.name } : {}) } : {}) }
   }
   async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
     const route = (await this.candidates(intent))[0]
@@ -556,6 +610,32 @@ export class DirectSolanaRouter {
       throw new DirectRouteError(503, 'On-chain swap simulation is temporarily unavailable')
     }
   }
+  /** A decoded route's simulated output: the wallet's output token account
+   * after the replay minus its balance before, or null when the simulation
+   * fails. The replayed program has no minimum of its own, so this is what
+   * the quoted floor is measured against. */
+  private async simulateOutcome(wire: string, output: { address: string; preAmount: bigint }): Promise<bigint | null> {
+    let response: Response
+    try {
+      response = await fetch(this.rpcUrl, { method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'simulateTransaction',
+          params: [wire, { encoding: 'base64', sigVerify: false, replaceRecentBlockhash: true,
+            commitment: 'confirmed', accounts: { addresses: [output.address], encoding: 'base64' } }] }),
+        signal: AbortSignal.timeout(12_000) })
+      if (!response.ok) throw new Error('rpc status')
+      const raw = await response.text()
+      if (raw.length > 2_000_000) throw new Error('rpc response size')
+      const result = JSON.parse(raw)
+      if (result.error || !result.result?.value) throw new Error('rpc result')
+      if (result.result.value.err !== null) return null
+      const data = result.result.value.accounts?.[0]?.data
+      const post = Array.isArray(data) ? tokenAccountAmount(data[0]) : null
+      return post === null ? null : post - output.preAmount
+    } catch {
+      throw new DirectRouteError(503, 'On-chain swap simulation is temporarily unavailable')
+    }
+  }
   async swap(intent: LocalIntent, wallet: string, minimum: string) {
     const candidates = await this.candidates(intent)
     const protectedMinimum = atomic(minimum)
@@ -576,11 +656,18 @@ export class DirectSolanaRouter {
         const swapTransaction = intent.transactionVersion === '1'
           ? unsignedV1(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
           : unsignedV0(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
-        if (!await this.simulate(swapTransaction)) continue
+        // A decoded route has no venue minimum of its own: its simulated
+        // outcome must cover the floor before anything is offered to sign.
+        if (route.decoded && built.output) {
+          const out = await this.simulateOutcome(swapTransaction, built.output)
+          if (out === null || out < floor) { lastReason = 'The decoded route no longer fills this amount'; continue }
+        } else if (!await this.simulate(swapTransaction)) continue
         return { transactionVersion: intent.transactionVersion, swapTransaction,
           lastValidBlockHeight: latest.lastValidBlockHeight,
           prioritizationFeeLamports: 0,
           ...(route.hops > 1 ? { composed: true, hops: route.hops } : {}),
+          ...(route.decoded ? { decoded: true, decodedProgramId: route.decoded.program,
+            ...(route.decoded.name ? { decodedProgramName: route.decoded.name } : {}) } : {}),
           quoteResponse: { ...this.quoteFor(intent, route, slot),
             otherAmountThreshold: floor.toString() } }
       } catch (error) {

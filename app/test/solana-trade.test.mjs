@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toAtomic, fromAtomic, balancePercent, assertQuoteMatches, isQuoteFresh, SOL_MINT, composerHopFees, unacknowledgedComposedBuild } from '../src/lib/solana-trade.ts'
+import { toAtomic, fromAtomic, balancePercent, assertQuoteMatches, isQuoteFresh, SOL_MINT, composerHopFees, unacknowledgedComposedBuild, unacknowledgedDecodedBuild } from '../src/lib/solana-trade.ts'
 
 test('decimal conversion preserves precision above JavaScript safe integers', () => {
   assert.equal(toAtomic('9007199254.740993001', 9), '9007199254740993001')
@@ -57,4 +57,15 @@ test('a composed build is held back unless its own composer program was acknowle
   assert.equal(unacknowledgedComposedBuild(built, 'Other111111111111111111111111111111111111111'), built.quoteResponse)
   // Unreported program ids are acknowledged under their own key, never as a match for a named program.
   assert.equal(unacknowledgedComposedBuild({ composed: true, quoteResponse: composedQuote({ composerProgramId: undefined }) }, 'unreported'), null)
+})
+
+test('a decoded build is held back unless its own decoded program was acknowledged', () => {
+  const built = { decoded: true, decodedProgramId: 'Learned111111111111111111111111111111111111111',
+    quoteResponse: { decoded: true, decodedProgramId: 'Learned111111111111111111111111111111111111111' } }
+  assert.equal(unacknowledgedDecodedBuild({ decoded: false, quoteResponse: built.quoteResponse }, null), null)
+  assert.equal(unacknowledgedDecodedBuild(built, null), built.quoteResponse)
+  assert.equal(unacknowledgedDecodedBuild(built, 'Learned111111111111111111111111111111111111111'), null)
+  // A different program needs its own acknowledgement.
+  assert.equal(unacknowledgedDecodedBuild(built, 'Other1111111111111111111111111111111111111111'), built.quoteResponse)
+  assert.equal(unacknowledgedDecodedBuild({ decoded: true, quoteResponse: { decoded: true } }, 'unreported'), null)
 })

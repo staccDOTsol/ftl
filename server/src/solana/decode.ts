@@ -21,6 +21,7 @@ export interface NTx {
   pre?: TokenBal[]
   post?: TokenBal[]
   lamports?: { pre: bigint[]; post: bigint[]; fee: bigint }
+  lookups?: string[]           // address lookup tables the message loaded from
 }
 
 export const WSOL = 'So11111111111111111111111111111111111111112'

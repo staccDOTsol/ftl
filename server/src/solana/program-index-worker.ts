@@ -48,7 +48,8 @@ parentPort!.on('message', message => {
     else if (message.t === 'source') index.source(message.lane, message.connected)
     else if (message.t === 'request') {
       const data = message.operation === 'list' ? index.list(message.options) : message.operation === 'detail'
-        ? index.detail(message.options) : message.operation === 'idl' ? index.idl(message.options) : null
+        ? index.detail(message.options) : message.operation === 'idl' ? index.idl(message.options)
+          : message.operation === 'swap-templates' ? index.swapTemplates(message.options) : null
       parentPort!.postMessage({ t: 'response', id: message.id, data })
     }
   } catch (error) {

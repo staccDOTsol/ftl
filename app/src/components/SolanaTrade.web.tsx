@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import bs58 from 'bs58'
 import { C, F } from '@/theme'
 import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
-import { acknowledgeComposer, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, unacknowledgedComposedBuild, type SolanaQuote } from '@/lib/solana-trade'
+import { acknowledgeComposer, acknowledgeDecodedProgram, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, DECODED_BUILD_MESSAGE, decodedProgramAcknowledged, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, unacknowledgedComposedBuild, unacknowledgedDecodedBuild, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { swapLink } from '@/lib/swap-link'
@@ -12,6 +12,7 @@ import { inspectTransaction } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
 import ZapLiquidity from './ZapLiquidity.web'
 import ComposerRouteNotice from './ComposerRouteNotice.web'
+import DecodedRouteNotice from './DecodedRouteNotice.web'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner } from './SolanaWallet.web'
 import { useWalletSelection } from '@/lib/wallet-session'
 import type { TradeAction } from './Trade'
@@ -96,6 +97,8 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
   const [ackedProgram, setAckedProgram] = useState<string | null>(null)
   const composedRoute = !!quote && composerFeeLabel(quote.response) !== null
   const composerAck = composedRoute && (ackedProgram === (quote!.response.composerProgramId ?? 'unreported') || composerAcknowledged(quote!.response.composerProgramId))
+  const decodedRoute = !!quote && quote.response.decoded === true
+  const decodedAck = decodedRoute && (ackedProgram === (quote!.response.decodedProgramId ?? 'unreported') || decodedProgramAcknowledged(quote!.response.decodedProgramId))
   const unresolved = pending?.state === 'pending'
   const locked = busy || unresolved
   const fresh = !!quote && isQuoteFresh(quote.at, now)
@@ -189,6 +192,8 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
     if (!mounted.current || request !== seq.current || currentSigner.current?.address !== owner || !isQuoteFresh(quote.at)) throw new Error('The quote or wallet changed. Request a fresh quote.')
     const composedInstead = unacknowledgedComposedBuild(built, ackedProgram)
     if (composedInstead) { setQuote({ ...quote, response: composedInstead, at: Date.now() }); throw new Error(COMPOSED_BUILD_MESSAGE) }
+    const decodedInstead = unacknowledgedDecodedBuild(built, ackedProgram)
+    if (decodedInstead) { setQuote({ ...quote, response: decodedInstead, at: Date.now() }); throw new Error(DECODED_BUILD_MESSAGE) }
     setPhase(`Approve in your wallet · network fee ${fromAtomic(String(built.networkFeeLamports), 9)} SOL`)
     const signed = await selected.sign(decodeTransaction(built.swapTransaction))
     assertSignedMessage(built.swapTransaction, signed)
@@ -250,6 +255,8 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
       {quote.response.platformFee ? <Txt v="small">Platform fee: {quote.response.platformFee.feeBps / 100}%</Txt> : null}
       {composedRoute ? <ComposerRouteNotice quote={quote.response} label={label} amountOf={amountOf} acknowledged={composerAck}
         onAcknowledge={() => { acknowledgeComposer(quote.response.composerProgramId); setAckedProgram(quote.response.composerProgramId ?? 'unreported') }} /> : null}
+      {decodedRoute ? <DecodedRouteNotice quote={quote.response} acknowledged={decodedAck}
+        onAcknowledge={() => { acknowledgeDecodedProgram(quote.response.decodedProgramId); setAckedProgram(quote.response.decodedProgramId ?? 'unreported') }} /> : null}
       {quote.response.routePlan.map((leg, i) => leg.swapInfo ? <View key={`${i}-${leg.swapInfo.ammKey}`} style={{ gap: 3 }}>
         <Txt v="small">{i + 1}. {leg.swapInfo.label || 'Pool'} · {label(leg.swapInfo.inputMint)} → {label(leg.swapInfo.outputMint)}</Txt>
         <Txt v="monoSmall">Pool fee: {decimals[leg.swapInfo.feeMint] !== undefined ? fromAtomic(leg.swapInfo.feeAmount, decimals[leg.swapInfo.feeMint]) : `${leg.swapInfo.feeAmount} atomic units`} {label(leg.swapInfo.feeMint)}</Txt>
@@ -267,7 +274,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
     <View style={st.wrap}>
       <Button kind={quote ? 'ghost' : 'primary'} label={quote ? 'Refresh quote' : 'Get quote'} busy={busy && phase === 'Finding a route…'} disabled={locked || !amount.trim()} onPress={() => void act(requestQuote)} style={{ flex: 1 }} />
       {signer && !address ? <Button label="Connect wallet" busy={busy && !phase} disabled={locked} onPress={() => void act(signer.connect)} style={{ flex: 1 }} /> : null}
-      {address ? <Button label={composedRoute && !composerAck ? 'Acknowledge the composed route' : side === 'buy' ? 'Review & buy' : 'Review & sell'} disabled={locked || !fresh || signer?.transactionVersion === null || composedRoute && !composerAck} onPress={() => void act(trade)} style={{ flex: 1 }} /> : null}
+      {address ? <Button label={composedRoute && !composerAck ? 'Acknowledge the composed route' : decodedRoute && !decodedAck ? 'Acknowledge the decoded route' : side === 'buy' ? 'Review & buy' : 'Review & sell'} disabled={locked || !fresh || signer?.transactionVersion === null || composedRoute && !composerAck || decodedRoute && !decodedAck} onPress={() => void act(trade)} style={{ flex: 1 }} /> : null}
     </View>
     {onBack ? <Button label="Choose another wallet" kind="quiet" disabled={locked} onPress={onBack} /> : null}
   </View>
