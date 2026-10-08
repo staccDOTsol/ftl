@@ -12,7 +12,6 @@ import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
   type DirectLeg, type DirectPrice } from './direct-adapter.ts'
-import { composeInstructions, composeRoute, hopEstimates, type ComposableLeg } from './compose.ts'
 import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
