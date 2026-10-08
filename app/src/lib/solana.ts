@@ -66,7 +66,9 @@ export const getRouterStatus = () => request<{ configured?: boolean; status?: st
 export const decodeTransaction = (encoded: string) => Uint8Array.from(atob(encoded), char => char.charCodeAt(0))
 export function encodeTransaction(bytes: Uint8Array) { return btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join('')) }
 
-export interface BuiltSwap { swapTransaction: string; lastValidBlockHeight: number; transactionVersion: TransactionVersion; networkFeeLamports?: number }
+export interface BuiltSwap { swapTransaction: string; lastValidBlockHeight: number; transactionVersion: TransactionVersion; networkFeeLamports?: number
+  /** Set when the server routed the built swap through the composer; quoteResponse is that route. */
+  composed?: boolean; hops?: number; quoteResponse?: SolanaQuote }
 export async function buildAndSimulate(quote: SolanaQuote, owner: string, transactionVersion: TransactionVersion): Promise<BuiltSwap> {
   const swap = await request<BuiltSwap>('/api/swap/solana', { quoteResponse: quote, userPublicKey: owner, wrapAndUnwrapSol: true, transactionVersion })
   if (!Number.isSafeInteger(swap.lastValidBlockHeight) || swap.lastValidBlockHeight <= 0) throw new Error('The transaction has no valid expiry. Request a fresh quote.')

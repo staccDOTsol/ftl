@@ -14,7 +14,7 @@ import { ApiError, get } from '@/lib/api'
 import { short, venue } from '@/lib/format'
 import type { PoolSummary, TokenSummary } from '@/lib/types'
 import { tokenMetaOne, useTokenMeta, type TokenMetaMap, type TokenMetaRecord } from '@/lib/token-meta'
-import { balancePercent, composerFeeLabel, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
+import { acknowledgeComposer, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, unacknowledgedComposedBuild, fromAtomic, isQuoteFresh, QUOTE_TTL_MS, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { formatBps, isMintLike, KNOWN_TOKENS, rateString, USDC_MINT, type SwapLink, type SwapLinkAction, type SwapMode } from '@/lib/swap-link'
@@ -24,6 +24,7 @@ import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaS
 import { useWalletSelection, updateWalletSession } from '@/lib/wallet-session'
 import { Dialog, Icon } from './MarketUI.web'
 import ZapLiquidity from './ZapLiquidity.web'
+import ComposerRouteNotice from './ComposerRouteNotice.web'
 
 interface Token { mint: string; symbol: string; name?: string; image?: string }
 interface WalletState { address: string | null; version: TransactionVersion | null; name: string }
@@ -110,6 +111,11 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
   }, [amount, decimals, inputMint])
   const quoteKey = outputMint && amountRaw ? `${inputMint}|${outputMint}|${amountRaw}|${slippageBps}|${transactionVersion}` : null
   const quote = quoteResult && quoteResult.key === quoteKey && quoteResult.wallet === address ? quoteResult : null
+  // A composed route needs one acknowledgement per browser and composer program;
+  // memory backs it up when storage is unavailable (private windows).
+  const [ackedProgram, setAckedProgram] = useState<string | null>(null)
+  const composedRoute = !!quote && composerFeeLabel(quote.response) !== null
+  const composerAck = composedRoute && (ackedProgram === (quote!.response.composerProgramId ?? 'unreported') || composerAcknowledged(quote!.response.composerProgramId))
   const fresh = !!quote && isQuoteFresh(quote.at, now)
   const unresolved = pending?.state === 'pending'
   const locked = busy || unresolved || liquidityLocked
@@ -261,6 +267,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
     setPhase('simulating')
     const built = await buildAndSimulate(quote.response, owner, signer.transactionVersion)
     if (!mounted.current || request !== seq.current || signerRef.current?.address !== owner || !isQuoteFresh(quote.at)) throw new Error('The route or wallet changed. Wait for a fresh route.')
+    const composedInstead = unacknowledgedComposedBuild(built, ackedProgram)
+    if (composedInstead) { setQuoteResult({ ...quote, response: composedInstead, at: Date.now() }); throw new Error(COMPOSED_BUILD_MESSAGE) }
     setNetworkFee(built.networkFeeLamports ?? null)
     setPhase('approve')
     const signed = await signer.sign(decodeTransaction(built.swapTransaction))
@@ -288,6 +296,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
   function reset() { setPending(null); setAmount(''); setError(null); setNetworkFee(null) }
 
   const symbol = (mint: string) => mint === input.mint ? input.symbol : mint === output?.mint ? output.symbol : tokenOf(mint, meta[mint] ? { symbol: meta[mint].symbol ?? undefined } : null).symbol
+  const amountOf = (mint: string, atomic: string) => decimals[mint] !== undefined ? fromAtomic(atomic, decimals[mint]) : null
   const outDecimals = outputMint ? decimals[outputMint] : undefined
   const estimated = quote && outDecimals !== undefined ? fromAtomic(quote.response.outAmount, outDecimals) : null
   const rate = quote && output && outDecimals !== undefined && decimals[inputMint] !== undefined
@@ -309,6 +318,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
     if (quoteError) return { label: quoteError.status === 404 ? 'No route' : 'Quote unavailable' }
     if (!quote || quoting && !fresh) return { label: 'Fetching route…', busy: true }
     if (wallet.version === null) return { label: 'Wallet cannot sign V0/V1' }
+    if (composedRoute && !composerAck) return { label: 'Review the composed route above' }
     return { label: 'Swap', enabled: true, onPress: () => void act(swap) }
   })()
   const resolved = pending && pending.state !== 'pending' ? pending : null
@@ -316,7 +326,7 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
   // Availability is derived only from render state. The handler itself reads
   // signer refs at click time, never while deciding the button's appearance.
   const primaryDisabled = !!(unresolved || busy || output && (!amountRaw || wallet && address && (
-    inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance) || quoteError || !quote || !fresh || wallet.version === null
+    inputBalance !== null && BigInt(amountRaw) > BigInt(inputBalance) || quoteError || !quote || !fresh || wallet.version === null || composedRoute && !composerAck
   )))
 
   return <View style={st.card}>
@@ -409,7 +419,8 @@ export default function SwapTerminal({ initial, onModeChange }: { initial: SwapL
       <Detail label="Slippage" value={formatBps(quote.response.slippageBps)} />
       <Detail label="Platform fees" value={composedFee ?? (quote.response.platformFee ? formatBps(quote.response.platformFee.feeBps) : 'none')} />
       {composedFee && quote.response.platformFee ? <Detail label="Additional router fee" value={formatBps(quote.response.platformFee.feeBps)} /> : null}
-      {composedFee ? <Txt v="monoSmall" color={C.accent}>Atomic execution · estimated output is after composer fees</Txt> : null}
+      {composedRoute ? <ComposerRouteNotice quote={quote.response} label={symbol} amountOf={amountOf} acknowledged={composerAck}
+        onAcknowledge={() => { acknowledgeComposer(quote.response.composerProgramId); setAckedProgram(quote.response.composerProgramId ?? 'unreported') }} /> : null}
       <Detail label="Network fee" value={networkFee !== null ? `≈ ${fromAtomic(String(networkFee), 9)} SOL` : 'after simulation'} />
       <View style={{ gap: 4, marginTop: 4 }}>
         <Press onPress={() => setRouteExpanded(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: routeExpanded }} style={({ hovered }) => [st.between, { paddingVertical: 5 }, hovered && { opacity: 0.7 }]}><Txt v="label">{quote.response.routePlan.length} {quote.response.routePlan.length === 1 ? 'route leg' : 'route legs'} · {routeExpanded ? 'Hide details' : 'View details'}</Txt><Icon name={routeExpanded ? 'close' : 'plus'} size={13} /></Press>

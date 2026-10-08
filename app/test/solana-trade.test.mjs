@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toAtomic, fromAtomic, balancePercent, assertQuoteMatches, isQuoteFresh, SOL_MINT } from '../src/lib/solana-trade.ts'
+import { toAtomic, fromAtomic, balancePercent, assertQuoteMatches, isQuoteFresh, SOL_MINT, composerHopFees, unacknowledgedComposedBuild } from '../src/lib/solana-trade.ts'
 
 test('decimal conversion preserves precision above JavaScript safe integers', () => {
   assert.equal(toAtomic('9007199254.740993001', 9), '9007199254740993001')
@@ -36,4 +36,25 @@ test('quotes expire at 30 seconds and future timestamps are not accepted', () =>
   assert.equal(isQuoteFresh(1000, 31000), false)
   assert.equal(isQuoteFresh(1000, 999), false)
   assert.equal(isQuoteFresh(0, 1), false)
+})
+
+const composedQuote = (extra = {}) => ({ composed: true, hops: 2, composerFeeBps: 10, composerProgramId: 'Comp1111111111111111111111111111111111111111',
+  routePlan: [{ percent: 100, swapInfo: { outputMint: 'X', outAmount: '2000000' } }, { percent: 100, swapInfo: { outputMint: 'B', outAmount: '5999999' } }], ...extra })
+
+test('composer hop fees are fee bps of each hop gross output, in that hop token, and absent for direct routes', () => {
+  assert.deepEqual(composerHopFees(composedQuote()), [{ mint: 'X', amount: '2000' }, { mint: 'B', amount: '5999' }])
+  assert.equal(composerHopFees({ ...composedQuote(), composed: false }), null)
+  assert.equal(composerHopFees(composedQuote({ composerFeeBps: undefined })), null)
+  assert.equal(composerHopFees(composedQuote({ routePlan: [{ percent: 100, swapInfo: { outputMint: 'X', outAmount: '1.5' } }] })), null)
+})
+
+test('a composed build is held back unless its own composer program was acknowledged', () => {
+  const built = { composed: true, quoteResponse: composedQuote() }
+  assert.equal(unacknowledgedComposedBuild({ composed: false, quoteResponse: composedQuote() }, null), null)
+  assert.equal(unacknowledgedComposedBuild(built, null), built.quoteResponse)
+  assert.equal(unacknowledgedComposedBuild(built, 'Comp1111111111111111111111111111111111111111'), null)
+  // A different program needs its own acknowledgement.
+  assert.equal(unacknowledgedComposedBuild(built, 'Other111111111111111111111111111111111111111'), built.quoteResponse)
+  // Unreported program ids are acknowledged under their own key, never as a match for a named program.
+  assert.equal(unacknowledgedComposedBuild({ composed: true, quoteResponse: composedQuote({ composerProgramId: undefined }) }, 'unreported'), null)
 })

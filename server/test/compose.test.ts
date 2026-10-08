@@ -287,6 +287,10 @@ test('configured composer finds the A→X→B route with fee-adjusted amounts an
   assert.equal(quote.composed, true)
   assert.equal(quote.hops, 2)
   assert.equal(quote.outAmount, final.toString())
+  // Disclosure: the wallet sees which program it will call and who the fee pays.
+  assert.equal(quote.composerProgramId, COMPOSER.toBase58())
+  assert.equal(quote.composerFeeRecipient, FEE_RECIPIENT.toBase58())
+  assert.equal(quote.composerFeeBps, 10)
   const floor = route.minimum
   const built = await route.build(wallet, floor)
   assert.ok(built.allowPrograms[0].equals(COMPOSER))

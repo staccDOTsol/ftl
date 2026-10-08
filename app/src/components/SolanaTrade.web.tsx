@@ -4,13 +4,14 @@ import { router } from 'expo-router'
 import bs58 from 'bs58'
 import { C, F } from '@/theme'
 import type { FlowEvent, PoolSummary, TokenSummary } from '@/lib/types'
-import { balancePercent, composerFeeLabel, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, type SolanaQuote } from '@/lib/solana-trade'
+import { acknowledgeComposer, balancePercent, COMPOSED_BUILD_MESSAGE, composerAcknowledged, composerFeeLabel, fromAtomic, isQuoteFresh, shortMint, SOL_MINT, toAtomic, unacknowledgedComposedBuild, type SolanaQuote } from '@/lib/solana-trade'
 import { assertSignedMessage, buildAndSimulate, decodeTransaction, getRouterStatus, getSolanaQuote, mintDecimals, sendSignedSwap, tokenBalance, transactionStatus, validateMint } from '@/lib/solana'
 import { hasPending, readPending, writePending, type PendingSwap } from '@/lib/solana-pending'
 import { swapLink } from '@/lib/swap-link'
 import { inspectTransaction } from '@/lib/solana-wire'
 import { Button, Chip, Seg, Txt } from './ui'
 import ZapLiquidity from './ZapLiquidity.web'
+import ComposerRouteNotice from './ComposerRouteNotice.web'
 import { useSolanaWallets, walletName, WalletPicker, WalletSession, type SolanaSigner } from './SolanaWallet.web'
 import { useWalletSelection } from '@/lib/wallet-session'
 import type { TradeAction } from './Trade'
@@ -90,6 +91,11 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
   const balance = balanceResult?.owner === address && balanceResult.mint === inputMint ? balanceResult.raw : null
   const pairMints = useMemo(() => [...new Set([SOL_MINT, ...pools.flatMap(pool => pool.quote && pool.quote !== t.address ? [pool.quote] : [])])], [pools, t.address])
   const label = (mint: string) => mint === t.address ? (t.symbol || shortMint(mint)) : shortMint(mint)
+  const amountOf = (mint: string, atomic: string) => decimals[mint] !== undefined ? fromAtomic(atomic, decimals[mint]) : null
+  // A composed route needs one acknowledgement per browser and composer program.
+  const [ackedProgram, setAckedProgram] = useState<string | null>(null)
+  const composedRoute = !!quote && composerFeeLabel(quote.response) !== null
+  const composerAck = composedRoute && (ackedProgram === (quote!.response.composerProgramId ?? 'unreported') || composerAcknowledged(quote!.response.composerProgramId))
   const unresolved = pending?.state === 'pending'
   const locked = busy || unresolved
   const fresh = !!quote && isQuoteFresh(quote.at, now)
@@ -181,6 +187,8 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
     if (selected.transactionVersion === null) throw new Error('This wallet does not advertise V0 or V1 transaction signing. Choose a compatible wallet.')
     const built = await buildAndSimulate(quote.response, owner, selected.transactionVersion)
     if (!mounted.current || request !== seq.current || currentSigner.current?.address !== owner || !isQuoteFresh(quote.at)) throw new Error('The quote or wallet changed. Request a fresh quote.')
+    const composedInstead = unacknowledgedComposedBuild(built, ackedProgram)
+    if (composedInstead) { setQuote({ ...quote, response: composedInstead, at: Date.now() }); throw new Error(COMPOSED_BUILD_MESSAGE) }
     setPhase(`Approve in your wallet · network fee ${fromAtomic(String(built.networkFeeLamports), 9)} SOL`)
     const signed = await selected.sign(decodeTransaction(built.swapTransaction))
     assertSignedMessage(built.swapTransaction, signed)
@@ -240,7 +248,8 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
       <Txt v="small">Minimum received: {fromAtomic(quote.response.otherAmountThreshold, decimals[outputMint])} {label(outputMint)}</Txt>
       <Txt v="small">Price impact: {quote.response.priceImpactPct === null || !Number.isFinite(Number(quote.response.priceImpactPct)) ? 'unavailable' : `${Number(quote.response.priceImpactPct).toFixed(2)}%`}</Txt>
       {quote.response.platformFee ? <Txt v="small">Platform fee: {quote.response.platformFee.feeBps / 100}%</Txt> : null}
-      {composerFeeLabel(quote.response) ? <Txt v="small">Composer: {composerFeeLabel(quote.response)}. Atomic route; expected output is net of these fees.</Txt> : null}
+      {composedRoute ? <ComposerRouteNotice quote={quote.response} label={label} amountOf={amountOf} acknowledged={composerAck}
+        onAcknowledge={() => { acknowledgeComposer(quote.response.composerProgramId); setAckedProgram(quote.response.composerProgramId ?? 'unreported') }} /> : null}
       {quote.response.routePlan.map((leg, i) => leg.swapInfo ? <View key={`${i}-${leg.swapInfo.ammKey}`} style={{ gap: 3 }}>
         <Txt v="small">{i + 1}. {leg.swapInfo.label || 'Pool'} · {label(leg.swapInfo.inputMint)} → {label(leg.swapInfo.outputMint)}</Txt>
         <Txt v="monoSmall">Pool fee: {decimals[leg.swapInfo.feeMint] !== undefined ? fromAtomic(leg.swapInfo.feeAmount, decimals[leg.swapInfo.feeMint]) : `${leg.swapInfo.feeAmount} atomic units`} {label(leg.swapInfo.feeMint)}</Txt>
@@ -258,7 +267,7 @@ function TradeForm({ t, pools, signer, onBack, onLockChange, initialAction }: Pr
     <View style={st.wrap}>
       <Button kind={quote ? 'ghost' : 'primary'} label={quote ? 'Refresh quote' : 'Get quote'} busy={busy && phase === 'Finding a route…'} disabled={locked || !amount.trim()} onPress={() => void act(requestQuote)} style={{ flex: 1 }} />
       {signer && !address ? <Button label="Connect wallet" busy={busy && !phase} disabled={locked} onPress={() => void act(signer.connect)} style={{ flex: 1 }} /> : null}
-      {address ? <Button label={side === 'buy' ? 'Review & buy' : 'Review & sell'} disabled={locked || !fresh || signer?.transactionVersion === null} onPress={() => void act(trade)} style={{ flex: 1 }} /> : null}
+      {address ? <Button label={composedRoute && !composerAck ? 'Acknowledge the composed route' : side === 'buy' ? 'Review & buy' : 'Review & sell'} disabled={locked || !fresh || signer?.transactionVersion === null || composedRoute && !composerAck} onPress={() => void act(trade)} style={{ flex: 1 }} /> : null}
     </View>
     {onBack ? <Button label="Choose another wallet" kind="quiet" disabled={locked} onPress={onBack} /> : null}
   </View>

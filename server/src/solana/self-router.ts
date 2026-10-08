@@ -14,7 +14,7 @@ import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
 import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
   type DirectLeg, type DirectPrice } from './direct-adapter.ts'
-import { ComposeError, FEE_BPS, afterComposerFee, composeRoute, finalHopMinimum } from './compose.ts'
+import { ComposeError, FEE_BPS, FEE_RECIPIENT, afterComposerFee, composeRoute, finalHopMinimum } from './compose.ts'
 import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
@@ -528,7 +528,9 @@ export class DirectSolanaRouter {
       otherAmountThreshold: route.minimum.toString(), swapMode: 'ExactIn',
       slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion,
       priceImpactPct: null, contextSlot: slot, routePlan: route.plan,
-      ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS) } : {}) }
+      // A composed route names the program the wallet will call and who its fee pays.
+      ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
+        composerProgramId: this.composer?.toBase58(), composerFeeRecipient: FEE_RECIPIENT.toBase58() } : {}) }
   }
   async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
     const route = (await this.candidates(intent))[0]

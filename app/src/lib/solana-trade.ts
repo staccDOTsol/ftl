@@ -41,6 +41,9 @@ export interface SolanaQuote {
   composed?: boolean
   hops?: number
   composerFeeBps?: number
+  /** Present on composed routes: the on-chain composer the wallet calls and its fee owner. */
+  composerProgramId?: string
+  composerFeeRecipient?: string
   contextSlot: number
   transactionVersion?: '0' | '1'
   routePlan: { percent: number; swapInfo?: {
@@ -56,6 +59,39 @@ export function composerFeeLabel(quote: Pick<SolanaQuote, 'composed' | 'hops' | 
   if (!Number.isInteger(quote.composerFeeBps) || quote.composerFeeBps! < 0 || quote.composerFeeBps! > 10_000) return 'Fee not reported'
   return `${quote.composerFeeBps! / 100}% per hop · ${quote.hops} hops · in kind`
 }
+
+export const COMPOSER_SOURCE_URL = 'https://github.com/staccDOTsol/lp-zap'
+
+/** The composer's in-kind fee on each hop: fee bps of the gross amount that
+ * hop delivered, in that hop's output token (the route plan reports gross
+ * per-hop outputs; the quote's outAmount is already net). */
+export function composerHopFees(quote: Pick<SolanaQuote, 'composed' | 'hops' | 'composerFeeBps' | 'routePlan'>): { mint: string; amount: string }[] | null {
+  if (composerFeeLabel(quote) === null || !Number.isInteger(quote.composerFeeBps)) return null
+  const fees: { mint: string; amount: string }[] = []
+  for (const leg of quote.routePlan) {
+    if (!leg.swapInfo || !/^\d+$/.test(leg.swapInfo.outAmount)) return null
+    fees.push({ mint: leg.swapInfo.outputMint, amount: (BigInt(leg.swapInfo.outAmount) * BigInt(quote.composerFeeBps!) / 10_000n).toString() })
+  }
+  return fees
+}
+
+// One acknowledgement per browser and composer program: a different program needs a new one.
+const ACK_KEY = 'liquidityxyz.composer-ack.v1'
+export function composerAcknowledged(programId: string | undefined): boolean {
+  try { return localStorage.getItem(ACK_KEY) === (programId ?? 'unreported') } catch { return false }
+}
+export function acknowledgeComposer(programId: string | undefined) {
+  try { localStorage.setItem(ACK_KEY, programId ?? 'unreported') } catch {}
+}
+
+/** A build the server routed through the composer, for a program this browser
+ * has not acknowledged: returns the composed route to show instead of signing. */
+export function unacknowledgedComposedBuild(built: { composed?: boolean; quoteResponse?: SolanaQuote }, ackedProgram: string | null): SolanaQuote | null {
+  if (built.composed !== true || !built.quoteResponse) return null
+  const program = built.quoteResponse.composerProgramId
+  return ackedProgram === (program ?? 'unreported') || composerAcknowledged(program) ? null : built.quoteResponse
+}
+export const COMPOSED_BUILD_MESSAGE = 'This swap routes through the composer program. Review the composed route above and acknowledge it, then swap again. Nothing was signed.'
 
 export interface QuoteIntent { inputMint: string; outputMint: string; amount: string; slippageBps: number; transactionVersion?: '0' | '1' }
 
