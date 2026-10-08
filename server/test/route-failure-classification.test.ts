@@ -138,7 +138,7 @@ test('bestQuote keeps 404 when the direct router genuinely has no route', async 
   await serve(new DirectRouteError(404, 'No executable direct pool route'), () => new Response('busy', { status: 429 }), async get => {
     const r = await get()
     assert.equal(r.status, 404)
-    assert.equal(r.data.error, 'No executable route is available for this pair and amount')
+    assert.equal(r.data.error, 'No executable direct pool route', 'the direct router says why, not the busy external router')
   })
 })
 
