@@ -9,7 +9,9 @@ primary_region = 'ewr'
   PORT = '8080'
   BACKFILL_HOURS = '24'
   HELIUS_TARGETED_STREAM = '1'
-  PROGRAM_DISCOVERY = '1'
+  # Off 2026-10-09: programs.db has no retention and grew ~7 GB/hour, filling
+  # the volume twice (api down). Turn back on once it prunes.
+  PROGRAM_DISCOVERY = '0'
   PROGRAM_DISCOVERY_BACKFILL = '1'
   COMPOSER_URL = 'https://the-composer-svc.fly.dev'
 
