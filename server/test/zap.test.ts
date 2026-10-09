@@ -448,7 +448,8 @@ test('composed: a deposit this server builds is signed by its new position key b
       instructions: [{ programId: DAMM_V2_PROGRAM, data: Buffer.from([1]).toString('base64'), keys: [key(OWNER, true), key(position.publicKey.toBase58(), true)] },
         { programId: DAMM_V2_PROGRAM, data: data.toString('base64'), keys: [key(OWNER, true), key(position.publicKey.toBase58())] }],
       quote: { amounts: [{ mint: MINT, direction: 'debit', expectedRaw: String(input.tokenAmount), limitRaw: String(input.tokenAmount) },
-        { mint: SOL_MINT, direction: 'debit', expectedRaw: String(input.solAmount), limitRaw: String(input.solAmount) }], details: {} } }
+        { mint: SOL_MINT, direction: 'debit', expectedRaw: String(input.solAmount), limitRaw: String(input.solAmount) }],
+        details: { tokenEstimateRaw: String(input.tokenAmount * 98n / 100n) } } }
   }
   await withZap({ ...bordr, composer: COMPOSER, depositBuilders: { 'meteora-damm-v2': builder } }, async request => {
     const plan = (await request('/api/zap/solana/plan', planIn())).data
@@ -459,7 +460,10 @@ test('composed: a deposit this server builds is signed by its new position key b
     assert.equal(r.data.position, position.publicKey.toBase58())
     assert.equal(seen.length, 2, 'the plan and the build both size the deposit with this builder')
     assert.equal(seen[0].tokenAmount, 995_000_000n * 99n / 100n, 'the plan quotes the swap\'s minimum out')
-    assert.equal(plan.steps[1].quote.amounts[0].expectedRaw, String(seen[0].tokenAmount), 'the plan shows the builder\'s own quote')
+    const [tokenShown, solShown] = plan.steps[1].quote.amounts
+    assert.equal(tokenShown.expectedRaw, String(seen[0].tokenAmount * 98n / 100n), 'the plan shows what the deposit takes at the read price')
+    assert.deepEqual([tokenShown.decimals, solShown.decimals], [6, 9], 'every amount the client renders carries its decimals')
+    assert.equal(plan.estimate.tokenDecimals, 6)
     assert.equal(seen[1].tokenAmount, 995_000_000n * 10_100n / 10_000n, 'built at the swap output plus slippage headroom')
     const bytes = Buffer.from(r.data.transactions[0].transaction, 'base64')
     const end = bytes.length - 2 * 64

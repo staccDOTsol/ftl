@@ -294,6 +294,14 @@ export function createSolanaZapHandler(options: Options) {
     return options.router.quote(new URLSearchParams({ inputMint, outputMint, amount: lamports, slippageBps: String(slippageBps), swapMode: 'ExactIn', transactionVersion }), true)
   }
   const symbolOf = (mint: string) => { const t = options.catalog.token(mint); return t?.symbol ? `$${t.symbol.slice(0, 14)}` : shortMint(mint) }
+  /** A deposit quote as clients show it: every amount carries its decimals
+   * (this server's builders do not set them), and the token debit is what the
+   * deposit takes at the read price rather than the budget the composer
+   * anchors on. Never fed back into composition. */
+  const forDisplay = (quote: any, mint: string, tokenDecimals: number | undefined) => !object(quote) || !Array.isArray(quote.amounts) ? quote : {
+    ...quote, amounts: quote.amounts.map((a: any) => !object(a) ? a : { ...a,
+      ...(!Number.isInteger(a.decimals) && (a.mint === SOL_MINT || Number.isInteger(tokenDecimals)) ? { decimals: a.mint === SOL_MINT ? 9 : tokenDecimals } : {}),
+      ...(a.mint === mint && a.direction === 'debit' && integer(quote.details?.tokenEstimateRaw) ? { expectedRaw: quote.details.tokenEstimateRaw } : {}) }) }
   const creditOf = (quote: any, mint: string) => (Array.isArray(quote?.amounts) ? quote.amounts : []).find((a: any) => object(a) && a.mint === mint && a.direction === 'credit' && integer(a.expectedRaw))
   const debitOf = (quote: any, mint: string) => (Array.isArray(quote?.amounts) ? quote.amounts : []).find((a: any) => object(a) && a.mint === mint && a.direction === 'debit' && integer(a.expectedRaw))
 
@@ -349,6 +357,9 @@ export function createSolanaZapHandler(options: Options) {
       addQuote = candidateQuote; chosen = candidate; break
     }
     if (!chosen || !addQuote) throw lastError instanceof Error ? lastError : new RequestError(503, 'No pool could quote this deposit right now')
+    const listed = debitOf(addQuote, mint)?.decimals
+    const tokenDecimals: number | undefined = Number.isInteger(listed) ? listed : options.catalog.token(mint)?.decimals ?? await mintDecimals(mint)
+    addQuote = forDisplay(addQuote, mint, tokenDecimals)
     const addStep: AddStep = { kind: 'add', title: `Depositing into ${venueLabel(chosen.venue)}`, venue: chosen.venue, pool: chosen.pool, mintA: mint, mintB: SOL_MINT, tokenAmount: quote.outAmount, solAmount: keep.toString(), parameters: addParameters(chosen.venue), quote: addQuote }
     const solDebit = debitOf(addQuote, SOL_MINT), tokenDebit = debitOf(addQuote, mint)
     const positionValue = swap + (solDebit ? BigInt(solDebit.expectedRaw) : keep)
@@ -358,7 +369,7 @@ export function createSolanaZapHandler(options: Options) {
       pool: { venue: chosen.venue, pool: chosen.pool, kind: chosen.kind, mintA: addQuote.mintA ?? mint, mintB: addQuote.mintB ?? SOL_MINT, stats: chosen.stats, reason: input.pool === chosen.pool ? `${describeChoice(chosen, ranked).replace(/\.$/, '')} (your pick).` : describeChoice(chosen, ranked) },
       alternatives: ranked.filter(c => c.pool !== chosen!.pool).slice(0, MAX_ALTERNATIVES).map(c => ({ venue: c.venue, pool: c.pool, kind: c.kind, stats: c.stats })),
       steps: [swapStep, addStep],
-      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals: Number.isInteger(tokenDebit?.decimals) ? tokenDebit.decimals : options.catalog.token(mint)?.decimals ?? await mintDecimals(mint), networkFeeSolApprox: options.composerProgramId ? composedFee([swapStep, addStep]) : sequentialFee([swapStep, addStep]) },
+      estimate: { depositSol: uiText(lamports, 9), positionValueSol: uiText(positionValue, 9), tokenExpected: quote.outAmount, tokenDecimals, networkFeeSolApprox: options.composerProgramId ? composedFee([swapStep, addStep]) : sequentialFee([swapStep, addStep]) },
       createdAt: now(), expiresAt: now() + PLAN_TTL,
     }
     return plan
@@ -529,7 +540,7 @@ export function createSolanaZapHandler(options: Options) {
           add: { instructions: addInstructions, quote: addQuote } })
         if (!assembly) throw unavailable('the deposit amounts could not be proven from its bytes')
         steps = assembly.steps
-        quote = addQuote
+        quote = forDisplay(addQuote, plan.mint, plan.estimate?.tokenDecimals)
         note = 'One signature: the swap and the deposit run atomically through the composer, the deposit sized from what the swap really delivered'
       } else {
         const [removeStep, swapStep] = plan.steps as [RemoveStep, SwapStep | undefined]
