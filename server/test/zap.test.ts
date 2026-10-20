@@ -44,7 +44,7 @@ const pool = (address: string, venue: string, extra: Partial<PoolSummary> = {}):
 // ---- wire helpers: a V1 carrying arbitrary instructions, so built swaps and
 // deposits can carry the exact u64 amounts a composer must locate -----------
 const SYSTEM = '1'.repeat(32)
-const COMPOSER = 'BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx'
+const COMPOSER = '9D2CVzKrvB8MYXZhZzRS3a7BdDBbdzVKqFd82QnVVzjA'
 const u64le = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b }
 function venueV1(ixs: { programId: string; data: Buffer }[]): string {
   const kp = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(7))

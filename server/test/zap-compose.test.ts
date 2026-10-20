@@ -10,7 +10,7 @@ const OWNER = 'GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB'
 const TOKEN_MINT = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'
 const SYSTEM = '11111111111111111111111111111111'
 const VENUE = '4xp7kN4nVt19caq4kM629vL8vJEqpSFVdZAh27wvYPh8'
-const COMPOSER = 'BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx'
+const COMPOSER = '9D2CVzKrvB8MYXZhZzRS3a7BdDBbdzVKqFd82QnVVzjA'
 
 const u64 = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b }
 const ix = (programId: string, data: Buffer): RawInstruction => ({ programId, keys: [], data: data.toString('base64') })

@@ -21,7 +21,7 @@ after(() => { db.close(); fs.rmSync(tmp, { recursive: true, force: true }) })
 const { encodeCompose, decodeCompose, composeInstructions, composeRoute, buildComposedTransaction,
   feeAta, hopEstimates, finalHopMinimum, FEE_RECIPIENT } = compose
 const key = (seed: number) => Keypair.fromSeed(new Uint8Array(32).fill(seed)).publicKey
-const COMPOSER = new PublicKey('BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx')
+const COMPOSER = new PublicKey('9D2CVzKrvB8MYXZhZzRS3a7BdDBbdzVKqFd82QnVVzjA')
 const SOL = 'So11111111111111111111111111111111111111112'
 const wallet = key(1), A = key(2), X = key(3), B = key(4)
 const hash = new PublicKey('11111111111111111111111111111111').toBase58()

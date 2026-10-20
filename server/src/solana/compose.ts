@@ -15,7 +15,7 @@ import { unsignedV0, unsignedV1 } from './self-router.ts'
 export const FEE_RECIPIENT = new PublicKey('331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPnUPd76Mth')
 /** Program id declared in lp-zap/src/lib.rs. Deployments pick theirs from
  * LP_ZAP_PROGRAM_ID; this constant is only the source's declared id. */
-export const LP_ZAP_DECLARED_PROGRAM_ID = 'BHYw1FAWPriW9Gh7BG49X4UVe96CDjaxFrFFUtGSQmRx'
+export const LP_ZAP_DECLARED_PROGRAM_ID = '9D2CVzKrvB8MYXZhZzRS3a7BdDBbdzVKqFd82QnVVzjA'
 export const FEE_BPS = 10n
 export const BPS_DENOMINATOR = 10_000n
 
