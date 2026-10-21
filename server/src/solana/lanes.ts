@@ -1,8 +1,9 @@
 // Solana lanes, fastest first:
-//   preconf     Triton Preconfs (Harmonic builder batches / BAM leader acks), raw wire txs, before shreds
-//   deshred     Triton Dragon's Mouth SubscribeDeshred, entries rebuilt from shreds, before execution
-//   geyser      Triton Dragon's Mouth Subscribe, processed commitment, with metadata
-//   geyser-drpc dRPC's Yellowstone Subscribe, processed commitment, with metadata
+//   preconf        Triton Preconfs (selected Harmonic / BAM regions), before shreds
+//   deshred        Triton Dragon's Mouth SubscribeDeshred, before execution
+//   geyser-primary provider-neutral Yellowstone Subscribe, processed with metadata
+//   geyser         optional Triton Dragon's Mouth Subscribe, processed with metadata
+//   geyser-drpc    optional dRPC Yellowstone Subscribe, processed with metadata
 // All lanes race into the hub; the first copy of an instruction wins, executed copies confirm it.
 
 import path from 'node:path'
@@ -22,7 +23,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 
 // Each lane runs in its own worker thread (see worker.ts). A lane reports through a sink:
 // matched events go to the hub on the main thread, counters go to /api/status.
-export interface LaneStats { connected: boolean; msgs: number; lastMsgTs: number | null; lagMs?: number }
+export interface LaneStats { connected: boolean; msgs: number; lastMsgTs: number | null; lagMs?: number; configuredStreams?: number; activeStreams?: number }
 export interface Sink { emit(evs: RawEvent[]): void; stats(l: Lane): LaneStats }
 let sink: Sink
 export function setSink(s: Sink) { sink = s }
@@ -87,6 +88,7 @@ const channelOptions = {
 
 export function geyserLane(l: Lane, url: string, token: string) {
   const ls = lane('solana', l, true)
+  ls.configuredStreams = 1
   let attempt = 0
   const run = async () => {
     try {
@@ -97,6 +99,7 @@ export function geyserLane(l: Lane, url: string, token: string) {
       req.transactions.ftl = { vote: false, accountInclude: programIds, accountExclude: [], accountRequired: [] }
       const stream = await client.subscribe(req)
       ls.connected = true
+      ls.activeStreams = 1
       attempt = 0
       console.log(`[sol:${l}] subscribed (${programIds.length} programs)`)
       const ping = setInterval(() => stream.write({ ...emptyRequest(), ping: { id: 1 } } as any), 10_000)
@@ -117,10 +120,12 @@ export function geyserLane(l: Lane, url: string, token: string) {
         stream.on('close', () => resolve())
       })
       clearInterval(ping)
+      stream.destroy()
     } catch (e: any) {
       console.error(`[sol:${l}] connect`, redact(String(e?.message ?? e)))
     }
     ls.connected = false
+    ls.activeStreams = 0
     const wait = Math.min(30_000, 500 * 2 ** attempt++)
     setTimeout(run, wait)
   }
@@ -131,6 +136,7 @@ export function geyserLane(l: Lane, url: string, token: string) {
 
 export function deshredLane(url: string, token: string) {
   const ls = lane('solana', 'deshred', true)
+  ls.configuredStreams = 1
   let attempt = 0
   const run = async () => {
     try {
@@ -139,6 +145,7 @@ export function deshredLane(url: string, token: string) {
       const stream = await client.subscribeDeshred()
       stream.write({ deshredTransactions: { ftl: { vote: false, accountInclude: programIds, accountExclude: [], accountRequired: [] } }, slots: {} } as any)
       ls.connected = true
+      ls.activeStreams = 1
       attempt = 0
       console.log('[sol:deshred] subscribed')
       const ping = setInterval(() => stream.write({ deshredTransactions: { ftl: { vote: false, accountInclude: programIds, accountExclude: [], accountRequired: [] } }, slots: {}, ping: { id: 1 } } as any), 10_000)
@@ -159,10 +166,12 @@ export function deshredLane(url: string, token: string) {
         stream.on('close', () => resolve())
       })
       clearInterval(ping)
+      stream.destroy()
     } catch (e: any) {
       console.error('[sol:deshred] connect', redact(String(e?.message ?? e)))
     }
     ls.connected = false
+    ls.activeStreams = 0
     setTimeout(run, Math.min(30_000, 500 * 2 ** attempt++))
   }
   void run()
@@ -173,11 +182,13 @@ export function deshredLane(url: string, token: string) {
 // address lookup tables are append-only, so a cached table only ever grows
 const alts = new Map<string, string[]>()
 const altInflight = new Set<string>()
+const altRetryAt = new Map<string, number>()
 async function fetchAlt(table: string) {
-  if (!config.solanaRpc || altInflight.has(table)) return
+  if (!config.solanaRpc || altInflight.has(table) || (altRetryAt.get(table) ?? 0) > Date.now()) return
   altInflight.add(table)
   try {
-    const r = await fetch(config.solanaRpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAccountInfo', params: [table, { encoding: 'base64', commitment: 'processed' }] }) })
+    const r = await fetch(config.solanaRpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAccountInfo', params: [table, { encoding: 'base64', commitment: 'processed' }] }), signal: AbortSignal.timeout(8_000) })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const j = await r.json() as any
     const data = j?.result?.value?.data?.[0]
     if (data) {
@@ -185,8 +196,11 @@ async function fetchAlt(table: string) {
       const addrs: string[] = []
       for (let o = 56; o + 32 <= b.length; o += 32) addrs.push(bs58.encode(b.subarray(o, o + 32)))
       alts.set(table, addrs)
-    }
-  } catch {} finally { altInflight.delete(table) }
+      altRetryAt.delete(table)
+    } else altRetryAt.set(table, Date.now() + 60_000)
+  } catch { altRetryAt.set(table, Date.now() + 60_000) }
+  finally { altInflight.delete(table) }
+  if (altRetryAt.size > 20_000) altRetryAt.clear()
 }
 
 function wireToNTx(bytes: Uint8Array, slot: number): NTx | null {
@@ -211,6 +225,7 @@ export function preconfsLanes() {
   const target = host.includes(':') ? host : `${host}:443`
   const filters = { ftl: { instructions: programIds.map(p => ({ program_id: p })) } }
   const ls = lane('solana', 'preconf', true)
+  ls.configuredStreams = config.preconfsRegions.length
   const open = new Set<string>()
   for (const spec of config.preconfsRegions) {
     const [feed, region] = spec.split(':')
@@ -224,8 +239,9 @@ export function preconfsLanes() {
       md.set('x-token', config.preconfsToken!)
       const call = client.Subscribe({ transactions: filters, ...regionField }, md)
       let opened = false
+      let restarting = false
       call.on('data', (u: any) => {
-        if (!opened) { opened = true; attempt = 0; open.add(spec); ls.connected = true }
+        if (!opened) { opened = true; attempt = 0; open.add(spec); ls.connected = true; ls.activeStreams = open.size }
         ls.msgs++
         ls.lastMsgTs = Date.now()
         ls.lagMs = ewma(ls.lagMs, lagOf(u))
@@ -235,9 +251,12 @@ export function preconfsLanes() {
         try { emit(wireToNTx(t.transaction, Number(t.slot)), 'preconf', 'pending') } catch (e) { console.error('[sol:preconf] decode', String(e)) }
       })
       const restart = (why: string) => {
+        if (restarting) return
+        restarting = true
         if (opened) console.warn(`[sol:preconf] ${spec} ${why}`)
         open.delete(spec)
         ls.connected = open.size > 0
+        ls.activeStreams = open.size
         try { client.close() } catch {}
         setTimeout(run, Math.min(30_000, 1000 * 2 ** attempt++))
       }
@@ -262,16 +281,26 @@ export function startSolana(ingest: (r: RawEvent) => void, setLane: (l: Lane, en
     w.on('error', (e) => console.error(`[sol:${kind}] worker`, redact(String(e))))
     w.on('exit', (code) => { console.warn(`[sol:${kind}] worker exited ${code}, restarting`); setTimeout(() => spawn(kind), 2000) })
   }
-  if (triton) {
-    spawn('geyser')
-    if (config.tritonDeshred) spawn('deshred')
-    else setLane('deshred', false, 'TRITON_DESHRED=0')
-  } else {
-    setLane('geyser', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
-    setLane('deshred', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
-  }
-  if (config.drpcGeyserUrl && config.drpcKey) spawn('geyser-drpc')
-  else setLane('geyser-drpc', false, 'DRPC_GEYSER_URL not set (dRPC dashboard: Solana Geyser gRPC card)')
-  if (config.preconfsToken) spawn('preconf')
-  else setLane('preconf', false, 'TRITON_PRECONFS_TOKEN not set')
+  if (config.yellowstoneGrpcUrl && config.yellowstoneXToken) spawn('geyser-primary')
+  else setLane('geyser-primary', false, 'YELLOWSTONE_GRPC_URL / YELLOWSTONE_X_TOKEN not set')
+
+  if (!config.tritonGeyser) setLane('geyser', false, 'TRITON_GEYSER=1 not set')
+  else if (triton) spawn('geyser')
+  else setLane('geyser', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
+
+  if (!config.tritonDeshred) setLane('deshred', false, 'TRITON_DESHRED=1 not set')
+  else if (triton) spawn('deshred')
+  else setLane('deshred', false, 'TRITON_GRPC_URL / TRITON_X_TOKEN not set')
+
+  if (!config.drpcGeyser) setLane('geyser-drpc', false, 'DRPC_GEYSER=1 not set')
+  else if (config.drpcGeyserUrl && config.drpcKey) spawn('geyser-drpc')
+  else setLane('geyser-drpc', false, 'DRPC_GEYSER_URL / DRPC_KEY not set')
+
+  const regions = config.preconfsRegions
+  if (!config.tritonPreconfs) setLane('preconf', false, 'TRITON_PRECONFS=1 not set')
+  else if (!config.preconfsToken) setLane('preconf', false, 'TRITON_PRECONFS_TOKEN not set')
+  else if (!regions.length) setLane('preconf', false, 'TRITON_PRECONFS_REGIONS not set')
+  else if (regions.some(r => !/^(harmonic|bam):[a-z0-9-]+$/i.test(r)) || new Set(regions).size !== regions.length)
+    setLane('preconf', false, 'TRITON_PRECONFS_REGIONS invalid or contains duplicates')
+  else { console.log(`[sol:preconf] opening ${regions.length} explicitly selected region streams`); spawn('preconf') }
 }

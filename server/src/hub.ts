@@ -456,7 +456,7 @@ setInterval(() => {
 // pre-execution copies that never landed: once an executed lane is up and a
 // pending copy is 45 s old with no executed copy, it was dropped or failed
 export function sweepPending() {
-  const executed = [...lanes.values()].some(l => l.chain === 'solana' && (l.lane === 'geyser' || l.lane === 'geyser-drpc') && l.connected)
+  const executed = [...lanes.values()].some(l => l.chain === 'solana' && (l.lane === 'geyser' || l.lane === 'geyser-primary' || l.lane === 'geyser-drpc') && l.connected)
   if (!executed) return
   const cutoff = Date.now() - 90_000
   for (const e of recent.values()) {

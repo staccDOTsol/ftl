@@ -18,7 +18,7 @@ setInterval(sweepPending, 5000).unref()
 // metadata v3: anything active in the last day still missing a symbol or image is asked again,
 // now with retries until it resolves
 if (getCursor('meta:v3') !== 'done') {
-  const rows = db.prepare('SELECT chain, address FROM tokens WHERE last_ts > ? AND (symbol IS NULL OR image IS NULL) ORDER BY last_ts DESC LIMIT 20000').all(Date.now() - 86400_000) as any[]
+  const rows = db.prepare('SELECT chain, address FROM tokens WHERE last_ts > ? AND (symbol IS NULL OR image IS NULL) ORDER BY last_ts DESC LIMIT 500').all(Date.now() - 86400_000) as any[]
   for (const r of rows) enrich(r.chain, r.address, true)
   setCursor('meta:v3', 'done')
   console.log(`[meta] re-resolving ${rows.length} tokens`)

@@ -17,7 +17,7 @@ export type Kind = 'launch' | 'pool_init' | 'liq_add' | 'liq_remove' | 'graduate
 //   geyser-drpc — the same Yellowstone Subscribe served by dRPC
 // Robinhood events arrive executed (dRPC log subscription), so they start confirmed.
 export type Stage = 'pending' | 'confirmed' | 'failed'
-export type Lane = 'preconf' | 'deshred' | 'geyser' | 'geyser-drpc' | 'logs'
+export type Lane = 'preconf' | 'deshred' | 'geyser' | 'geyser-drpc' | 'geyser-primary' | 'logs'
 
 export type Flag =
   | 'pounce'        // a pool on a launchpad token before it graduates (the book's crew shape)
@@ -137,6 +137,86 @@ export interface LaneStatus {
   firstSeenWins: number      // events this lane saw before any other lane
   p50LeadMs?: number         // median lead over the confirmed copy
   lagMs?: number             // how far behind the source's own timestamp the lane is running
+  configuredStreams?: number // configured upstream subscriptions (e.g. regional preconfs)
+  activeStreams?: number     // currently connected upstream subscriptions
+}
+
+// Real-time research state for every Solana token FTL sees. Missing holder or
+// price streams must produce null metrics with reasons, never LP substitutes.
+export interface ResearchCandle {
+  ts: number                  // UTC day start, milliseconds
+  open: number
+  high: number
+  low: number
+  close: number
+  volumeUsd: number
+}
+
+export interface ResearchHolderStrength {
+  score: number | null        // 0..100, observed top-account persistence + concentration
+  reason: string | null
+  retentionPct: number | null
+  top20SharePct: number | null
+  top20ShareChangePct: number | null
+  baselineTs: number | null
+  observedTs: number | null
+}
+
+export interface ResearchBottoming {
+  signs: number | null        // 0..3, daily on-chain pool price/volume signs
+  reason: string | null
+  drawdownPct: number | null
+  sellersCapitulated: boolean | null // selloff volume cooled; price/volume proxy
+  lowHolding: boolean | null
+  demandReturning: boolean | null    // higher close + volume; price/volume proxy
+  observedTs: number | null
+}
+
+export interface ResearchCoin {
+  chain: 'solana'
+  address: string
+  symbol?: string
+  name?: string
+  image?: string
+  status: 'queued' | 'collecting' | 'ready' | 'insufficient_data' | 'error' | 'source_unavailable'
+  statusReason: string | null
+  firstSeenTs: number
+  updatedTs: number | null
+  nextRefreshTs: number | null
+  liveLiquidity: {
+    poolInits: number
+    adds: number
+    removes: number
+    observationStartTs: number | null
+    lastEventTs: number | null
+  }
+  holderStrength: ResearchHolderStrength
+  bottoming: ResearchBottoming
+  coverage: {
+    holderSnapshots: number
+    priceCandles: number
+    holderWindowDays: number | null
+    priceWindowDays: number | null
+  }
+  methodology: {
+    holderStrength: string
+    bottoming: string
+    holderSource: string
+    priceSource: string
+  }
+}
+
+export interface ResearchCoinDetail extends ResearchCoin {
+  priceHistory: ResearchCandle[]
+  holderHistory: { ts: number; top20SharePct: number | null; trackedOwners: number }[]
+}
+
+export interface ResearchList {
+  items: ResearchCoin[]
+  total: number
+  backlog: number
+  nextCursor: string | null
+  coverageNote: string
 }
 
 export interface Status { startedTs: number; lanes: LaneStatus[]; clients: number; eventsStored: number; prices?: Record<string, number> }
