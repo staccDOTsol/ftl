@@ -6,6 +6,7 @@ import { config, redact } from '../config.ts'
 import { ProgramIndex } from './program-index.ts'
 import { observePrograms, rpcDiscoveryTransaction } from './program-observation.ts'
 import { venueOf } from './programs.ts'
+import { pruneProgramHistory } from './program-retention.ts'
 
 fs.mkdirSync(config.dataDir, { recursive: true })
 const db = new DatabaseSync(path.join(config.dataDir, 'programs.db'))
@@ -20,6 +21,41 @@ for (const file of fs.readdirSync(directory).filter(name => name.endsWith('.json
   } catch {}
 }
 index.refreshInterfaces()
+// Disk floor. This index is the volume's big grower (~11 GB/day; it filled the 120 GB volume on 2026-10-13 15:22 UTC and
+// took quotes down with it). Under the floor it stops writing new observations: it keeps everything it has and deletes
+// nothing, so ftl.db and the quote path keep room to write. It resumes on its own once there is room again.
+const DISK_FLOOR = Number(process.env.PROGRAM_DISK_FLOOR_GB ?? 40) * 1e9
+let lowDisk = false
+const checkDisk = () => {
+  try {
+    const s = fs.statfsSync(config.dataDir)
+    const free = Number(s.bavail) * Number(s.bsize)
+    const low = free < DISK_FLOOR
+    if (low !== lowDisk) console.warn(low
+      ? `[programs] PAUSED: ${(free / 1e9).toFixed(1)} GB free on ${config.dataDir}, under the ${DISK_FLOOR / 1e9} GB floor. Indexing stops; nothing is deleted. Grow the volume.`
+      : `[programs] resumed: ${(free / 1e9).toFixed(1)} GB free`)
+    lowDisk = low
+  } catch (error) { console.error('[programs:disk]', redact(String(error))) }
+}
+checkDisk()
+setInterval(checkDisk, 60_000)
+// Time limit: per-transaction history older than RETAIN_DAYS (same knob as ftl.db's hourly prune, default 14) is
+// cleared every hour. The WAL is capped too; it had grown to 7 GB.
+db.exec('PRAGMA journal_size_limit=1073741824')
+let pruning = false
+const prune = async () => {
+  if (pruning) return
+  pruning = true
+  try {
+    const counts = await pruneProgramHistory(db, Date.now() - config.retainDays * 86_400_000)
+    const total = Object.values(counts).reduce((a, n) => a + n, 0)
+    if (total) console.log(`[programs] retention: cleared ${total} rows older than ${config.retainDays} days ${JSON.stringify(counts)}`)
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)')
+  } catch (error) { console.error('[programs:retention]', redact(String(error))) }
+  finally { pruning = false }
+}
+setTimeout(() => { void prune() }, 60_000)
+setInterval(() => { void prune() }, 3_600_000)
 let observations: import('./program-observation.ts').ProgramObservation[] = []
 let observationOffset = 0
 let draining = false
@@ -29,7 +65,7 @@ const drain = () => {
   const step = () => {
     const chunk = observations.slice(observationOffset, observationOffset + 32)
     observationOffset += chunk.length
-    if (chunk.length) {
+    if (chunk.length && !lowDisk) {
       try { index.observeMany(chunk) } catch (error) { console.error('[programs:ingest]', redact(String(error))) }
     }
     if (observationOffset >= observations.length) { observations = []; observationOffset = 0; draining = false }
@@ -44,7 +80,7 @@ const drain = () => {
 }
 parentPort!.on('message', message => {
   try {
-    if (message.t === 'observations') { observations.push(...message.observations); drain() }
+    if (message.t === 'observations') { if (!lowDisk) { observations.push(...message.observations); drain() } }
     else if (message.t === 'source') index.source(message.lane, message.connected)
     else if (message.t === 'request') {
       const data = message.operation === 'list' ? index.list(message.options) : message.operation === 'detail'
@@ -57,9 +93,9 @@ parentPort!.on('message', message => {
     console.error('[programs]', redact(String(error)))
   }
 })
-setInterval(() => index.flush(), 1000)
+setInterval(() => { if (!lowDisk) index.flush() }, 1000)
 setInterval(() => index.refreshInterfaces(), 30_000)
-setInterval(() => { void index.next().catch(error => console.error('[programs:learn]', redact(String(error)))) }, 2000)
+setInterval(() => { if (!lowDisk) void index.next().catch(error => console.error('[programs:learn]', redact(String(error)))) }, 2000)
 if (config.programDiscovery) {
   void index.checkHealth()
   setInterval(() => { void index.checkHealth() }, 30_000)

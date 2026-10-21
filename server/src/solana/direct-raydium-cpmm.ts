@@ -5,9 +5,9 @@ import { PublicKey, TransactionInstruction, type Connection } from '@solana/web3
 import { createAssociatedTokenAccountIdempotentInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { CurveCalculator, FeeOn, Raydium } from '@raydium-io/raydium-sdk-v2'
 import BN from 'bn.js'
-import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
-  exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions,
-  pairIsExact, type DirectIntent, type DirectPool, type DirectPrice, type SwapOffsets } from './direct-adapter.ts'
+import { assertPoolOwner, checkedPrice, DirectVenueError, exactAmount, isTokenAccountFor, mintAta,
+  nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact, programOf, swapMints,
+  type DirectIntent, type DirectPool, type DirectPrice, type SwapOffsets } from './direct-adapter.ts'
 
 export const RAYDIUM_CPMM_PROGRAM = new PublicKey('CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C')
 const PROGRAM = RAYDIUM_CPMM_PROGRAM
@@ -26,10 +26,12 @@ export function encodeCpmmSwapBaseInput(amountIn: bigint, minimumOut: bigint): {
 }
 
 /** The CPMM swap instruction alone, for tests and the composer: accounts in
- * the order of Raydium's published `swap_base_input` IDL. */
+ * the order of Raydium's published `swap_base_input` IDL. Each side's token
+ * program is the one that owns that mint (classic SPL Token when omitted). */
 export function cpmmSwapInstruction(keys: { wallet: PublicKey; authority: PublicKey; config: PublicKey;
   pool: PublicKey; inputAta: PublicKey; outputAta: PublicKey; inputVault: PublicKey; outputVault: PublicKey;
-  inputMint: PublicKey; outputMint: PublicKey; observation: PublicKey }, amountIn: bigint,
+  inputMint: PublicKey; outputMint: PublicKey; observation: PublicKey
+  inputTokenProgram?: PublicKey; outputTokenProgram?: PublicKey }, amountIn: bigint,
   minimumOut: bigint): { instruction: TransactionInstruction; offsets: SwapOffsets } {
   const { data, amountInOffset, minOutOffset } = encodeCpmmSwapBaseInput(amountIn, minimumOut)
   const instruction = new TransactionInstruction({ programId: PROGRAM, data, keys: [
@@ -41,8 +43,8 @@ export function cpmmSwapInstruction(keys: { wallet: PublicKey; authority: Public
     { pubkey: keys.outputAta, isSigner: false, isWritable: true },
     { pubkey: keys.inputVault, isSigner: false, isWritable: true },
     { pubkey: keys.outputVault, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: keys.inputTokenProgram ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: keys.outputTokenProgram ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: keys.inputMint, isSigner: false, isWritable: false },
     { pubkey: keys.outputMint, isSigner: false, isWritable: false },
     { pubkey: keys.observation, isSigner: false, isWritable: true },
@@ -62,19 +64,22 @@ export async function quoteRaydiumCpmm(connection: Connection, row: DirectPool,
   if (!pairIsExact(row, intent, mintA, mintB) || poolInfo.programId !== PROGRAM.toBase58() ||
     !rpcData.programId.equals(PROGRAM))
     throw new DirectVenueError('FTL pool mints or owner do not match Raydium chain state')
-  await assertClassicMints(connection, mintA, mintB)
+  // Classic SPL, or Token-2022 with only benign extensions; the pool's own
+  // record of each mint's program must agree with the chain.
+  const mints = await swapMints(connection, mintA, mintB)
+  if (!rpcData.mintProgramA.equals(mints[0].tokenProgram) || !rpcData.mintProgramB.equals(mints[1].tokenProgram))
+    throw new DirectVenueError('CPMM pool token programs do not match its mints')
   if (!rpcData.configInfo || rpcData.baseReserve.isZero() || rpcData.quoteReserve.isZero())
     throw new DirectVenueError('CPMM pool configuration or swap reserves are missing')
   const baseIn = intent.inputMint === mintA.toBase58()
   const [inputVault, outputVault] = baseIn
     ? [new PublicKey(poolKeys.vault.A), new PublicKey(poolKeys.vault.B)]
     : [new PublicKey(poolKeys.vault.B), new PublicKey(poolKeys.vault.A)]
+  const inputProgram = programOf(mints, intent.inputMint), outputProgram = programOf(mints, intent.outputMint)
   // Validate the current vault accounts. Their first 32 bytes encode mint.
   const [inputInfo, outputInfo] = await connection.getMultipleAccountsInfo([inputVault, outputVault], 'confirmed')
-  if (!inputInfo?.owner.equals(TOKEN_PROGRAM_ID) || !outputInfo?.owner.equals(TOKEN_PROGRAM_ID) ||
-    inputInfo.data.length < 72 || outputInfo.data.length < 72 ||
-    !new PublicKey(inputInfo.data.subarray(0, 32)).equals(new PublicKey(intent.inputMint)) ||
-    !new PublicKey(outputInfo.data.subarray(0, 32)).equals(new PublicKey(intent.outputMint)))
+  if (!isTokenAccountFor(inputInfo, new PublicKey(intent.inputMint), inputProgram) ||
+    !isTokenAccountFor(outputInfo, new PublicKey(intent.outputMint), outputProgram))
     throw new DirectVenueError('CPMM vault owner or mint does not match chain state')
   const result = CurveCalculator.swapBaseInput(new BN(amount.toString()),
     baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
@@ -92,16 +97,19 @@ export async function quoteRaydiumCpmm(connection: Connection, row: DirectPool,
   const feeMint = intent.inputMint
   return checkedPrice(out, minimum, fee, feeMint, async (wallet, protectedMinimum) => {
     const inputMint = new PublicKey(intent.inputMint), outputMint = new PublicKey(intent.outputMint)
-    const inputAta = mintAta(wallet, inputMint), outputAta = mintAta(wallet, outputMint)
+    const inputAta = mintAta(wallet, inputMint, inputProgram), outputAta = mintAta(wallet, outputMint, outputProgram)
     const { instruction: swap, offsets } = cpmmSwapInstruction({ wallet,
       authority: new PublicKey(poolKeys.authority), config: new PublicKey(poolKeys.config.id),
       pool: address, inputAta, outputAta, inputVault, outputVault, inputMint, outputMint,
-      observation: new PublicKey(poolKeys.observationId) }, amount, protectedMinimum)
+      observation: new PublicKey(poolKeys.observationId), inputTokenProgram: inputProgram,
+      outputTokenProgram: outputProgram }, amount, protectedMinimum)
     const wrap = await nativeWrapInstructions(connection, wallet, intent.inputMint, amount, intent.keepNative)
     const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint, intent.keepNative)
-    const instructions = [createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint),
-      createAssociatedTokenAccountIdempotentInstruction(wallet, outputAta, wallet, outputMint),
+    const instructions = [
+      createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint, inputProgram),
+      createAssociatedTokenAccountIdempotentInstruction(wallet, outputAta, wallet, outputMint, outputProgram),
       ...wrap, swap, ...unwrap]
-    return { instructions, swapIndex: 2 + wrap.length, offsets, inputAccount: inputAta, outputAccount: outputAta }
+    return { instructions, swapIndex: 2 + wrap.length, offsets, inputAccount: inputAta, outputAccount: outputAta,
+      ...(outputProgram.equals(TOKEN_PROGRAM_ID) ? {} : { outputTokenProgram: outputProgram }) }
   })
 }

@@ -15,6 +15,7 @@
     "@grpc/proto-loader": "^0.8.0",
     "@meteora-ag/cp-amm-sdk": "1.5.1",
     "@meteora-ag/dlmm": "1.9.14",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "1.5.13",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "1.8.0",
     "@noble/hashes-v2": "npm:@noble/hashes@2.4.0",

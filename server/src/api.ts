@@ -192,6 +192,11 @@ function send(ws: WebSocket, m: ServerMsg) { if (ws.readyState === 1 && ws.buffe
 
 export function startApi(port: number) {
   const server = http.createServer(async (req, res) => {
+    const pathOnly = (req.url ?? '/').split('?')[0]
+    if ((req.method === 'GET' || req.method === 'HEAD') && (pathOnly === '/health' || pathOnly === '/')) {
+      res.writeHead(200, { 'content-type': 'text/plain', 'cache-control': 'no-store' }).end(req.method === 'HEAD' ? undefined : 'ftl ok')
+      return
+    }
     res.setHeader('access-control-allow-origin', '*')
     res.setHeader('access-control-allow-headers', 'content-type, x-ftl-pubkey, x-ftl-ts, x-ftl-sig')
     res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS')
@@ -375,9 +380,13 @@ export function startApi(port: number) {
       for (const ws of clients.keys()) send(ws, { t: 'token', s })
     }
   }, 1000).unref()
-  setInterval(() => { const s = status(); for (const ws of clients.keys()) send(ws, { t: 'status', s }) }, 5000).unref()
+  if (process.env.QUOTE_ONLY !== '1') setInterval(() => {
+    try { const s = status(); for (const ws of clients.keys()) send(ws, { t: 'status', s }) } catch (e) { console.error('[api] status', e) }
+  }, 5000).unref()
 
   server.listen(port, '0.0.0.0', () => console.log(`[api] listening on :${port}`))
-  startResearch()
+  // The quote thread must not scan the session table or backfill events.
+  // That work is what keeps the firehose thread from ever answering a quote.
+  if (process.env.QUOTE_ONLY !== '1') startResearch()
   return server
 }

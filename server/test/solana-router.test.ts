@@ -28,10 +28,25 @@ function encodedV1(signed = false, options: { payloadSize?: number; signerCount?
   const message = Buffer.concat([header, ...signers.map(kp => Buffer.from(kp.publicKey)), Buffer.alloc(32, 0), limits, instruction, Buffer.from([0]), Buffer.alloc(options.payloadSize ?? 4, 5)])
   return Buffer.concat([message, ...signers.map(kp => signed ? Buffer.from(nacl.sign.detached(message, kp.secretKey)) : Buffer.alloc(64))]).toString('base64')
 }
+/** 100x.broker's /api/legs, stubbed (kept out of `calls` so upstream-call assertions are unchanged). */
+const legsCalls: Array<{ url: string; body: any }> = []
+let legsDown = false
+/** One leg transaction per side per hop when building. */
+function legsStub(body: any) {
+  const hops = (body?.hops ?? []).map((h: any, i: number) => ({ hop: i + 1, sold: h.inputMint, bought: h.outputMint, valueLamports: h.inAmount, legBudget: '100',
+    long: { mint: h.outputMint, bet: 'long', lamports: '50' }, short: { mint: h.inputMint, bet: 'short', lamports: '50' } }))
+  const txs = body?.build ? hops.flatMap(() => [encodedTx(), encodedTx()]) : []
+  return { houseBps: 1, legBps: 10, badBeat: body?.badBeat === true, totalLamports: String(hops.length * 100), hops, listings: [], txs,
+    txLabels: txs.map((_: string, i: number) => `leg ${i + 1}`), pending: [], unplaceable: [] }
+}
 async function withServer(run: (request: (path: string, body?: unknown) => Promise<{ status: number; data: any }>, calls: Array<{ url: string; body: any }>) => Promise<void>, responder?: (url: string, body: any) => Response, options: { configured?: boolean } = {}) {
   const calls: Array<{ url: string; body: any }> = []
   const handler = createSolanaRouterHandler({ routerUrl: options.configured === false ? undefined : 'http://router.example', rpcUrl: 'https://rpc.example/?api-key=private-key', fetch: async (input, init) => {
     const url = String(input), body = init?.body ? JSON.parse(String(init.body)) : null
+    if (url.includes('/api/legs')) {
+      legsCalls.push({ url, body })
+      return legsDown ? Response.json({ error: 'down' }, { status: 500 }) : Response.json(legsStub(body))
+    }
     calls.push({ url, body })
     if (responder) return responder(url, body)
     if (url.includes('/quote?')) return Response.json(q)
@@ -141,7 +156,11 @@ test('enabled direct router uses only its local quote/build path and ignores cli
     },
   }
   const handler = createSolanaRouterHandler({ routerUrl: 'http://unwanted.example', rpcUrl: 'https://rpc.example',
-    localRouter: direct, fetch: async () => { throw new Error('external router must not be called') } })
+    localRouter: direct, fetch: async (input, init) => {
+      // 100x.broker's legs service is not the external router; it is the one outbound call allowed here
+      if (String(input).includes('/api/legs')) return Response.json(legsStub(init?.body ? JSON.parse(String(init.body)) : null))
+      throw new Error('external router must not be called')
+    } })
   const server = http.createServer(async (req, res) => {
     let body = ''; for await (const chunk of req) body += chunk
     if (!await handler(req, res, new URL(req.url ?? '/', 'http://localhost'), body)) res.writeHead(404).end()
@@ -157,7 +176,7 @@ test('enabled direct router uses only its local quote/build path and ignores cli
     assert.equal(r.status, 200)
     assert.equal(calls.length, 2)
     assert.deepEqual(calls[1], ['swap', { inputMint: SOL, outputMint: BREAD,
-      amount: '1000000', slippageBps: 100, transactionVersion: '1' }, SOL, q.otherAmountThreshold])
+      amount: '1000000', slippageBps: 100, transactionVersion: '1', badBeat: false }, SOL, q.otherAmountThreshold])
   } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
@@ -260,3 +279,33 @@ test('LP builder cannot change requested owner, version or signer declaration',a
  const result=await request('/api/liquidity/solana/build',{owner:SOL,transactionVersion:'1',quoteId:lpQuote.quoteId})
  assert.equal(result.status,502)
 },()=>Response.json({pool:BREAD,quote:lpQuote,transactions:[{transaction:encodedV1(),transactionVersion:'1',lastValidBlockHeight:123,expectedSigners:[SOL]}]})))
+
+test('every quote previews its 100× legs and every swap carries them after the swap transaction', async () => withServer(async (request, calls) => {
+  const quoted = await request(query)
+  assert.equal(quoted.status, 200)
+  assert.equal(quoted.data.legs.legBps, 10)
+  assert.equal(quoted.data.legs.houseBps, 1)
+  assert.equal(quoted.data.legs.hops.length, 1)
+  const previewCall = legsCalls.at(-1)!
+  assert.equal(previewCall.body.build, false)
+  assert.equal(previewCall.body.wallet, null)
+  const wallet = 'Ff7xvHxUtQ5qqCXhH9g1RCjsmnupw7yeAZpdLT7TGMiC'
+  const built = await request('/api/swap/solana', { userPublicKey: wallet, quoteResponse: q, transactionVersion: '0', badBeat: true })
+  assert.equal(built.status, 200)
+  const buildCall = legsCalls.at(-1)!
+  assert.equal(buildCall.body.build, true)
+  assert.equal(buildCall.body.wallet, wallet)
+  assert.equal(buildCall.body.badBeat, true)
+  assert.equal(built.data.swapTransactions[0], built.data.swapTransaction)
+  assert.equal(built.data.swapTransactions.length, 3)
+  assert.deepEqual(built.data.transactionLabels, ['Swap', 'leg 1', 'leg 2'])
+  assert.equal(built.data.legs.txs, undefined)
+}))
+test('a swap is refused when its 100× legs cannot be built', async () => withServer(async request => {
+  legsDown = true
+  try {
+    const r = await request('/api/swap/solana', { userPublicKey: 'Ff7xvHxUtQ5qqCXhH9g1RCjsmnupw7yeAZpdLT7TGMiC', quoteResponse: q, transactionVersion: '0' })
+    assert.equal(r.status, 503)
+    assert.match(r.data.error, /100× legs/)
+  } finally { legsDown = false }
+}))

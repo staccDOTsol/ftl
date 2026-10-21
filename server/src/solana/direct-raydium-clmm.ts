@@ -1,13 +1,13 @@
 // Raydium CLMM exact-in adapter using current on-chain pool/tick state and
 // the official SDK's local swap simulator and instruction constructor.
 import { PublicKey, SYSVAR_CLOCK_PUBKEY, type Connection } from '@solana/web3.js'
-import { createAssociatedTokenAccountIdempotentInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
 import { CLMM_PROGRAM_ID, ClmmInstrument, Raydium, TickArrayBitmapExtensionLayout,
   getPdaExBitmapAccount, swapInternal } from '@raydium-io/raydium-sdk-v2'
 import BN from 'bn.js'
-import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
-  exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions,
-  pairIsExact, venueLeg, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
+import { assertPoolOwner, checkedPrice, DirectVenueError, exactAmount, isTokenAccountFor, mintAta,
+  nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact, programOf, swapMints, venueLeg,
+  type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
 
 const PROGRAM = CLMM_PROGRAM_ID
 const integer = (value: { toString(): string }): bigint => BigInt(value.toString())
@@ -25,7 +25,11 @@ export async function quoteRaydiumClmm(connection: Connection, row: DirectPool,
   if (first.poolInfo.programId !== PROGRAM.toBase58() ||
     !pairIsExact(row, intent, mintA, mintB) || !first.rpcData.programId.equals(PROGRAM))
     throw new DirectVenueError('FTL pool mints or owner do not match Raydium CLMM chain state')
-  await assertClassicMints(connection, mintA, mintB)
+  // Classic SPL, or Token-2022 with only benign extensions. swap_v2 carries
+  // both token programs; the wallet ATAs and vaults follow each mint's owner.
+  const mints = await swapMints(connection, mintA, mintB)
+  const [programA, programB] = [mints[0].tokenProgram, mints[1].tokenProgram]
+  const inputProgram = programOf(mints, intent.inputMint), outputProgram = programOf(mints, intent.outputMint)
   const zeroForOne = intent.inputMint === mintA.toBase58()
   const { poolInfo, rpcData, configInfo, tickArrays } = await raydium.clmm.getSwapPoolInfo(row.address, zeroForOne)
   if (!pairIsExact(row, intent, new PublicKey(poolInfo.mintA.address),
@@ -33,10 +37,7 @@ export async function quoteRaydiumClmm(connection: Connection, row: DirectPool,
     throw new DirectVenueError('CLMM has no validated swap liquidity or tick arrays')
   const [vaultA, vaultB] = [rpcData.vaultA, rpcData.vaultB]
   const [vaultAInfo, vaultBInfo] = await connection.getMultipleAccountsInfo([vaultA, vaultB], 'confirmed')
-  if (!vaultAInfo?.owner.equals(TOKEN_PROGRAM_ID) || !vaultBInfo?.owner.equals(TOKEN_PROGRAM_ID) ||
-    vaultAInfo.data.length < 72 || vaultBInfo.data.length < 72 ||
-    !new PublicKey(vaultAInfo.data.subarray(0, 32)).equals(mintA) ||
-    !new PublicKey(vaultBInfo.data.subarray(0, 32)).equals(mintB))
+  if (!isTokenAccountFor(vaultAInfo, mintA, programA) || !isTokenAccountFor(vaultBInfo, mintB, programB))
     throw new DirectVenueError('CLMM vault owner or mint does not match chain state')
   const bitmapAddress = getPdaExBitmapAccount(PROGRAM, address).publicKey
   const bitmapInfo = await connection.getAccountInfo(bitmapAddress, 'confirmed')
@@ -69,12 +70,13 @@ export async function quoteRaydiumClmm(connection: Connection, row: DirectPool,
   const fee = integer(simulation.feeAmount)
   return checkedPrice(out, minimum, fee, intent.inputMint, async (wallet, protectedMinimum) => {
     const inputMint = new PublicKey(intent.inputMint), outputMint = new PublicKey(intent.outputMint)
-    const inputAta = mintAta(wallet, inputMint), outputAta = mintAta(wallet, outputMint)
+    const inputAta = mintAta(wallet, inputMint, inputProgram), outputAta = mintAta(wallet, outputMint, outputProgram)
     const instructions = ClmmInstrument.makeSwapBaseInInstructions({
       poolInfo, poolKeys: { vault: { A: vaultA.toBase58(), B: vaultB.toBase58() },
         lookupTableAccount: '' },
       observationId: rpcData.observationId,
-      ownerInfo: { wallet, tokenAccountA: mintAta(wallet, mintA), tokenAccountB: mintAta(wallet, mintB) },
+      ownerInfo: { wallet, tokenAccountA: mintAta(wallet, mintA, programA),
+        tokenAccountB: mintAta(wallet, mintB, programB) },
       inputMint, amountIn: new BN(amount.toString()),
       amountOutMin: new BN(protectedMinimum.toString()), sqrtPriceLimitX64: new BN(0),
       remainingAccounts: simulation.accounts,
@@ -84,8 +86,9 @@ export async function quoteRaydiumClmm(connection: Connection, row: DirectPool,
     const unwrap = await nativeUnwrapInstructions(connection, wallet, intent.outputMint, intent.keepNative)
     // CLMM `swap_v2`: discriminator, amount u64, other_amount_threshold u64,
     // sqrt_price_limit_x64 u128, is_base_input. Offsets proven from the data.
-    return venueLeg([createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint),
-      createAssociatedTokenAccountIdempotentInstruction(wallet, outputAta, wallet, outputMint),
-      ...wrap, ...instructions.instructions, ...unwrap], PROGRAM, amount, protectedMinimum, inputAta, outputAta)
+    return venueLeg([createAssociatedTokenAccountIdempotentInstruction(wallet, inputAta, wallet, inputMint, inputProgram),
+      createAssociatedTokenAccountIdempotentInstruction(wallet, outputAta, wallet, outputMint, outputProgram),
+      ...wrap, ...instructions.instructions, ...unwrap], PROGRAM, amount, protectedMinimum, inputAta, outputAta,
+      outputProgram)
   })
 }

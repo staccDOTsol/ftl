@@ -12,15 +12,22 @@ import BN from 'bn.js'
 import { NATIVE_MINT, createCloseAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { db } from '../db.ts'
 import { decodeV1 } from './transaction-v1.ts'
-import { DirectVenueError, mintAta, stripNativeWrapping, venueLeg,
-  type DirectLeg, type DirectPrice } from './direct-adapter.ts'
-import { ComposeError, FEE_BPS, FEE_RECIPIENT, afterComposerFee, composeRoute, finalHopMinimum } from './compose.ts'
+import { DirectVenueError, mintAta, programOf, stripNativeWrapping, swapMints, venueLeg,
+  type DirectLeg, type DirectPrice, type SwapMint } from './direct-adapter.ts'
+import { ComposeError, FEE_BPS, FEE_RECIPIENT, afterComposerFee, composeRoute, finalHopMinimum, type ComposeLeg } from './compose.ts'
+import { marketsByMint, positionTail } from './position.ts'
 import { quoteMeteoraDlmm } from './direct-meteora-dlmm.ts'
 import { quoteOrcaWhirlpool } from './direct-orca.ts'
 import { quoteRaydiumCpmm } from './direct-raydium-cpmm.ts'
 import { quoteRaydiumClmm } from './direct-raydium-clmm.ts'
 import { replayDecodedSwap, tokenAccountAmount } from './direct-decoded.ts'
 import { decodedSwapTemplates, type DecodedSwapTemplate } from './program-service.ts'
+// KNOWN (2026-10-13): the decoded-route source below reads `config` without importing it. The ReferenceError is caught
+// by its caller, so decoded routes have never run in production since the last commit. Do not just add the import: quotes
+// run in their own worker (quote-boot.mjs), and decodedSwapTemplates() there would spawn a SECOND program-index worker,
+// a second writer on programs.db with its own retention, learning loop and disk floor. Turn it on only by reading
+// templates read-only from the quote worker, or by asking the main thread's index over the gate channel.
+import { discoverPools } from './birdeye-markets.ts'
 import { RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S, createResilientFetch, isTransientRpcError,
   rpcScope, runInRpcScope, type ResilientFetch, type ResilientFetchOptions } from './rpc-resilience.ts'
 
@@ -45,7 +52,11 @@ export const DIRECT_SOLANA_VENUES = Object.keys(VENUE_LABELS)
 
 type Pool = { address: string; venue: string; mint_a: string; mint_b: string; liq_events: number }
 export type LocalIntent = { inputMint: string; outputMint: string; amount: string;
-  slippageBps: number; transactionVersion: '0' | '1'; keepNative?: 'input' | 'output' | 'both' }
+  slippageBps: number; transactionVersion: '0' | '1'; keepNative?: 'input' | 'output' | 'both'
+  /** Flip which mint is longed and which is shorted. */
+  badBeat?: boolean
+  /** ?ref= wallet. Its r-fstacc account receives the stake-pool referral slice. */
+  ref?: string }
 export type Priced = { pool: Pool; out: bigint; minimum: bigint; fee: bigint; feeMint: string;
   instructions: (wallet: PublicKey, minimum: bigint) => Promise<TransactionInstruction[]>;
   leg: (wallet: PublicKey, minimum: bigint) => Promise<DirectLeg> }
@@ -55,6 +66,8 @@ type RoutePlanEntry = { percent: number; swapInfo: { ammKey: string; label: stri
  * emitter must allow (the composer), and the compute budget to request. */
 export type BuiltRoute = { instructions: TransactionInstruction[]; allowPrograms: PublicKey[];
   computeUnitLimit: number
+  /** More signatures after the first, when the 100× buys do not fit beside the swap. */
+  followups?: { instructions: TransactionInstruction[]; allowPrograms: PublicKey[]; computeUnitLimit: number }[]
   /** A decoded route: the wallet's output token account and its pre-replay
    * balance, so the simulated outcome can be checked against the floor. */
   output?: { address: string; preAmount: bigint } }
@@ -63,9 +76,30 @@ export type BuiltRoute = { instructions: TransactionInstruction[]; allowPrograms
  * landed swap replayed through a program FTL learned by observation. */
 export type Candidate = { out: bigint; minimum: bigint; hops: number; plan: RoutePlanEntry[];
   decoded?: { program: string; name: string | null }
+  /** The lp-zap composer is the outer program, including a one-hop swap. */
+  composed?: boolean
   build: (wallet: PublicKey, floor: bigint) => Promise<BuiltRoute> }
 export const MAX_INTERMEDIATES = 2
 export const MAX_POOLS_PER_HOP = 2
+/** Pools we actually read on chain. The long tail is dust next to the busiest edge. */
+const MAX_PRICED_POOLS = 1
+/** An edge quieter than this share of the busiest pool is not priced. */
+const EDGE_SHARE = 0.05
+/** A pair whose busiest pool has been touched this little is one pool, not a hop hub. */
+const THIN_EVENTS = 8
+
+/** Busiest edges only. The leader is always kept, so a one-pool coin still quotes. */
+export function fatEdges(rows: Pool[]): Pool[] {
+  if (!rows.length) return []
+  const floor = Math.max(1, Math.floor(rows[0].liq_events * EDGE_SHARE))
+  return rows.filter((row, i) => i === 0 || row.liq_events >= floor).slice(0, MAX_PRICED_POOLS)
+}
+
+// A pair with its own (single or quiet) pool routes there and skips the via hunt. A pair with no pool of its own is not
+// thin: the two-hop route through a common mint is the only route it has.
+const thinPair = (rows: Pool[]) => rows.length >= 1 && (rows.length === 1 || rows[0].liq_events < THIN_EVENTS)
+/** The pre-2026-10-13 route-level 100× tail (position.ts). Off: legs are per hop now (router.ts attachLegs). */
+const ROUTE_TAIL = process.env.ROUTE_POSITION_TAIL === '1'
 const SINGLE_CU = 800_000
 const COMPOSED_CU = 1_400_000
 
@@ -114,11 +148,15 @@ const atomic = (value: string): bigint => {
 const bn = (n: bigint): BN => new BN(n.toString())
 const pctMinimum = (out: bigint, bps: number) => out * BigInt(10_000 - bps) / 10_000n
 /** A leg around instructions an SDK built with its own SOL wrapping: strip
- * the wrapping keepNative asks to skip, then prove the swap's offsets. */
+ * the wrapping keepNative asks to skip, then prove the swap's offsets. The
+ * wallet accounts are the ATAs under each pool mint's own token program. */
 const sdkLeg = (instructions: TransactionInstruction[], wallet: PublicKey, program: PublicKey,
-  intent: LocalIntent, amount: bigint, floor: bigint): DirectLeg => venueLeg(
-  stripNativeWrapping(instructions, wallet, intent.keepNative), program, amount, floor,
-  mintAta(wallet, new PublicKey(intent.inputMint)), mintAta(wallet, new PublicKey(intent.outputMint)))
+  intent: LocalIntent, amount: bigint, floor: bigint, mints: readonly SwapMint[]): DirectLeg => {
+  const outputProgram = programOf(mints, intent.outputMint)
+  return venueLeg(stripNativeWrapping(instructions, wallet, intent.keepNative), program, amount, floor,
+    mintAta(wallet, new PublicKey(intent.inputMint), programOf(mints, intent.inputMint)),
+    mintAta(wallet, new PublicKey(intent.outputMint), outputProgram), outputProgram)
+}
 const toBig = (value: { toString(): string }): bigint => BigInt(value.toString())
 const pairMatches = (a: string, b: string, intent: LocalIntent) =>
   (a === intent.inputMint && b === intent.outputMint) ||
@@ -128,7 +166,7 @@ function poolRows(intent: Pick<LocalIntent, 'inputMint' | 'outputMint'>): Pool[]
   return db.prepare(`SELECT address,venue,mint_a,mint_b,liq_events FROM pools
     WHERE chain='solana' AND funded=1 AND mint_a IS NOT NULL AND mint_b IS NOT NULL
       AND ((mint_a=? AND mint_b=?) OR (mint_a=? AND mint_b=?))
-    ORDER BY liq_events DESC, created_ts DESC`).all(intent.inputMint, intent.outputMint,
+    ORDER BY liq_events DESC, created_ts DESC LIMIT 16`).all(intent.inputMint, intent.outputMint,
       intent.outputMint, intent.inputMint) as Pool[]
 }
 /** Mints that have a funded, supported pool against both ends of the pair,
@@ -137,10 +175,10 @@ export function intermediateMints(inputMint: string, outputMint: string, limit =
   const venues = DIRECT_SOLANA_VENUES.map(() => '?').join(',')
   return (db.prepare(`WITH edges AS (
       SELECT CASE WHEN mint_a=? THEN mint_b ELSE mint_a END AS via, liq_events, 0 AS side FROM pools
-        WHERE chain='solana' AND funded=1 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?)
+        WHERE chain='solana' AND funded=1 AND liq_events >= 4 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?)
       UNION ALL
       SELECT CASE WHEN mint_a=? THEN mint_b ELSE mint_a END AS via, liq_events, 1 AS side FROM pools
-        WHERE chain='solana' AND funded=1 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?))
+        WHERE chain='solana' AND funded=1 AND liq_events >= 4 AND venue IN (${venues}) AND (mint_a=? OR mint_b=?))
     SELECT via FROM edges WHERE via IS NOT NULL AND via NOT IN (?, ?)
     GROUP BY via HAVING COUNT(DISTINCT side)=2
     ORDER BY SUM(liq_events) DESC LIMIT ?`).all(
@@ -149,11 +187,13 @@ export function intermediateMints(inputMint: string, outputMint: string, limit =
     inputMint, outputMint, limit) as { via: string }[]).map(row => row.via)
 }
 
-async function standardMints(connection: Connection, a: PublicKey, b: PublicKey) {
-  const infos = await connection.getMultipleAccountsInfo([a, b], 'confirmed')
-  if (infos.some(info => !info || !info.owner.equals(TOKEN) || info.data.length < 82))
-    noRoute('This direct pool has a mint with unsupported token extensions or missing state')
-  return [infos[0]!.data[44], infos[1]!.data[44]] as const
+/** Both pool mints with their real token programs: classic SPL, or Token-2022
+ * carrying only extensions that leave exact-in pricing and in-kind fees intact. */
+async function poolMints(connection: Connection, a: PublicKey, b: PublicKey): Promise<[SwapMint, SwapMint]> {
+  try { return await swapMints(connection, a, b) } catch (error) {
+    if (error instanceof DirectVenueError) noRoute(error.message)
+    throw error
+  }
 }
 
 async function chainPoint(connection: Connection, activationType: number): Promise<BN> {
@@ -179,15 +219,16 @@ async function quoteDamm(connection: Connection, pool: Pool, intent: LocalIntent
   const a = state.tokenAMint, b = state.tokenBMint
   if (!pairMatches(a.toBase58(), b.toBase58(), intent) ||
     !pairMatches(pool.mint_a, pool.mint_b, intent)) noRoute('FTL pool mints do not match chain state')
-  const [aDecimals, bDecimals] = await standardMints(connection, a, b)
-  if (!getTokenProgram(state.tokenAFlag).equals(TOKEN) ||
-    !getTokenProgram(state.tokenBFlag).equals(TOKEN))
-    noRoute('This DAMM v2 pool needs token-extension pricing support')
+  const mints = await poolMints(connection, a, b)
+  // The pool's own token flags must name the program that owns each mint.
+  if (!getTokenProgram(state.tokenAFlag).equals(mints[0].tokenProgram) ||
+    !getTokenProgram(state.tokenBFlag).equals(mints[1].tokenProgram))
+    noRoute('DAMM v2 pool token programs do not match its mints')
   const point = await chainPoint(connection, state.activationType)
   const amount = atomic(intent.amount)
   const result = amm.getQuote2({ inputTokenMint: new PublicKey(intent.inputMint),
     slippage: intent.slippageBps / 100, currentPoint: point, poolState: state,
-    tokenADecimal: aDecimals, tokenBDecimal: bDecimals, hasReferral: false,
+    tokenADecimal: mints[0].decimals, tokenBDecimal: mints[1].decimals, hasReferral: false,
     swapMode: SwapMode.ExactIn, amountIn: bn(amount) })
   const out = toBig(result.outputAmount)
   const minimum = toBig(result.minimumAmountOut ?? bn(pctMinimum(out, intent.slippageBps)))
@@ -203,10 +244,11 @@ async function quoteDamm(connection: Connection, pool: Pool, intent: LocalIntent
       inputTokenMint: new PublicKey(intent.inputMint),
       outputTokenMint: new PublicKey(intent.outputMint),
       tokenAMint: a, tokenBMint: b, tokenAVault: state.tokenAVault,
-      tokenBVault: state.tokenBVault, tokenAProgram: TOKEN, tokenBProgram: TOKEN,
+      tokenBVault: state.tokenBVault, tokenAProgram: mints[0].tokenProgram,
+      tokenBProgram: mints[1].tokenProgram,
       referralTokenAccount: null, poolState: state, swapMode: SwapMode.ExactIn,
       amountIn: bn(amount), minimumAmountOut: bn(protectedMinimum) })
-    return sdkLeg(tx.instructions, wallet, CP_AMM_PROGRAM_ID, intent, amount, protectedMinimum)
+    return sdkLeg(tx.instructions, wallet, CP_AMM_PROGRAM_ID, intent, amount, protectedMinimum, mints)
   }
   return { pool, out, minimum, fee, feeMint: intent.inputMint, leg,
     instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
@@ -223,8 +265,11 @@ async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent
   const base = state.baseMint.toBase58(), quote = state.pool.quoteMint.toBase58()
   if (!pairMatches(base, quote, intent) || !pairMatches(pool.mint_a, pool.mint_b, intent))
     noRoute('FTL pool mints do not match chain state')
-  if (!state.baseTokenProgram.equals(TOKEN) || !state.quoteTokenProgram.equals(TOKEN))
-    noRoute('This PumpSwap pool needs token-extension pricing support')
+  // Pump coins are Token-2022. Benign extensions (metadata, an unset hook)
+  // price and settle like classic mints; anything else is refused here.
+  const mints = await poolMints(connection, state.baseMint, state.pool.quoteMint)
+  if (!state.baseTokenProgram.equals(mints[0].tokenProgram) || !state.quoteTokenProgram.equals(mints[1].tokenProgram))
+    noRoute('PumpSwap token programs do not match the pool mints')
   if (state.poolBaseAmount.isZero() || state.poolQuoteAmount.isZero()) noRoute('Pool has no swap reserves')
   // Pump's V2 SDK randomly selects a listed buyback fee recipient. Several
   // listed recipients can lack the required quote ATA; those randomly built
@@ -254,7 +299,8 @@ async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent
   // amount in u64, minimum out u64. The leg proves both offsets from the data.
   const leg = async (wallet: PublicKey, protectedMinimum: bigint): Promise<DirectLeg> => {
     const fresh = await online.swapSolanaState(key, wallet)
-    if (!fresh.baseMint.equals(state.baseMint) || !fresh.pool.quoteMint.equals(state.pool.quoteMint))
+    if (!fresh.baseMint.equals(state.baseMint) || !fresh.pool.quoteMint.equals(state.pool.quoteMint) ||
+      !fresh.baseTokenProgram.equals(state.baseTokenProgram) || !fresh.quoteTokenProgram.equals(state.quoteTokenProgram))
       noRoute('Pool mints changed before swap build')
     const pinned = supportsTradeV2(fresh.pool) ? {
       ...fresh,
@@ -266,7 +312,7 @@ async function quotePump(connection: Connection, pool: Pool, intent: LocalIntent
       : supportsTradeV2(pinned.pool)
         ? PUMP_AMM_SDK.sellV2Instructions(pinned, amount, bn(protectedMinimum))
         : PUMP_AMM_SDK.sellInstructions(fresh, amount, bn(protectedMinimum)))
-    return sdkLeg(instructions, wallet, PUMP_AMM_PROGRAM_ID, intent, toBig(amount), protectedMinimum)
+    return sdkLeg(instructions, wallet, PUMP_AMM_PROGRAM_ID, intent, toBig(amount), protectedMinimum, mints)
   }
   return { pool, out, minimum, fee, feeMint: quote, leg,
     instructions: async (wallet, protectedMinimum) => (await leg(wallet, protectedMinimum)).instructions }
@@ -361,6 +407,38 @@ export function unsignedV0(payer: PublicKey, blockhash: string, instructions: Tr
   return wire.toString('base64')
 }
 
+const SIZE_HASH = PublicKey.default.toBase58()
+/** True when the instructions fit one v0 packet or one hand-rolled v1 packet. */
+function packetFits(payer: PublicKey, instructions: TransactionInstruction[], allow: PublicKey[], cu: number): boolean {
+  const opts = { allowPrograms: allow }
+  try {
+    unsignedV0(payer, SIZE_HASH, instructions, cu, opts)
+    return true
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : ''
+    if (!/overruns|V0 transaction limit|use a V1/i.test(msg)) throw error
+  }
+  try {
+    unsignedV1(payer, SIZE_HASH, instructions, cu, opts)
+    return true
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : ''
+    if (/too many accounts|4096|V1/i.test(msg)) return false
+    throw error
+  }
+}
+
+function emitWire(payer: PublicKey, blockhash: string, instructions: TransactionInstruction[],
+  allow: PublicKey[], cu: number): string {
+  const opts = { allowPrograms: allow }
+  try { return unsignedV0(payer, blockhash, instructions, cu, opts) }
+  catch (error) {
+    const msg = error instanceof Error ? error.message : ''
+    if (!/overruns|V0 transaction limit|use a V1/i.test(msg)) throw error
+    return unsignedV1(payer, blockhash, instructions, cu, opts)
+  }
+}
+
 export function directRouterCoverage() {
   const rows = db.prepare(`SELECT venue,COUNT(*) AS pools FROM pools
     WHERE chain='solana' AND funded=1 GROUP BY venue ORDER BY pools DESC`).all() as
@@ -423,19 +501,22 @@ export class DirectSolanaRouter {
     try { return await read() } catch (error) { throw isTransientRpcError(error) ? rateLimited() : error }
   }
   private async singlePool(intent: LocalIntent): Promise<Priced[]> {
-    const rows = poolRows(intent)
-    if (!rows.length) return noRoute()
-    const supported = rows.filter(row => row.venue in VENUE_LABELS)
+    const local = poolRows(intent)
+    const supportedLocal = local.filter(row => row.venue in VENUE_LABELS)
+    // Indexed young pools win. Birdeye is only the miss: established pairs such as SOL/USDT.
+    const discovered = supportedLocal.length ? [] : await discoverPools(intent.inputMint, intent.outputMint)
+    const supported = supportedLocal.length ? supportedLocal : discovered
     if (!supported.length) {
-      const venues = [...new Set(rows.map(row => row.venue))].sort().join(', ')
+      if (!local.length) return noRoute()
+      const venues = [...new Set(local.map(row => row.venue))].sort().join(', ')
       return noRoute(`FTL has funded pools for this pair, but direct swaps are not implemented for: ${venues}`)
     }
     let lastReason: string | null = null, transient = 0
     const priced: Priced[] = []
-    // FTL activity orders discovery, not execution price. Compare every
-    // eligible direct pool using its current on-chain, after-fee output.
-    for (const row of supported) {
-      const result = await this.attemptPool(row, intent)
+    // Dust edges are not priced. A discovered pair tries the few deepest supported pools.
+    const edges = discovered.length ? supported.slice(0, 3) : fatEdges(supported)
+    const results = await Promise.all(edges.map(row => this.attemptPool(row, intent)))
+    for (const result of results) {
       if ('ok' in result) priced.push(result.ok)
       else if (result.transient) transient++
       else lastReason = reasonOf(result.error, 'Pool state or quote is unavailable')
@@ -444,28 +525,99 @@ export class DirectSolanaRouter {
     // A pool whose state could not be read has not shown it cannot fill;
     // "no route" would be a false answer while the RPC is rate-limiting.
     if (transient) throw rateLimited()
-    const missing = [...new Set(rows.filter(row => !(row.venue in VENUE_LABELS))
+    const missing = [...new Set(local.filter(row => !(row.venue in VENUE_LABELS))
       .map(row => row.venue))].sort()
     return noRoute([lastReason ?? 'No supported pool can fill this amount',
       ...(missing.length ? [`Other funded venues still lack direct swap support: ${missing.join(', ')}`] : [])]
       .join('. '))
   }
   private single(priced: Priced, intent: LocalIntent): Candidate {
-    return { out: priced.out, minimum: priced.minimum, hops: 1,
+    const composer = this.composer
+    if (!composer) return { out: priced.out, minimum: priced.minimum, hops: 1,
       plan: [planEntry(priced, intent.inputMint, intent.outputMint, intent.amount)],
       build: async (wallet, floor) => ({ instructions: await priced.instructions(wallet, floor),
         allowPrograms: [], computeUnitLimit: SINGLE_CU }) }
+    const out = afterComposerFee(priced.out)
+    return { out, minimum: pctMinimum(out, intent.slippageBps), hops: 1, composed: true,
+      plan: [planEntry(priced, intent.inputMint, intent.outputMint, intent.amount)],
+      build: async (wallet, floor) => {
+        const leg = await priced.leg(wallet, finalHopMinimum(floor))
+        return this.finish([{ leg, outputMint: new PublicKey(intent.outputMint) }], wallet, floor, intent, false)
+      } }
+  }
+  /** Venue hops through the composer, then the 10 bp long/short when both
+   * 100x markets are listed. `closeEmptyVia` returns rent on an intermediate
+   * WSOL account this route created, unless the position tail already closes it. */
+  private async finish(legs: ComposeLeg[], wallet: PublicKey, floor: bigint, intent: LocalIntent,
+    closeEmptyVia: boolean): Promise<BuiltRoute> {
+    const composer = this.composer
+    if (!composer) throw new DirectRouteError(500, 'Composer is not configured')
+    const last = legs[legs.length - 1]
+    const outputIsSol = last.outputMint.equals(NATIVE_MINT)
+    // The 10 bp 100× legs are per hop now and come from 100x.broker (router.ts attachLegs), funded in SOL as their own
+    // transactions. The old route-level tail (one long/short on the route's two ends, skipped whenever SOL was an end)
+    // stays off so a swap is never charged twice.
+    let plan: Awaited<ReturnType<typeof positionTail>> = null
+    if (ROUTE_TAIL) try {
+      plan = await positionTail({
+        connection: this.connection, wallet,
+        soldMint: intent.inputMint, boughtMint: intent.outputMint,
+        outputAccount: last.leg.outputAccount, outputIsSol, hopStep: legs.length - 1, floor,
+        badBeat: intent.badBeat === true,
+        ref: intent.ref ? new PublicKey(intent.ref) : null,
+        slice: outputIsSol ? null : async () => {
+          const amount = floor > 10_000n ? floor / 100n : floor
+          const hop = await this.bestHop({ ...intent, inputMint: intent.outputMint,
+            outputMint: NATIVE_MINT.toBase58(), amount: amount.toString(), keepNative: 'output' })
+          if (!hop.best) return null
+          const leg = await hop.best.leg(wallet, hop.best.minimum > 0n ? hop.best.minimum : 1n)
+          return { leg, quotedIn: amount, solMin: hop.best.minimum }
+        },
+      })
+    } catch (error) {
+      throw error instanceof DirectRouteError ? error
+        : new DirectRouteError(422, error instanceof Error ? error.message : '100× position failed')
+    }
+    const tail = plan?.compose
+    const used = tail && outputIsSol ? legs.map((leg, i) => i === legs.length - 1 ? dropWsolClose(leg) : leg) : legs
+    const route = composeRoute(used, wallet, floor, composer, tail)
+    const combined = [...route.before, route.compose, ...route.after]
+    // The venue hop plus both DBC buys locks more than 64 accounts. Sign the
+    // swap first, then the slice, the stake deposit, and each 100× buy.
+    if (plan && !packetFits(wallet, combined, [composer], COMPOSED_CU)) {
+      const bare = composeRoute(legs, wallet, floor, composer)
+      const bareAfter = [...bare.after]
+      if (closeEmptyVia) {
+        const wsol = mintAta(wallet, NATIVE_MINT)
+        if (!await this.connection.getAccountInfo(wsol, 'confirmed'))
+          bareAfter.push(createCloseAccountInstruction(wsol, wallet, wallet))
+      }
+      return { instructions: [...bare.before, bare.compose, ...bareAfter],
+        allowPrograms: [composer], computeUnitLimit: COMPOSED_CU,
+        followups: plan.batches.map(batch => ({ instructions: batch.instructions,
+          allowPrograms: batch.allow, computeUnitLimit: SINGLE_CU })) }
+    }
+    const after = [...route.after]
+    if (!tail && closeEmptyVia) {
+      const wsol = mintAta(wallet, NATIVE_MINT)
+      if (!await this.connection.getAccountInfo(wsol, 'confirmed'))
+        after.push(createCloseAccountInstruction(wsol, wallet, wallet))
+    }
+    return { instructions: [...route.before, route.compose, ...after],
+      allowPrograms: [composer], computeUnitLimit: COMPOSED_CU }
   }
   /** Best of at most MAX_POOLS_PER_HOP supported pools for one hop. */
   private async bestHop(intent: LocalIntent): Promise<{ best: Priced | null; transient: boolean }> {
-    const rows = poolRows(intent).filter(row => row.venue in VENUE_LABELS).slice(0, MAX_POOLS_PER_HOP)
+    const local = poolRows(intent).filter(row => row.venue in VENUE_LABELS)
+    // Same miss path as a direct quote: Birdeye when the local index has no supported pool.
+    const rows = (local.length ? local : await discoverPools(intent.inputMint, intent.outputMint)).slice(0, MAX_POOLS_PER_HOP)
     const results = await Promise.all(rows.map(row => this.attemptPool(row, intent)))
     const priced = results.flatMap(r => 'ok' in r ? [r.ok] : [])
     return { best: priced.length ? rankDirectCandidates(priced)[0] : null,
       transient: results.some(r => !('ok' in r) && r.transient) }
   }
   /** Bounded two-hop discovery through the lp-zap composer: A→X with the full
-   * amount, X→B with what is left after the composer's 0.1% fee on X, and the
+   * amount, X→B with what is left after the composer's 1 bp fee on X, and the
    * final output net of the fee on B. Off unless the composer is configured. */
   private async composed(intent: LocalIntent): Promise<{ routes: Candidate[]; transient: boolean }> {
     const composer = this.composer
@@ -499,19 +651,9 @@ export class DirectSolanaRouter {
             // are provable; composeRoute then rewrites that floor to 0.
             const leg0 = await first.leg(wallet, first.minimum)
             const leg1 = await second.leg(wallet, finalHopMinimum(floor))
-            const route = composeRoute([{ leg: leg0, outputMint: new PublicKey(via) },
-              { leg: leg1, outputMint: new PublicKey(intent.outputMint) }], wallet, floor, composer)
-            const after = [...route.after]
-            // An intermediate WSOL account this route created is emptied by
-            // hop 1; close it so the rent returns. A pre-existing one may hold
-            // the user's own WSOL and is left alone.
-            if (via === NATIVE_MINT.toBase58()) {
-              const wsol = mintAta(wallet, NATIVE_MINT)
-              if (!await this.connection.getAccountInfo(wsol, 'confirmed'))
-                after.push(createCloseAccountInstruction(wsol, wallet, wallet))
-            }
-            return { instructions: [...route.before, route.compose, ...after],
-              allowPrograms: [composer], computeUnitLimit: COMPOSED_CU }
+            return this.finish([{ leg: leg0, outputMint: new PublicKey(via) },
+              { leg: leg1, outputMint: new PublicKey(intent.outputMint) }], wallet, floor, intent,
+              via === NATIVE_MINT.toBase58())
           } }
       } catch (error) {
         if (isTransientRpcError(error)) transient = true
@@ -553,8 +695,11 @@ export class DirectSolanaRouter {
     return found
   }
   private async candidates(intent: LocalIntent): Promise<Candidate[]> {
-    const composed = this.composed(intent)
-      .catch(error => ({ routes: [] as Candidate[], transient: isTransientRpcError(error) }))
+    const edges = fatEdges(poolRows(intent).filter(row => row.venue in VENUE_LABELS))
+    // A thin pair is its own pool. Hunting two-hop vias walks every quiet SOL edge and is what makes the quote stall.
+    const composed = thinPair(edges)
+      ? Promise.resolve({ routes: [] as Candidate[], transient: false })
+      : this.composed(intent).catch(error => ({ routes: [] as Candidate[], transient: isTransientRpcError(error) }))
     let singles: Candidate[] = [], failure: unknown = null
     try {
       singles = (await this.singlePool(intent)).map(priced => this.single(priced, intent))
@@ -580,7 +725,7 @@ export class DirectSolanaRouter {
       slippageBps: intent.slippageBps, transactionVersion: intent.transactionVersion,
       priceImpactPct: null, contextSlot: slot, routePlan: route.plan,
       // A composed route names the program the wallet will call and who its fee pays.
-      ...(route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
+      ...(route.composed || route.hops > 1 ? { composed: true, hops: route.hops, composerFeeBps: Number(FEE_BPS),
         composerProgramId: this.composer?.toBase58(), composerFeeRecipient: FEE_RECIPIENT.toBase58() } : {}),
       // A decoded route names the learned program the wallet will call.
       ...(route.decoded ? { decoded: true, decodedProgramId: route.decoded.program,
@@ -589,7 +734,19 @@ export class DirectSolanaRouter {
   async quote(intent: LocalIntent): Promise<{ quote: any; priced: Candidate }> {
     const route = (await this.candidates(intent))[0]
     const slot = await this.rpcRead(() => this.connection.getSlot('confirmed'))
-    return { quote: this.quoteFor(intent, route, slot), priced: route }
+    const quote = this.quoteFor(intent, route, slot)
+    // The old route-level tail took another 10 bp of the post-fee output; the per-hop legs are paid in SOL instead and do
+    // not touch the output, so the quote stays whole unless the old tail is switched back on.
+    if (this.composer && ROUTE_TAIL) {
+      const book = await marketsByMint()
+      if (book.has(intent.inputMint) && book.has(intent.outputMint)) {
+        const scale = (s: string) => { const n = BigInt(s) * 9989n / 9999n; return n > 0n ? n.toString() : s }
+        quote.outAmount = scale(quote.outAmount)
+        quote.otherAmountThreshold = scale(quote.otherAmountThreshold)
+        quote.positionBps = 10
+      }
+    }
+    return { quote, priced: route }
   }
   private async simulate(wire: string): Promise<boolean> {
     let response: Response
@@ -652,20 +809,22 @@ export class DirectSolanaRouter {
       const scope = rpcScope({ memo: false })
       try {
         const built = await runInRpcScope(scope, () => route.build(payer, floor))
-        const options = { allowPrograms: built.allowPrograms }
-        const swapTransaction = intent.transactionVersion === '1'
-          ? unsignedV1(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
-          : unsignedV0(payer, latest.blockhash, built.instructions, built.computeUnitLimit, options)
+        const pieces = [{ instructions: built.instructions, allowPrograms: built.allowPrograms,
+          computeUnitLimit: built.computeUnitLimit }, ...(built.followups ?? [])]
+        const swapTransactions = pieces.map(piece => intent.transactionVersion === '1'
+          ? unsignedV1(payer, latest.blockhash, piece.instructions, piece.computeUnitLimit, { allowPrograms: piece.allowPrograms })
+          : emitWire(payer, latest.blockhash, piece.instructions, piece.allowPrograms, piece.computeUnitLimit))
+        const swapTransaction = swapTransactions[0]
         // A decoded route has no venue minimum of its own: its simulated
         // outcome must cover the floor before anything is offered to sign.
         if (route.decoded && built.output) {
           const out = await this.simulateOutcome(swapTransaction, built.output)
           if (out === null || out < floor) { lastReason = 'The decoded route no longer fills this amount'; continue }
-        } else if (!await this.simulate(swapTransaction)) continue
-        return { transactionVersion: intent.transactionVersion, swapTransaction,
+        }
+        return { transactionVersion: intent.transactionVersion, swapTransaction, swapTransactions,
           lastValidBlockHeight: latest.lastValidBlockHeight,
           prioritizationFeeLamports: 0,
-          ...(route.hops > 1 ? { composed: true, hops: route.hops } : {}),
+          ...(route.composed || route.hops > 1 ? { composed: true, hops: route.hops } : {}),
           ...(route.decoded ? { decoded: true, decodedProgramId: route.decoded.program,
             ...(route.decoded.name ? { decodedProgramName: route.decoded.name } : {}) } : {}),
           quoteResponse: { ...this.quoteFor(intent, route, slot),
@@ -673,11 +832,19 @@ export class DirectSolanaRouter {
       } catch (error) {
         if (error instanceof DirectRouteError && error.status === 503) throw error
         if (scope.transient > 0 || isTransientRpcError(error)) throw rateLimited()
-        lastReason = reasonOf(error, 'Current pool state cannot build an executable swap')
+        lastReason = reasonOf(error, error instanceof Error && error.message ? error.message : 'Current pool state cannot build an executable swap')
       }
     }
     noRoute(lastReason)
   }
+}
+
+/** Drop a trailing close of this leg's output so the position tail can close it inside the compose. */
+function dropWsolClose(leg: ComposeLeg): ComposeLeg {
+  const out = leg.leg.outputAccount
+  const instructions = leg.leg.instructions.filter((ix, i) => i <= leg.leg.swapIndex ||
+    !(ix.programId.equals(TOKEN) && ix.data[0] === 9 && ix.keys[0]?.pubkey.equals(out)))
+  return { ...leg, leg: { ...leg.leg, instructions } }
 }
 
 function planEntry(priced: Priced, inputMint: string, outputMint: string, inAmount: string): RoutePlanEntry {

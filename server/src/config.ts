@@ -88,7 +88,7 @@ const urlSecrets = [config.solanaRpc, config.solanaQuoteRpc, config.solanaDasRpc
       return [u.username, u.password, secureHeliusHost, ...u.searchParams.values()].filter(v => v.length >= 8)
     } catch { return [] }
   })
-const secrets = [drpcKey, env('HELIUS_API_KEY'), config.yellowstoneXToken, config.tritonXToken, config.preconfsToken, ...urlSecrets].filter(Boolean) as string[]
+const secrets = [drpcKey, env('HELIUS_API_KEY'), env('BIRDEYE_API_KEY'), config.yellowstoneXToken, config.tritonXToken, config.preconfsToken, ...urlSecrets].filter(Boolean) as string[]
 export function redact(s: string): string {
   let out = s
   for (const k of secrets) out = out.split(k).join('***')

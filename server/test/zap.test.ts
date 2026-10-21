@@ -370,7 +370,7 @@ test('composed: the composer turns both zap-in steps into one transaction, sized
   const plan = (await request('/api/zap/solana/plan', planIn())).data
   assert.equal(plan.mode, 'composed')
   assert.equal(plan.composerProgramId, COMPOSER)
-  assert.equal(plan.composerFeeBps, 10)
+  assert.equal(plan.composerFeeBps, 1)
   assert.equal(plan.composerFeeRecipient, FEE_RECIPIENT)
   assert.equal(plan.estimate.networkFeeSolApprox, '0.000005', 'one transaction, one base fee')
   const r = await request('/api/zap/solana/build', { planId: plan.planId, owner: OWNER, step: 0 })

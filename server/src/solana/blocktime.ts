@@ -187,22 +187,27 @@ export async function startBlockTimeStream(options: BlockTimeStreamOptions = {})
   const apiKey = process.env.HELIUS_API_KEY?.trim()
   if (!apiKey) { options.onGap?.('Helius LaserStream key is not configured'); return () => {} }
   const budget = streamBudget
+  // Let the HTTP server accept /health before this scan. The session table is
+  // tens of millions of rows; reading it on this turn was aborting the process.
+  await new Promise<void>(resolve => setImmediate(resolve))
   const mints = new Set((db.prepare("SELECT address FROM research_tokens WHERE chain = 'solana'").all() as { address: string }[])
     .map(row => row.address).filter(validSolanaMint))
   trackedMints = mints.size
-  // startResearch() closed the previous process's sessions at its last pulse.
-  // Preserve the identity of those sessions so a verified inclusive replay
-  // can resume them after a deploy rather than manufacture a new time gap.
-  const priorSessions = db.prepare(`SELECT token, gap_reason FROM research_stream_sessions
-    WHERE lane = 'laserstream' AND token IS NOT NULL ORDER BY id DESC`)
-    .all() as { token: string; gap_reason: string | null }[]
+  // Latest session per token only. Loading every historical row into the heap
+  // crosses Node's 4GB limit and the process aborts before it can listen.
+  const indexStarted = Date.now()
+  db.exec(`CREATE INDEX IF NOT EXISTS research_stream_sessions_latest
+    ON research_stream_sessions(lane, token, id DESC)`)
+  console.log(`[sol:research] session index ${Date.now() - indexStarted}ms`)
   const covered = new Set<string>()
-  const examined = new Set<string>()
-  for (const row of priorSessions) {
-    if (!validSolanaMint(row.token) || examined.has(row.token)) continue
-    examined.add(row.token)
-    if (row.gap_reason === null || row.gap_reason === 'stream disconnected' || row.gap_reason === 'stream restarted')
-      covered.add(row.token)
+  for (const row of db.prepare(`SELECT s.token AS token FROM research_stream_sessions s
+    JOIN (
+      SELECT token, MAX(id) AS id FROM research_stream_sessions
+      WHERE lane = 'laserstream' AND token IS NOT NULL
+      GROUP BY token
+    ) latest ON latest.id = s.id
+    WHERE s.gap_reason IS NULL OR s.gap_reason IN ('stream disconnected', 'stream restarted')`).all() as { token: string }[]) {
+    if (validSolanaMint(row.token)) covered.add(row.token)
   }
   const active = new Set<string>()
   let acknowledged = new Set<string>()

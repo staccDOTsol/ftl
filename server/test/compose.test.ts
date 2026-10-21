@@ -82,12 +82,12 @@ test('fee ATA derives the recipient ATA for Token and Token-2022 and refuses oth
   assert.equal(FEE_RECIPIENT.toBase58(), '331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPnUPd76Mth')
 })
 
-test('hop estimates take the 10 bps fee by floor and the final floor is ceil(min*1000/999)', () => {
-  assert.deepEqual(hopEstimates([999n, 1_000n, 1_000_000n]), [
-    { gross: 999n, fee: 0n, net: 999n }, { gross: 1_000n, fee: 1n, net: 999n },
-    { gross: 1_000_000n, fee: 1_000n, net: 999_000n }])
-  assert.equal(finalHopMinimum(999n), 1_000n)
-  assert.equal(finalHopMinimum(1_000n), 1_002n)
+test('hop estimates take the 1 bp fee by floor and the final floor is ceil(min*10000/9999)', () => {
+  assert.deepEqual(hopEstimates([9_999n, 10_000n, 1_000_000n]), [
+    { gross: 9_999n, fee: 0n, net: 9_999n }, { gross: 10_000n, fee: 1n, net: 9_999n },
+    { gross: 1_000_000n, fee: 100n, net: 999_900n }])
+  assert.equal(finalHopMinimum(9_999n), 10_000n)
+  assert.equal(finalHopMinimum(10_000n), 10_002n)
   for (const min of [1n, 7n, 999_000n, 123_456_789n]) {
     const venueMin = finalHopMinimum(min)
     assert.ok(venueMin - compose.composerFee(venueMin) >= min)
@@ -274,7 +274,7 @@ test('configured composer finds the A→X→B route with fee-adjusted amounts an
   const router = new DirectSolanaRouter(SECRET_RPC, { composerProgramId: COMPOSER.toBase58() })
   ;(router as any).quotePool = fakeQuote(calls)
   const [route] = await (router as any).candidates(intent)
-  const out1 = 2_000_000n, middle = out1 - out1 / 1000n, out2 = middle * 3n, final = out2 - out2 / 1000n
+  const out1 = 2_000_000n, middle = out1 - out1 / 10_000n, out2 = middle * 3n, final = out2 - out2 / 10_000n
   assert.deepEqual(calls, ['pool-ax:1000000:output', `pool-xb:${middle}:input`])
   assert.equal(route.hops, 2)
   assert.equal(route.out, final)
@@ -290,7 +290,7 @@ test('configured composer finds the A→X→B route with fee-adjusted amounts an
   // Disclosure: the wallet sees which program it will call and who the fee pays.
   assert.equal(quote.composerProgramId, COMPOSER.toBase58())
   assert.equal(quote.composerFeeRecipient, FEE_RECIPIENT.toBase58())
-  assert.equal(quote.composerFeeBps, 10)
+  assert.equal(quote.composerFeeBps, 1)
   const floor = route.minimum
   const built = await route.build(wallet, floor)
   assert.ok(built.allowPrograms[0].equals(COMPOSER))

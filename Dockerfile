@@ -9,4 +9,4 @@ COPY server ./server
 WORKDIR /app/server
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NODE_OPTIONS=--no-warnings
 EXPOSE 8080
-CMD ["node", "src/index.ts"]
+CMD ["node", "src/gate.mjs"]

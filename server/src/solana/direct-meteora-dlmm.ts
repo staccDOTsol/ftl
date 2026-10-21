@@ -5,8 +5,8 @@ import { PublicKey } from '@solana/web3.js'
 import { createRequire } from 'node:module'
 import type { BinArrayAccount, SwapQuote } from '@meteora-ag/dlmm'
 import BN from 'bn.js'
-import { assertClassicMints, assertPoolOwner, checkedPrice, DirectVenueError,
-  exactAmount, mintAta, nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact,
+import { assertPoolOwner, checkedPrice, DirectVenueError, exactAmount, mintAta,
+  nativeUnwrapInstructions, nativeWrapInstructions, pairIsExact, programOf, swapMints,
   venueLeg, type DirectIntent, type DirectPool, type DirectPrice } from './direct-adapter.ts'
 
 const PROGRAM = new PublicKey('LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo')
@@ -15,7 +15,8 @@ const integer = (value: { toString(): string }): bigint => BigInt(value.toString
 // which Node's ESM resolver rejects. The package's own CJS entry exports the
 // same official class and is usable from this ESM service.
 type DlmmPool = {
-  pubkey: PublicKey; tokenX: { publicKey: PublicKey }; tokenY: { publicKey: PublicKey }
+  /** `owner` is the token program the SDK builds the swap's ATAs and accounts with. */
+  pubkey: PublicKey; tokenX: { publicKey: PublicKey; owner: PublicKey }; tokenY: { publicKey: PublicKey; owner: PublicKey }
   getBinArrayForSwap: (forY: boolean, count: number) => Promise<BinArrayAccount[]>
   swapQuote: (amount: BN, forY: boolean, bps: BN, arrays: BinArrayAccount[], partial: boolean) => SwapQuote
   isSwapDisabled: (wallet: PublicKey) => boolean
@@ -41,7 +42,12 @@ export async function quoteMeteoraDlmm(connection: Connection, row: DirectPool,
   const mintX = pool.tokenX.publicKey, mintY = pool.tokenY.publicKey
   if (!pairIsExact(row, intent, mintX, mintY))
     throw new DirectVenueError('FTL pool mints do not match DLMM chain state')
-  await assertClassicMints(connection, mintX, mintY)
+  // Classic SPL, or Token-2022 with only benign extensions; the SDK must
+  // build with the program that actually owns each mint.
+  const mints = await swapMints(connection, mintX, mintY)
+  if (!pool.tokenX.owner?.equals(mints[0].tokenProgram) || !pool.tokenY.owner?.equals(mints[1].tokenProgram))
+    throw new DirectVenueError('DLMM token programs do not match the pool mints')
+  const inputProgram = programOf(mints, intent.inputMint), outputProgram = programOf(mints, intent.outputMint)
   const xToY = intent.inputMint === mintX.toBase58()
   // Read initialized bins in the execution direction, including the active
   // bin. The official SDK accounts for the dynamic fee and bin traversal.
@@ -66,6 +72,7 @@ export async function quoteMeteoraDlmm(connection: Connection, row: DirectPool,
     // DLMM `swap2`: discriminator, amount_in u64, min_amount_out u64, then the
     // remaining-accounts descriptor. Offsets proven from the built data.
     return venueLeg([...wrap, ...transaction.instructions, ...unwrap], PROGRAM, amount, protectedMinimum,
-      mintAta(wallet, new PublicKey(intent.inputMint)), mintAta(wallet, new PublicKey(intent.outputMint)))
+      mintAta(wallet, new PublicKey(intent.inputMint), inputProgram),
+      mintAta(wallet, new PublicKey(intent.outputMint), outputProgram), outputProgram)
   })
 }

@@ -485,9 +485,12 @@ export function getToken(chain: Chain, address: string): TokenSummary | null {
 
 // prune old rows once an hour so the volume stays bounded
 setInterval(() => {
-  const cutoff = Date.now() - config.retainDays * 86400_000
-  db.prepare("DELETE FROM events WHERE ts < ? AND kind IN ('liq_add','liq_remove')").run(cutoff)
-  db.prepare("DELETE FROM events WHERE ts < ? AND kind = 'launch' AND token NOT IN (SELECT address FROM tokens WHERE pools > 0)").run(cutoff)
+  if (process.env.QUOTE_ONLY === '1') return
+  try {
+    const cutoff = Date.now() - config.retainDays * 86400_000
+    db.prepare("DELETE FROM events WHERE ts < ? AND kind IN ('liq_add','liq_remove')").run(cutoff)
+    db.prepare("DELETE FROM events WHERE ts < ? AND kind = 'launch' AND token NOT IN (SELECT address FROM tokens WHERE pools > 0)").run(cutoff)
+  } catch (e) { console.error('[hub] prune', e) }
 }, 3600_000).unref()
 
 // pre-execution copies that never landed: once an executed lane is up and a

@@ -1,7 +1,8 @@
-import { Connection, PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js'
-import { ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT, TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountIdempotentInstruction, createCloseAccountInstruction,
-  createSyncNativeInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { Connection, PublicKey, SystemProgram, type AccountInfo, type TransactionInstruction } from '@solana/web3.js'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, AccountState, ExtensionType, NATIVE_MINT, TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID, createAssociatedTokenAccountIdempotentInstruction, createCloseAccountInstruction,
+  createSyncNativeInstruction, getAssociatedTokenAddressSync, getDefaultAccountState, getExtensionTypes,
+  getInterestBearingMintConfigState, getTransferFeeConfig, getTransferHook, unpackMint } from '@solana/spl-token'
 
 export type DirectPool = { address: string; venue: string; mint_a: string; mint_b: string; liq_events: number }
 export type DirectIntent = { inputMint: string; outputMint: string; amount: string;
@@ -18,7 +19,10 @@ export type SwapOffsets = { amountInOffset: number; minOutOffset: number }
  * venue swap, the wallet token accounts it spends from and pays into, and the
  * proven data offsets of its amounts. */
 export type DirectLeg = { instructions: TransactionInstruction[]; swapIndex: number;
-  offsets: SwapOffsets | null; inputAccount: PublicKey; outputAccount: PublicKey }
+  offsets: SwapOffsets | null; inputAccount: PublicKey; outputAccount: PublicKey
+  /** Token program that owns `outputAccount` (absent: classic SPL Token). The
+   * composer's in-kind fee on this leg's output runs under this program. */
+  outputTokenProgram?: PublicKey }
 export type DirectPrice = { out: bigint; minimum: bigint; fee: bigint; feeMint: string;
   instructions: (wallet: PublicKey, minimum: bigint) => Promise<TransactionInstruction[]>;
   leg: (wallet: PublicKey, minimum: bigint) => Promise<DirectLeg> }
@@ -71,11 +75,13 @@ export function swapOffsets(data: Uint8Array, amountIn: bigint, minOut: bigint):
 /** Assemble a leg around SDK-built instructions: the venue swap is the one
  * instruction owned by `program`; its amount offsets are proven from the data. */
 export function venueLeg(instructions: TransactionInstruction[], program: PublicKey,
-  amountIn: bigint, minOut: bigint, inputAccount: PublicKey, outputAccount: PublicKey): DirectLeg {
+  amountIn: bigint, minOut: bigint, inputAccount: PublicKey, outputAccount: PublicKey,
+  outputTokenProgram: PublicKey = TOKEN_PROGRAM_ID): DirectLeg {
   const owned = instructions.flatMap((ix, index) => ix.programId.equals(program) ? [index] : [])
   if (owned.length !== 1) throw new DirectVenueError('Venue built an unexpected number of swap instructions')
   const swapIndex = owned[0]
   return { instructions, swapIndex, inputAccount, outputAccount,
+    ...(outputTokenProgram.equals(TOKEN_PROGRAM_ID) ? {} : { outputTokenProgram }),
     offsets: swapOffsets(instructions[swapIndex].data, amountIn, minOut) }
 }
 
@@ -92,13 +98,103 @@ export async function assertClassicMints(connection: Connection, a: PublicKey, b
     throw new DirectVenueError('Pool mint requires unsupported Token-2022 pricing')
 }
 
+/** A pool mint the router can price exact-in and charge in kind: the token
+ * program that owns it (every ATA and transfer for it runs there) and decimals. */
+export type SwapMint = { mint: PublicKey; tokenProgram: PublicKey; decimals: number }
+
+// Token-2022 mint extensions that change nothing about raw amounts or
+// transfers: the venue moves exactly what it priced, and the composer's
+// in-kind TransferChecked fee needs no extra accounts.
+const INERT_EXTENSIONS = new Set<number>([ExtensionType.Uninitialized, ExtensionType.MintCloseAuthority,
+  ExtensionType.MetadataPointer, ExtensionType.TokenMetadata, ExtensionType.GroupPointer,
+  ExtensionType.TokenGroup, ExtensionType.GroupMemberPointer, ExtensionType.TokenGroupMember])
+// Not in this @solana/spl-token's ExtensionType enum; named for the refusal.
+const UNLISTED_EXTENSIONS: Record<number, string> = { 16: 'ConfidentialTransferFeeConfig',
+  17: 'ConfidentialTransferFeeAmount', 24: 'ConfidentialMintBurn' }
+
+/** Why a Token-2022 mint cannot be priced exact-in with fees taken in kind,
+ * or null when every extension it carries is benign. The TLV entries after
+ * the 165-byte base and the account-type byte are read with spl-token's own
+ * parsers; any extension not known to be benign is refused. */
+export function token2022Blocker(mint: PublicKey, info: AccountInfo<Buffer>): string | null {
+  let parsed: ReturnType<typeof unpackMint>, types: number[]
+  try {
+    parsed = unpackMint(mint, info, TOKEN_2022_PROGRAM_ID)
+    types = getExtensionTypes(parsed.tlvData)
+  } catch { return 'unreadable mint extensions' }
+  if (!parsed.isInitialized) return 'uninitialized mint'
+  for (const type of types) {
+    if (INERT_EXTENSIONS.has(type)) continue
+    switch (type) {
+      case ExtensionType.TransferFeeConfig: {
+        const fee = getTransferFeeConfig(parsed)
+        if (!fee || fee.olderTransferFee.transferFeeBasisPoints !== 0 ||
+          fee.newerTransferFee.transferFeeBasisPoints !== 0) return 'non-zero transfer fee'
+        continue
+      }
+      case ExtensionType.TransferHook: {
+        const hook = getTransferHook(parsed)
+        if (!hook || !hook.programId.equals(PublicKey.default)) return 'transfer hook program'
+        continue
+      }
+      case ExtensionType.DefaultAccountState: {
+        const state = getDefaultAccountState(parsed)
+        if (!state || state.state !== AccountState.Initialized) return 'new token accounts start frozen'
+        continue
+      }
+      case ExtensionType.InterestBearingConfig: {
+        const rate = getInterestBearingMintConfigState(parsed)
+        if (!rate || rate.currentRate !== 0 || rate.preUpdateAverageRate !== 0) return 'non-zero interest rate'
+        continue
+      }
+      case ExtensionType.NonTransferable: return 'non-transferable'
+      case ExtensionType.PermanentDelegate: return 'permanent delegate'
+      case ExtensionType.PausableConfig: return 'pausable'
+      case ExtensionType.ConfidentialTransferMint: return 'confidential transfers'
+      default: return `unsupported extension ${ExtensionType[type] ?? UNLISTED_EXTENSIONS[type] ?? type}`
+    }
+  }
+  return null
+}
+
+/** A classic SPL mint, or a Token-2022 mint whose extensions are all benign. */
+export function swapMint(mint: PublicKey, info: AccountInfo<Buffer> | null): SwapMint {
+  if (!info || info.data.length < 82) throw new DirectVenueError('Pool mint account is missing')
+  if (info.owner.equals(TOKEN_PROGRAM_ID)) return { mint, tokenProgram: TOKEN_PROGRAM_ID, decimals: info.data[44] }
+  if (!info.owner.equals(TOKEN_2022_PROGRAM_ID)) throw new DirectVenueError('Pool mint is not owned by a token program')
+  const blocker = token2022Blocker(mint, info)
+  if (blocker) throw new DirectVenueError(`Token-2022 mint ${mint.toBase58()} cannot be swapped directly: ${blocker}`)
+  return { mint, tokenProgram: TOKEN_2022_PROGRAM_ID, decimals: info.data[44] }
+}
+
+/** Both pool mints, read in one call, each with its real token program. */
+export async function swapMints(connection: Connection, a: PublicKey, b: PublicKey): Promise<[SwapMint, SwapMint]> {
+  const [infoA, infoB] = await connection.getMultipleAccountsInfo([a, b], 'confirmed')
+  return [swapMint(a, infoA), swapMint(b, infoB)]
+}
+
+/** The token program of whichever pool mint `mint` is. */
+export function programOf(mints: readonly SwapMint[], mint: PublicKey | string): PublicKey {
+  const key = typeof mint === 'string' ? mint : mint.toBase58()
+  const found = mints.find(m => m.mint.toBase58() === key)
+  if (!found) throw new DirectVenueError('Swap mint is not one of the pool mints')
+  return found.tokenProgram
+}
+
+/** A token account owned by `tokenProgram` holding `mint` (vault checks). */
+export function isTokenAccountFor(info: AccountInfo<Buffer> | null, mint: PublicKey, tokenProgram: PublicKey): boolean {
+  return !!info && info.owner.equals(tokenProgram) && info.data.length >= 165 &&
+    new PublicKey(info.data.subarray(0, 32)).equals(mint)
+}
+
 export async function assertPoolOwner(connection: Connection, address: PublicKey, program: PublicKey): Promise<void> {
   const account = await connection.getAccountInfo(address, 'confirmed')
   if (!account?.owner.equals(program)) throw new DirectVenueError('FTL pool owner does not match venue program')
 }
 
-export function mintAta(wallet: PublicKey, mint: PublicKey): PublicKey {
-  return getAssociatedTokenAddressSync(mint, wallet, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID)
+/** The wallet's canonical ATA for `mint` under the mint's own token program. */
+export function mintAta(wallet: PublicKey, mint: PublicKey, tokenProgram: PublicKey = TOKEN_PROGRAM_ID): PublicKey {
+  return getAssociatedTokenAddressSync(mint, wallet, false, tokenProgram, ASSOCIATED_TOKEN_PROGRAM_ID)
 }
 
 // The app's SOL side is native SOL, while venue programs consume wrapped SOL.
@@ -121,11 +217,11 @@ export async function nativeUnwrapInstructions(connection: Connection, wallet: P
   outputMint: string, keepNative?: DirectIntent['keepNative']): Promise<TransactionInstruction[]> {
   if (outputMint !== NATIVE_MINT.toBase58() || keepNative === 'output' || keepNative === 'both') return []
   const ata = mintAta(wallet, NATIVE_MINT)
-  // Closing a pre-existing ATA would unwrap the user's unrelated WSOL.
-  // Leaving it open would incorrectly promise native SOL output. Reject this
-  // route until a wallet-derived temporary output account is supported.
-  if (await connection.getAccountInfo(ata, 'confirmed'))
-    throw new DirectVenueError('Native SOL output requires no existing wallet WSOL account')
+  const existing = await connection.getAccountInfo(ata, 'confirmed')
+  if (existing && !existing.owner.equals(TOKEN_PROGRAM_ID))
+    throw new DirectVenueError('Wallet wrapped-SOL account has an unexpected owner')
+  // Close the wallet WSOL account. That unwraps whatever was already there
+  // along with this swap's output.
   return [createCloseAccountInstruction(ata, wallet, wallet)]
 }
 

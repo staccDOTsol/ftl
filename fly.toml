@@ -25,12 +25,12 @@ primary_region = 'ewr'
   min_machines_running = 1
 
   [[http_service.checks]]
-    grace_period = '20s'
-    interval = '30s'
+    grace_period = '30s'
+    interval = '10s'
     method = 'GET'
     path = '/health'
     timeout = '5s'
 
 [[vm]]
-  size = 'performance-8x'
-  memory = '16gb'
+  size = 'performance-16x'
+  memory = '32gb'

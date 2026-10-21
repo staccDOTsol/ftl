@@ -168,7 +168,12 @@ function quoteParams(q: URLSearchParams): URLSearchParams {
   if (q.get('swapMode') && q.get('swapMode') !== 'ExactIn') fail('Only ExactIn routes are supported')
   const version = q.get('transactionVersion') ?? '1'
   if (version !== '1' && version !== '0') fail('transactionVersion must be 1 or 0')
-  return new URLSearchParams({ inputMint, outputMint, amount: amount(q.get('amount')), slippageBps: String(Number(slippage)), swapMode: 'ExactIn', transactionVersion: version })
+  const out = new URLSearchParams({ inputMint, outputMint, amount: amount(q.get('amount')), slippageBps: String(Number(slippage)), swapMode: 'ExactIn', transactionVersion: version })
+  // the 100× legs read these two: badBeat flips long and short, ref takes the stake-pool referral slice
+  if (q.get('badBeat') === '1') out.set('badBeat', '1')
+  const ref = q.get('ref')
+  if (ref && validPublicKey(ref)) out.set('ref', ref)
+  return out
 }
 function publicQuote(data: any, q: URLSearchParams) {
   if (!object(data) || data.inputMint !== q.get('inputMint') || data.outputMint !== q.get('outputMint') || data.inAmount !== q.get('amount') || data.swapMode !== 'ExactIn' || data.slippageBps !== Number(q.get('slippageBps')) || !Array.isArray(data.routePlan) || data.routePlan.length < 1 || data.routePlan.length > 16) throw new RequestError(502, 'Router returned an invalid quote')
@@ -179,6 +184,44 @@ function publicQuote(data: any, q: URLSearchParams) {
   return { ...safe, transactionVersion: q.get('transactionVersion') }
 }
 const LP_VENUES = new Set(['raydium-cpmm','raydium-clmm','raydium-amm','raydium-amm-v4','orca','meteora-dlmm','meteora-damm','meteora-damm-v2','pumpswap'])
+
+// ---- 100× legs (owner spec 2026-10-13) --------------------------------------
+// 1 bp of each hop goes to the house (the lp-zap composer, on chain). 10 bp of each hop is split in half: a 100× long on
+// what that hop bought and a 100× short on what it sold (badBeat flips), on 100x.broker markets, listing any coin that has
+// none. 100x.broker owns the markets, so it plans and builds the legs; the router attaches them to every quote and swap.
+const LEGS_URL = process.env.LEGS_URL ?? 'https://100x.broker/api/legs'
+type LegsHop = { inputMint: string; outputMint: string; inAmount: string; outAmount: string; label?: string }
+const DIGITS = /^\d{1,39}$/
+function routeHops(quote: unknown): LegsHop[] {
+  if (!object(quote)) return []
+  const plan: any[] = Array.isArray(quote.routePlan) ? quote.routePlan : []
+  const label = (s: any) => (typeof s?.label === 'string' ? { label: s.label.slice(0, 60) } : {})
+  const hops = plan.map((h: any) => h?.swapInfo).filter((s: any) => object(s) && validPublicKey(String(s.inputMint)) && validPublicKey(String(s.outputMint))
+    && DIGITS.test(String(s.inAmount)) && DIGITS.test(String(s.outAmount)))
+    .map((s: any) => ({ inputMint: String(s.inputMint), outputMint: String(s.outputMint), inAmount: String(s.inAmount), outAmount: String(s.outAmount), ...label(s) }))
+  if (hops.length === plan.length && hops.length) return hops
+  // A hop the route plan did not price: a one-hop route is the whole quote; a longer one is priced end to end so the
+  // legs still bet on what was sold and what was bought.
+  if (validPublicKey(String(quote.inputMint)) && validPublicKey(String(quote.outputMint)) && DIGITS.test(String(quote.inAmount)) && DIGITS.test(String(quote.outAmount)))
+    return [{ inputMint: String(quote.inputMint), outputMint: String(quote.outputMint), inAmount: String(quote.inAmount), outAmount: String(quote.outAmount), ...label(plan[0]?.swapInfo) }]
+  return hops
+}
+async function fetchLegs(fetcher: typeof fetch, hops: LegsHop[], wallet: string | null, badBeat: boolean, ref: string | null, build: boolean): Promise<any> {
+  let r: Response
+  try {
+    r = await fetcher(LEGS_URL, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ hops, wallet, badBeat, ref, build }), signal: AbortSignal.timeout(build ? 50_000 : 12_000) })
+  } catch { throw new RequestError(503, '100× legs are unavailable right now; retry shortly') }
+  const j: any = await r.json().catch(() => null)
+  if (!r.ok || !object(j) || !Array.isArray(j.hops)) throw new RequestError(503, `100× legs are unavailable right now${object(j) && typeof j.error === 'string' ? `: ${j.error.slice(0, 160)}` : ''}`)
+  return j
+}
+/** What a client shows before signing: everything but the transactions. */
+const legsSummary = (j: any) => ({ houseBps: j.houseBps, legBps: j.legBps, badBeat: j.badBeat, totalLamports: j.totalLamports, hops: j.hops,
+  listings: (j.listings ?? []).map((l: any) => ({ mint: l.mint, symbol: l.symbol, venue: l.venue, quote: l.quote, market: l.market, estRentSol: l.estRentSol, steps: l.steps })),
+  pending: j.pending ?? [], unplaceable: j.unplaceable ?? [], url: LEGS_URL,
+  // per bet transaction (aligned with the bet wires after the swap): the merged orders it carries, for status and retry
+  txBets: Array.isArray(j.txBets) ? j.txBets : [], costs: j.costs ?? null })
 export function validateLiquidityRequest(value: unknown, build = false): Record<string, any> {
   if (!object(value)) fail('Invalid liquidity request')
   const owner = address(value.owner), transactionVersion = value.transactionVersion ?? '1'
@@ -244,9 +287,12 @@ export function createSolanaRouterHandler(options: Options) {
     return directPromise
   }
   function localIntent(q: URLSearchParams): LocalIntent {
+    const ref = q.get('ref')
     return { inputMint: q.get('inputMint')!, outputMint: q.get('outputMint')!,
       amount: q.get('amount')!, slippageBps: Number(q.get('slippageBps')),
-      transactionVersion: q.get('transactionVersion') as '0' | '1' }
+      transactionVersion: q.get('transactionVersion') as '0' | '1',
+      badBeat: q.get('badBeat') === '1',
+      ...(ref && validPublicKey(ref) ? { ref } : {}) }
   }
   const buckets = new Map<string, { until: number; count: number }>()
   let inflight = 0
@@ -285,23 +331,54 @@ export function createSolanaRouterHandler(options: Options) {
   // established markets. Either may lack a pair; whichever quotes more output
   // wins, and the swap is built from that same source.
   async function bestQuote(q: URLSearchParams): Promise<{ quote: any; source: 'direct' | 'external' }> {
+    const budget = <T>(p: Promise<T>, ms: number): Promise<T> => new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new RequestError(404, 'No executable route is available for this pair and amount')), ms)
+      p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
+    })
     const attempts: Promise<{ quote: any; source: 'direct' | 'external' }>[] = []
-    if (directEnabled) attempts.push(direct().then(async r => ({ quote: publicQuote((await r.quote(localIntent(q))).quote, q), source: 'direct' as const })))
-    if (externalEnabled) attempts.push(upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })))
+    // First answer wins. A thin pair is a couple of account reads, not a scan we hold the response for.
+    if (directEnabled) attempts.push(budget(direct().then(async r => ({ quote: publicQuote((await r.quote(localIntent(q))).quote, q), source: 'direct' as const })), 15_000))
+    if (externalEnabled) attempts.push(budget(upstream(`${router('/quote')}?${q}`, {}, 6_000).then(data => ({ quote: publicQuote(data, q), source: 'external' as const })), 6_000))
     if (!attempts.length) throw new RequestError(503, 'Solana trading is not configured yet')
-    const settled = await Promise.allSettled(attempts)
-    const winners = settled.flatMap(r => r.status === 'fulfilled' ? [r.value] : []).sort((a, b) => BigInt(a.quote.outAmount) < BigInt(b.quote.outAmount) ? 1 : BigInt(a.quote.outAmount) > BigInt(b.quote.outAmount) ? -1 : 0)
-    if (!winners.length) {
-      const reasons = settled.map(r => (r as PromiseRejectedResult).reason)
-      // Rate-limited whenever the direct router could not read its candidate
-      // pools: an external 404 proves nothing about pools only FTL knows.
-      if (directEnabled && directTransient(reasons[0]))
-        throw new RequestError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S)
-      throw reasons[0] instanceof RequestError ? reasons[0] : new RequestError(404, 'No executable route is available for this pair and amount')
-    }
-    return winners[0]
+    return await new Promise((resolve, reject) => {
+      let pending = attempts.length
+      let done = false
+      const fails: unknown[] = []
+      const giveUp = () => {
+        if (done) return
+        done = true
+        const reason = fails[0]
+        if (directEnabled && directTransient(reason))
+          reject(new RequestError(503, RATE_LIMITED_MESSAGE, RATE_LIMITED_RETRY_AFTER_S))
+        else if (reason instanceof RequestError) reject(reason)
+        else reject(new RequestError(404, 'No executable route is available for this pair and amount'))
+      }
+      // Failures are kept by source (index 0 is the direct router when it is enabled), not by arrival: a rate-limited
+      // direct router must classify as 503 even when the external router's 404 arrives first.
+      attempts.forEach((attempt, i) => {
+        attempt.then(value => {
+          if (done) return
+          done = true
+          resolve(value)
+        }).catch(error => {
+          fails[i] = error
+          if (--pending === 0) giveUp()
+        })
+      })
+    })
   }
-  async function getQuote(q: URLSearchParams) { return (await bestQuote(q)).quote }
+  async function getQuote(q: URLSearchParams) {
+    const quote = (await bestQuote(q)).quote
+    // The legs preview: what each hop will long and short, on which market, and which coins get listed. A preview that
+    // cannot be fetched says so; the swap build itself refuses to go out without its legs.
+    const hops = routeHops(quote)
+    if (hops.length) {
+      const ref = q.get('ref')
+      try { quote.legs = legsSummary(await fetchLegs(fetcher, hops, null, q.get('badBeat') === '1', ref && validPublicKey(ref) ? ref : null, false)) }
+      catch (e) { quote.legs = { error: e instanceof Error ? e.message : '100× legs unavailable' } }
+    }
+    return quote
+  }
   // All-venue positions for one owner over the same bounded transport. Used by
   // the holdings endpoint; errors carry the RequestError status, never a URL.
   const positions = (owner: string) => upstream(`${router('/liquidity/positions')}?${new URLSearchParams({ owner: address(owner) })}`, {}, 65_000, true)
@@ -327,41 +404,61 @@ export function createSolanaRouterHandler(options: Options) {
   // POST /api/swap/solana body → built swap. Only the user's trade intent and
   // minimum survive; route plans, accounts, destination overrides and fee
   // recipients supplied by clients do not.
-  async function buildSwap(j: any): Promise<any> {
+  /** `withLegs`: the public swap endpoint attaches the 100× legs; internal callers (the LP zap's swap step) do not. */
+  async function buildSwap(j: any, withLegs = false): Promise<any> {
     if (!object(j) || !object(j.quoteResponse) || (j.wrapAndUnwrapSol !== undefined && j.wrapAndUnwrapSol !== true)) fail('Invalid swap request')
     const requestedVersion = j.transactionVersion === undefined ? '1' : String(j.transactionVersion)
     if (requestedVersion !== '1' && requestedVersion !== '0') fail('transactionVersion must be 1 or 0')
     const wallet = address(j.userPublicKey), old = j.quoteResponse
     const q = quoteParams(new URLSearchParams({ inputMint: old.inputMint, outputMint: old.outputMint, amount: old.inAmount, slippageBps: String(old.slippageBps), swapMode: old.swapMode, transactionVersion: requestedVersion }))
+    if (j.badBeat === true || j.badBeat === '1' || j.badBeat === 1) q.set('badBeat', '1')
+    if (typeof j.ref === 'string' && validPublicKey(j.ref)) q.set('ref', j.ref)
     const minimum = amount(old.otherAmountThreshold)
     let fresh: any, data: any, fromDirect = false
-    // Build on the direct router and quote the external router in parallel;
-    // the external route wins only when it returns strictly more output.
-    const [builtDirect, external] = await Promise.allSettled([
-      directEnabled ? direct().then(r => r.swap(localIntent(q), wallet, minimum)) : Promise.reject(new RequestError(503, 'Direct routing is not configured')),
-      externalEnabled ? upstream(`${router('/quote')}?${q}`, {}, directEnabled ? 12_000 : 25_000).then(d => publicQuote(d, q)) : Promise.reject(new RequestError(503, 'Solana trading is not configured yet')),
-    ])
-    const directOut = builtDirect.status === 'fulfilled' ? BigInt(publicQuote(builtDirect.value.quoteResponse, q).outAmount) : null
-    const externalOut = external.status === 'fulfilled' ? BigInt(external.value.outAmount) : null
-    if (directOut === null && externalOut === null) throw builtDirect.reason instanceof RequestError ? builtDirect.reason : external.reason instanceof RequestError ? external.reason : new RequestError(404, 'No executable route is available for this pair and amount')
-    if (directOut !== null && (externalOut === null || directOut >= externalOut)) {
-      data = (builtDirect as PromiseFulfilledResult<any>).value
-      fresh = publicQuote(data.quoteResponse, q)
-      fromDirect = true
+    const directError = (error: unknown) => error instanceof RequestError ? error
+      : object(error) && Number.isInteger(error.status) && typeof error.message === 'string'
+        ? new RequestError(Number(error.status), String(error.message), Number.isSafeInteger(error.retryAfter) ? Number(error.retryAfter) : undefined)
+        : null
+    // A direct transaction is the answer. Do not hold it for the other quote,
+    // and do not replace a direct failure with that quote's timeout.
+    if (directEnabled) {
+      try {
+        data = await direct().then(r => r.swap(localIntent(q), wallet, minimum))
+        fresh = publicQuote(data.quoteResponse, q)
+        fromDirect = true
+      } catch (error) {
+        const reason = directError(error)
+        throw reason ?? error
+      }
     } else {
-      fresh = (external as PromiseFulfilledResult<any>).value
+      fresh = await upstream(`${router('/quote')}?${q}`, {}, 25_000).then(d => publicQuote(d, q))
       if (BigInt(fresh.outAmount) < BigInt(minimum)) throw new RequestError(409, 'The price moved beyond your minimum received. Refresh the quote.')
       if (BigInt(fresh.otherAmountThreshold) < BigInt(minimum)) fresh.otherAmountThreshold = minimum
       data = await upstream(router('/swap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userPublicKey: wallet, transactionVersion: requestedVersion, wrapAndUnwrapSol: true, autoCreateOutAta: true, quoteResponse: fresh }) }, 30_000)
     }
-    if (!object(data) || typeof data.swapTransaction !== 'string' || !Number.isSafeInteger(data.lastValidBlockHeight) || data.lastValidBlockHeight < 1) throw new RequestError(502, 'Router returned an invalid transaction')
-    transaction(data.swapTransaction, false)
-    if (transactionVersion(data.swapTransaction) !== requestedVersion || (data.transactionVersion !== undefined && String(data.transactionVersion) !== requestedVersion)) throw new RequestError(502, 'Router returned a different transaction version than requested')
+    const wires = Array.isArray(data.swapTransactions) && data.swapTransactions.length
+      ? data.swapTransactions : [data.swapTransaction]
+    if (!object(data) || wires.some((w: unknown) => typeof w !== 'string') || !Number.isSafeInteger(data.lastValidBlockHeight) || data.lastValidBlockHeight < 1) throw new RequestError(502, 'Router returned an invalid transaction')
+    for (const wire of wires) transaction(wire, false)
+    const got = transactionVersion(wires[0])
+    if ((requestedVersion === '1' && got !== '1') || (requestedVersion === '0' && got === 'legacy')) throw new RequestError(502, 'Router returned a different transaction version than requested')
     // A composed (multi-hop, on-chain composer) direct route says so; only the
     // direct router can produce one, so external responses never carry it. The
     // same holds for a decoded route through a learned program.
     const composed = fromDirect && data.composed === true && Number.isSafeInteger(data.hops) && data.hops > 1 && data.hops <= 8
-    return { transactionVersion: requestedVersion, swapTransaction: data.swapTransaction, lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0,
+    // Every swap carries its 100× legs: one transaction per leg after the swap, then any listing for a coin that had no
+    // market (its own legs follow once it lands: `legs.pending`, rebuilt by POST legs.url with build:true). No legs, no swap.
+    const legs = withLegs ? await fetchLegs(fetcher, routeHops(fresh), wallet, q.get('badBeat') === '1', q.get('ref'), true)
+      : { txs: [], txLabels: [], listings: [], hops: [], totalLamports: '0', pending: [], unplaceable: [], houseBps: 1, legBps: 0, badBeat: false }
+    const legWires: string[] = (legs.txs ?? []).filter((w: unknown) => typeof w === 'string' && B64.test(w))
+    const listingWires: string[] = (legs.listings ?? []).flatMap((l: any) => (l.txs ?? []).filter((w: unknown) => typeof w === 'string' && B64.test(w)))
+    const all = [...wires, ...legWires, ...listingWires]
+    const labels = [...wires.map((_: string, i: number) => wires.length > 1 ? `Swap (${i + 1}/${wires.length})` : 'Swap'),
+      ...(legs.txLabels ?? []).slice(0, legWires.length),
+      ...(legs.listings ?? []).flatMap((l: any) => (l.steps ?? []).map((s: string) => `List $${l.symbol ?? l.mint.slice(0, 4)}: ${s}`))]
+    return { transactionVersion: got, swapTransaction: wires[0],
+      ...(withLegs ? { swapTransactions: all, transactionLabels: labels, legs: legsSummary(legs) } : wires.length > 1 ? { swapTransactions: wires } : {}),
+      lastValidBlockHeight: data.lastValidBlockHeight, prioritizationFeeLamports: data.prioritizationFeeLamports ?? data.priorizationFeeLamports ?? 0,
       ...(composed ? { composed: true, hops: data.hops } : {}),
       ...(fromDirect && data.decoded === true && typeof data.decodedProgramId === 'string' ? { decoded: true, decodedProgramId: data.decodedProgramId,
         ...(typeof data.decodedProgramName === 'string' ? { decodedProgramName: data.decodedProgramName } : {}) } : {}),
@@ -399,7 +496,7 @@ export function createSolanaRouterHandler(options: Options) {
       else {
         let j: any
         try { j = JSON.parse(body) } catch { fail('Invalid JSON body') }
-        if (route === 'POST:/api/swap/solana') data = await buildSwap(j)
+        if (route === 'POST:/api/swap/solana') data = await buildSwap(j, true)
         else {
           if (!options.rpcUrl) throw new RequestError(503, 'Solana wallet RPC is not configured yet')
           const request = validateRpc(j)

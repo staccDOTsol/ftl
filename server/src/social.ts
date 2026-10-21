@@ -14,8 +14,13 @@ export class HttpError extends Error {
 }
 
 const pruneDeletionGuards = db.prepare('DELETE FROM account_deletion_guards WHERE deleted_ts < ?')
-pruneDeletionGuards.run(Date.now() - 5 * 60_000)
-setInterval(() => pruneDeletionGuards.run(Date.now() - 5 * 60_000), 60_000).unref()
+// A locked database must not kill the process. The quote thread never writes.
+function pruneGuards() {
+  if (process.env.QUOTE_ONLY === '1') return
+  try { pruneDeletionGuards.run(Date.now() - 5 * 60_000) } catch (e) { console.error('[social] prune', e) }
+}
+pruneGuards()
+setInterval(pruneGuards, 60_000).unref()
 
 export function verify(method: string, path: string, body: string, h: Record<string, string | string[] | undefined>): string {
   const pubkey = String(h['x-ftl-pubkey'] ?? '')

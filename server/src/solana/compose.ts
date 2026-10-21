@@ -1,6 +1,6 @@
 // Client for the lp-zap composer program: one `compose` instruction that CPIs
 // a sequence of opaque venue instructions, patches later amounts from real
-// balance deltas, charges 0.1% in kind per fee'd hop and checks the outcome.
+// balance deltas, charges 1 bp in kind per fee'd hop and checks the outcome.
 // The byte layout mirrors lp-zap/src/layout.rs exactly; every structural
 // limit the program enforces is enforced here first so a bad description
 // never reaches a wallet.
@@ -16,7 +16,10 @@ export const FEE_RECIPIENT = new PublicKey('331nEBz4i3XjyaUHVyHnpw9xBoW7D6P1qMPn
 /** Program id declared in lp-zap/src/lib.rs. Deployments pick theirs from
  * LP_ZAP_PROGRAM_ID; this constant is only the source's declared id. */
 export const LP_ZAP_DECLARED_PROGRAM_ID = '9D2CVzKrvB8MYXZhZzRS3a7BdDBbdzVKqFd82QnVVzjA'
-export const FEE_BPS = 10n
+export const FEE_BPS = 1n
+/** Per hop, taken on top of FEE_BPS and split across the hop's two markets:
+ * half buys DOWN of the sold token, half buys UP of the bought token. */
+export const HOP_POSITION_BPS = 10n
 export const BPS_DENOMINATOR = 10_000n
 
 export const TAG_COMPOSE = 0
@@ -160,7 +163,7 @@ export function decodeCompose(bytes: Uint8Array): ComposeDescription {
 
 // ---- fee helpers ------------------------------------------------------------
 
-/** The fee the program takes from a hop's positive delta (floor, 10 bps). */
+/** The fee the program takes from a hop's positive delta (floor, 1 bp). */
 export const composerFee = (delta: bigint): bigint => delta > 0n ? delta * FEE_BPS / BPS_DENOMINATOR : 0n
 /** What the next hop (or the wallet) actually sees after the in-kind fee. */
 export const afterComposerFee = (delta: bigint): bigint => delta - composerFee(delta)
@@ -168,9 +171,9 @@ export const afterComposerFee = (delta: bigint): bigint => delta - composerFee(d
 export function hopEstimates(grossOuts: bigint[]): { gross: bigint; fee: bigint; net: bigint }[] {
   return grossOuts.map(gross => ({ gross, fee: composerFee(gross), net: afterComposerFee(gross) }))
 }
-/** Venue min_out for the final hop so that min_out minus the fee still
- * covers the user's minimum: ceil(userMin * 1000 / 999). */
-export const finalHopMinimum = (userMin: bigint): bigint => (userMin * 1000n + 998n) / 999n
+/** Venue min_out for the final hop so that min_out minus the 1 bp fee still
+ * covers the user's minimum: ceil(userMin * 10000 / 9999). */
+export const finalHopMinimum = (userMin: bigint): bigint => (userMin * 10_000n + 9_998n) / 9_999n
 
 /** The fee recipient's canonical ATA for a Token or Token-2022 mint. */
 export function feeAta(mint: PublicKey, tokenProgram: PublicKey = TOKEN_PROGRAM_ID): PublicKey {
@@ -289,9 +292,16 @@ const hoist = (instructions: TransactionInstruction[]) => instructions.reduce<Tr
  * venue already fails before the fee if the user's floor is unreachable;
  * every hop pays the 0.1% fee on the token account it fills; one check
  * requires the destination's final delta >= userMin. */
+/** Steps that run after the venue hops, inside the same compose: the 10 bp
+ * long/short. `check` replaces the default "destination gained at least
+ * userMin" when those steps spend some of that destination. */
+export type ComposeTail = { steps: ComposeStepInput[]; before?: TransactionInstruction[];
+  after?: TransactionInstruction[]; check: { watch: PublicKey; bound: bigint } }
+
 export function composeRoute(legs: ComposeLeg[], owner: PublicKey, userMin: bigint,
-  programId: PublicKey): ComposedRoute {
-  if (legs.length < 1 || legs.length > LIMITS.steps) bad('Unsupported composed hop count')
+  programId: PublicKey, tail?: ComposeTail): ComposedRoute {
+  const extra = tail?.steps ?? []
+  if (legs.length < 1 || legs.length + extra.length > LIMITS.steps) bad('Unsupported composed hop count')
   if (userMin <= 0n || userMin > I64_MAX) bad('Composed minimum must be a positive i64')
   legs.forEach(({ leg }, i) => {
     if (!leg.offsets) bad('A venue leg has unproven amount offsets and cannot be composed')
@@ -305,13 +315,15 @@ export function composeRoute(legs: ComposeLeg[], owner: PublicKey, userMin: bigi
     data.writeBigUInt64LE(i === last ? finalHopMinimum(userMin) : 0n, offsets.minOutOffset)
     return { instruction: new TransactionInstruction({ programId: swap.programId, keys: swap.keys, data }),
       patches: i === 0 ? [] : [{ dataOffset: offsets.amountInOffset, watch: legs[i - 1].leg.outputAccount, fromStep: i - 1 }],
-      fee: { watch: leg.outputAccount, mint: outputMint, tokenProgram: outputTokenProgram } }
+      // A Token-2022 output pays its fee to the Token-2022 fee ATA via TransferChecked.
+      fee: { watch: leg.outputAccount, mint: outputMint, tokenProgram: outputTokenProgram ?? leg.outputTokenProgram } }
   })
-  const compose = composeInstructions({ programId, payer: owner, steps,
-    checks: [{ watch: legs[last].leg.outputAccount, kind: 'min', bound: userMin }] })
+  const check = tail?.check ?? { watch: legs[last].leg.outputAccount, bound: userMin }
+  const compose = composeInstructions({ programId, payer: owner, steps: [...steps, ...extra],
+    checks: [{ watch: check.watch, kind: 'min', bound: check.bound }] })
   return { compose, hops: legs.length,
-    before: hoist(legs.flatMap(({ leg }) => leg.instructions.slice(0, leg.swapIndex))),
-    after: hoist(legs.flatMap(({ leg }) => leg.instructions.slice(leg.swapIndex + 1))) }
+    before: hoist([...legs.flatMap(({ leg }) => leg.instructions.slice(0, leg.swapIndex)), ...(tail?.before ?? [])]),
+    after: hoist([...legs.flatMap(({ leg }) => leg.instructions.slice(leg.swapIndex + 1)), ...(tail?.after ?? [])]) }
 }
 
 // ---- zap hook ---------------------------------------------------------------
